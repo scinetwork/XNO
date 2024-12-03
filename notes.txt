@@ -1,0 +1,25 @@
+Arguments to Keep:
+
+n_modes: Defines the number of Fourier modes along each dimension. Essential for controlling the spectral resolution of the operator.
+
+in_channels: Number of input channels. Critical for matching the input data's dimensions.
+
+out_channels: Number of output channels. Important for producing outputs of the desired shape.
+
+hidden_channels: Width of the network (number of channels in hidden layers). Influences the model's capacity.
+
+n_layers: Number of Fourier layers. Adjusts the depth of the network.
+
+lifting_channels (optional): Controls the size of the lifting layer, which maps input data to a higher-dimensional space. Keeping this allows for flexibility in adjusting the model's capacity at the input stage.
+
+projection_channels (optional): Similar to lifting_channels, but for the projection layer that maps back to the output space. Keeping this allows for flexibility at the output stage.
+
+positional_embedding (optional): Allows customization of positional embeddings. Useful if you want to experiment with different embedding strategies or none at all.
+
+non_linearity (optional): Specifies the activation function. Keeping this enables experimentation with different non-linearities.
+
+Arguments to Remove:
+
+Advanced Architectural Parameters: Parameters like resolution_scaling_factor, domain_padding, domain_padding_mode, stabilizer, factorization, rank, fixed_rank_modes, implementation, decomposition_kwargs, separable, preactivation, complex_data, fno_block_precision, max_n_modes, norm, channel_mlp_dropout, channel_mlp_expansion, channel_mlp_skip, fno_skip, and conv_module are specialized settings that are not frequently adjusted in typical use cases.
+
+Redundant or Less Impactful Parameters: Parameters like lifting_channel_ratio and projection_channel_ratio can be removed if you directly use lifting_channels and projection_channels for clarity.

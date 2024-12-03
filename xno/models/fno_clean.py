@@ -52,7 +52,7 @@ class FNO(BaseModel, name='FNO'):
         ratio of projection channels to hidden_channels, by default 2
         The number of projection channels in the projection block of the FNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
-    positional_embedding : Union[str, nn.Module], optional
+    ~~ positional_embedding : Union[str, nn.Module], optional
         Positional embedding to apply to last channels of raw input
         before being passed through the FNO. Defaults to "grid"
 
@@ -65,7 +65,7 @@ class FNO(BaseModel, name='FNO'):
 
         * If None, does nothing
 
-    non_linearity : nn.Module, optional
+    ~~ non_linearity : nn.Module, optional
         Non-Linear activation function module to use, by default F.gelu
     ~~ norm : str {"ada_in", "group_norm", "instance_norm"}, optional
         Normalization layer to use, by default None
@@ -168,8 +168,28 @@ class FNO(BaseModel, name='FNO'):
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
-        positional_embedding: Union[str, nn.Module]="grid",
-        non_linearity: nn.Module=F.gelu,
+        # positional_embedding: Union[str, nn.Module]="grid",
+        # non_linearity: nn.Module=F.gelu,
+        # norm: str=None,
+        # complex_data: bool=False,
+        # channel_mlp_dropout: float=0,
+        # channel_mlp_expansion: float=0.5,
+        # channel_mlp_skip: str="soft-gating",
+        # fno_skip: str="linear",
+        # resolution_scaling_factor: Union[Number, List[Number]]=None,
+        # domain_padding: Union[Number, List[Number]]=None,
+        # domain_padding_mode: str="one-sided",
+        # fno_block_precision: str="full",
+        # stabilizer: str=None,
+        # max_n_modes: Tuple[int]=None,
+        # factorization: str=None,
+        # rank: float=1.0,
+        # fixed_rank_modes: bool=False,
+        # implementation: str="factorized",
+        # decomposition_kwargs: dict=dict(),
+        # separable: bool=False,
+        # preactivation: bool=False,
+        # conv_module: nn.Module=SpectralConv,
         **kwargs
     ):
         
@@ -187,30 +207,41 @@ class FNO(BaseModel, name='FNO'):
 
         # init lifting and projection channels using ratios w.r.t hidden channels
         self.lifting_channel_ratio = lifting_channel_ratio
-        self.lifting_channels = lifting_channel_ratio * self.hidden_channels
+        # self.lifting_channels = lifting_channel_ratio * self.hidden_channels
 
         self.projection_channel_ratio = projection_channel_ratio
-        self.projection_channels = projection_channel_ratio * self.hidden_channels
+        # self.projection_channels = projection_channel_ratio * self.hidden_channels
 
-        self.non_linearity = non_linearity
+        # self.non_linearity = non_linearity
+        # self.rank = rank
+        # self.factorization = factorization
+        # self.fixed_rank_modes = fixed_rank_modes
+        # self.decomposition_kwargs = decomposition_kwargs
+        # self.fno_skip = (fno_skip,)
+        # self.channel_mlp_skip = (channel_mlp_skip,)
+        # self.implementation = implementation
+        # self.separable = separable
+        # self.preactivation = preactivation
+        # self.complex_data = complex_data
+        # self.fno_block_precision = fno_block_precision
         
-        if positional_embedding == "grid":
-            spatial_grid_boundaries = [[0., 1.]] * self.n_dim
-            self.positional_embedding = GridEmbeddingND(in_channels=self.in_channels,
-                                                        dim=self.n_dim, 
-                                                        grid_boundaries=spatial_grid_boundaries)
-        elif isinstance(positional_embedding, GridEmbedding2D):
-            if self.n_dim == 2:
-                self.positional_embedding = positional_embedding
-            else:
-                raise ValueError(f'Error: expected {self.n_dim}-d positional embeddings, got {positional_embedding}')
-        elif isinstance(positional_embedding, GridEmbeddingND):
-            self.positional_embedding = positional_embedding
-        elif positional_embedding == None:
-            self.positional_embedding = None
-        else:
-            raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
-                              expected one of \'grid\', GridEmbeddingND")
+        # if positional_embedding == "grid":
+        #     spatial_grid_boundaries = [[0., 1.]] * self.n_dim
+        #     self.positional_embedding = GridEmbeddingND(in_channels=self.in_channels,
+        #                                                 dim=self.n_dim, 
+        #                                                 grid_boundaries=spatial_grid_boundaries)
+        # elif isinstance(positional_embedding, GridEmbedding2D):
+        #     if self.n_dim == 2:
+        #         self.positional_embedding = positional_embedding
+        #     else:
+        #         raise ValueError(f'Error: expected {self.n_dim}-d positional embeddings, got {positional_embedding}')
+        # elif isinstance(positional_embedding, GridEmbeddingND):
+        #     self.positional_embedding = positional_embedding
+        # elif positional_embedding == None:
+        #     self.positional_embedding = None
+        # else:
+        #     raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
+        #                       expected one of \'grid\', GridEmbeddingND")
         
         # if domain_padding is not None and (
         #     (isinstance(domain_padding, list) and sum(domain_padding) > 0)
@@ -239,7 +270,7 @@ class FNO(BaseModel, name='FNO'):
             # resolution_scaling_factor=resolution_scaling_factor,
             # channel_mlp_dropout=channel_mlp_dropout,
             # channel_mlp_expansion=channel_mlp_expansion,
-            non_linearity=non_linearity,
+            # non_linearity=non_linearity,
             # stabilizer=stabilizer,
             # norm=norm,
             # preactivation=preactivation,
@@ -261,41 +292,41 @@ class FNO(BaseModel, name='FNO'):
         
         # if adding a positional embedding, add those channels to lifting
         lifting_in_channels = self.in_channels
-        if self.positional_embedding is not None:
-            lifting_in_channels += self.n_dim
+        # if self.positional_embedding is not None:
+        #     lifting_in_channels += self.n_dim
         # if lifting_channels is passed, make lifting a Channel-Mixing MLP
         # with a hidden layer of size lifting_channels
-        if self.lifting_channels:
-            self.lifting = ChannelMLP(
-                in_channels=lifting_in_channels,
-                out_channels=self.hidden_channels,
-                hidden_channels=self.lifting_channels,
-                n_layers=2,
-                n_dim=self.n_dim,
-                non_linearity=non_linearity
-            )
+        # if self.lifting_channels:
+        #     self.lifting = ChannelMLP(
+        #         in_channels=lifting_in_channels,
+        #         out_channels=self.hidden_channels,
+        #         hidden_channels=self.lifting_channels,
+        #         n_layers=2,
+        #         n_dim=self.n_dim,
+        #         non_linearity=non_linearity
+        #     )
         # otherwise, make it a linear layer
-        else:
-            self.lifting = ChannelMLP(
-                in_channels=lifting_in_channels,
-                hidden_channels=self.hidden_channels,
-                out_channels=self.hidden_channels,
-                n_layers=1,
-                n_dim=self.n_dim,
-                non_linearity=non_linearity
-            )
+        # else:
+        #     self.lifting = ChannelMLP(
+        #         in_channels=lifting_in_channels,
+        #         hidden_channels=self.hidden_channels,
+        #         out_channels=self.hidden_channels,
+        #         n_layers=1,
+        #         n_dim=self.n_dim,
+        #         non_linearity=non_linearity
+        #     )
         # Convert lifting to a complex ChannelMLP if self.complex_data==True
         # if self.complex_data:
         #     self.lifting = ComplexValued(self.lifting)
 
-        self.projection = ChannelMLP(
-            in_channels=self.hidden_channels,
-            out_channels=out_channels,
-            hidden_channels=self.projection_channels,
-            n_layers=2,
-            n_dim=self.n_dim,
-            non_linearity=non_linearity,
-        )
+        # self.projection = ChannelMLP(
+        #     in_channels=self.hidden_channels,
+        #     out_channels=out_channels,
+        #     # hidden_channels=self.projection_channels,
+        #     n_layers=2,
+        #     n_dim=self.n_dim,
+        #     non_linearity=non_linearity,
+        # )
         # if self.complex_data:
         #     self.projection = ComplexValued(self.projection)
 
@@ -336,8 +367,8 @@ class FNO(BaseModel, name='FNO'):
             output_shape = [None]*(self.n_layers - 1) + [output_shape]
 
         # append spatial pos embedding if set
-        if self.positional_embedding is not None:
-            x = self.positional_embedding(x)
+        # if self.positional_embedding is not None:
+        #     x = self.positional_embedding(x)
         
         x = self.lifting(x)
 
@@ -381,12 +412,12 @@ class FNO1d(FNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
+        # lifting_channels=256,
+        # projection_channels=256,
         # max_n_modes=None,
         n_layers=4,
         # resolution_scaling_factor=None,
-        non_linearity=F.gelu,
+        # non_linearity=F.gelu,
         # stabilizer=None,
         # complex_data=False,
         # fno_block_precision="full",
@@ -410,11 +441,11 @@ class FNO1d(FNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
+            # lifting_channels=lifting_channels,
+            # projection_channels=projection_channels,
             n_layers=n_layers,
             # resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            # non_linearity=non_linearity,
             # stabilizer=stabilizer,
             # complex_data=complex_data,
             # fno_block_precision=fno_block_precision,
@@ -456,12 +487,12 @@ class FNO2d(FNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
+        # lifting_channels=256,
+        # projection_channels=256,
         n_layers=4,
         # resolution_scaling_factor=None,
         # max_n_modes=None,
-        non_linearity=F.gelu,
+        # non_linearity=F.gelu,
         # stabilizer=None,
         # complex_data=False,
         # fno_block_precision="full",
@@ -485,11 +516,11 @@ class FNO2d(FNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
+            # lifting_channels=lifting_channels,
+            # projection_channels=projection_channels,
             n_layers=n_layers,
             # resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            # non_linearity=non_linearity,
             # stabilizer=stabilizer,
             # complex_data=complex_data,
             # fno_block_precision=fno_block_precision,
@@ -535,12 +566,12 @@ class FNO3d(FNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
+        # lifting_channels=256,
+        # projection_channels=256,
         n_layers=4,
         # resolution_scaling_factor=None,
         # max_n_modes=None,
-        non_linearity=F.gelu,
+        # non_linearity=F.gelu,
         # stabilizer=None,
         # complex_data=False,
         # fno_block_precision="full",
@@ -564,11 +595,11 @@ class FNO3d(FNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
+            # lifting_channels=lifting_channels,
+            # projection_channels=projection_channels,
             n_layers=n_layers,
             # resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            # non_linearity=non_linearity,
             # stabilizer=stabilizer,
             # complex_data=complex_data,
             # fno_block_precision=fno_block_precision,
