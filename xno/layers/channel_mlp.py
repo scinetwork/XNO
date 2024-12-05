@@ -71,7 +71,7 @@ class ChannelMLP(nn.Module):
 
         for i, fc in enumerate(self.fcs):
             x = fc(x)
-            if i < self.n_layers - 1:
+            if i < self.n_layers - 1: # we dont have activation function in the last layer
                 x = self.non_linearity(x)
             if self.dropout is not None:
                 x = self.dropout[i](x)
