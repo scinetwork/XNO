@@ -10,21 +10,21 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution import SpectralConv
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import FNOBlocks
+from ..layers.zno_block import ZNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
 class ZNO(BaseModel, name='ZNO'):
-    """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
+    """N-Dimensional Fourier Neural Operator. The ZNO learns a mapping between
     spaces of functions discretized over regular grids using Fourier convolutions, 
     as described in [1]_.
     
-    The key component of an FNO is its SpectralConv layer (see 
+    The key component of an ZNO is its SpectralConv layer (see 
     ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
     conv layer but operates in the frequency domain.
 
-    For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
+    For a deeper dive into the ZNO architecture, refer to :ref:`fno_intro`.
 
     Parameters
     ----------
@@ -44,11 +44,11 @@ class ZNO(BaseModel, name='ZNO'):
 
     Other parameters
     ------------------
-    lifting_channel_ratio : int, optional
+    ~~ lifting_channel_ratio : int, optional
         ratio of lifting channels to hidden_channels, by default 2
         The number of liting channels in the lifting block of the FNO is
         lifting_channel_ratio * hidden_channels (e.g. default 512)
-    projection_channel_ratio : int, optional
+    ~~ projection_channel_ratio : int, optional
         ratio of projection channels to hidden_channels, by default 2
         The number of projection channels in the projection block of the FNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
@@ -166,8 +166,6 @@ class ZNO(BaseModel, name='ZNO'):
         out_channels: int,
         hidden_channels: int,
         n_layers: int=4,
-        lifting_channel_ratio: int=2,
-        projection_channel_ratio: int=2,
         **kwargs
     ):
         
@@ -183,20 +181,13 @@ class ZNO(BaseModel, name='ZNO'):
         self.out_channels = out_channels
         self.n_layers = n_layers
 
-        self.lifting_channel_ratio = lifting_channel_ratio
-
-        self.projection_channel_ratio = projection_channel_ratio
-        
-        self.fno_blocks = FNOBlocks(
+        self.fno_blocks = ZNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
             n_layers=n_layers,
             **kwargs
         )
-        
-        # if adding a positional embedding, add those channels to lifting
-        lifting_in_channels = self.in_channels
 
 
     def forward(self, x, output_shape=None, **kwargs):
@@ -232,8 +223,8 @@ class ZNO(BaseModel, name='ZNO'):
 
         if output_shape is None:
             output_shape = [None]*self.n_layers
-        elif isinstance(output_shape, tuple):
-            output_shape = [None]*(self.n_layers - 1) + [output_shape]
+        # elif isinstance(output_shape, tuple):
+        #     output_shape = [None]*(self.n_layers - 1) + [output_shape]
         
         x = self.lifting(x)
 
