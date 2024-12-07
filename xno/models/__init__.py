@@ -1,13 +1,15 @@
-from .fno_original import TFNO, TFNO1d, TFNO2d, TFNO3d
-from .fno_original import FNO, FNO1d, FNO2d, FNO3d
-from .local_fno import LocalFNO
+from .fno import TFNO, TFNO1d, TFNO2d, TFNO3d
+from .fno import FNO, FNO1d, FNO2d, FNO3d
+# from .local_fno import LocalFNO
+from .zno import TZNO, TZNO1d, TZNO2d, TZNO3d
+from .zno import ZNO, ZNO1d, ZNO2d, ZNO3d
 # only import SFNO if torch_harmonics is built locally
-try:
-    from .sfno import SFNO
-except ModuleNotFoundError:
-    pass
-from .uno import UNO
-from .uqno import UQNO
-from .fnogno import FNOGNO
-from .gino import GINO
+# try:
+#     from .sfno import SFNO
+# except ModuleNotFoundError:
+#     pass
+# from .uno import UNO
+# from .uqno import UQNO
+# from .fnogno import FNOGNO
+# from .gino import GINO
 from .base_model import get_model

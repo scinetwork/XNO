@@ -6,6 +6,7 @@ from torch import nn
 
 from .trainer import Trainer
 from ..models import FNO, TFNO
+from ..models import ZNO, TZNO
 from ..utils import compute_explained_variance
 
 class IncrementalFNOTrainer(Trainer):
@@ -41,7 +42,8 @@ class IncrementalFNOTrainer(Trainer):
                 incremental_grad_max_iter: int = 10,
                 incremental_loss_eps: float = 0.001,
                 ):
-        assert (isinstance(model, FNO) or isinstance(self.model, TFNO)), f"Error: \
+        self.model = model
+        assert (isinstance(self.model, FNO) or isinstance(self.model, TFNO) or isinstance(self.model, ZNO)), f"Error: \
             IncrementalFNOTrainer is designed to work with FNO or TFNO, instead got\
             a model of type {model.__class__.__name__}"
         

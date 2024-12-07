@@ -448,7 +448,7 @@ class SpectralConv(BaseSpectralConv):
             # The last mode already has redundant half removed in real FFT
             slices_w += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
             slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
-        
+                
         weight = self.weight[slices_w]
 
         # if separable conv, weight tensor only has one channel dim
