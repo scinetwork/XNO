@@ -266,6 +266,7 @@ class SpectralConv(BaseSpectralConv):
         n_modes,
         bias=True,
         device=None,
+        max_n_modes=None,
     ):
         super().__init__(device=device)
 
@@ -275,15 +276,21 @@ class SpectralConv(BaseSpectralConv):
         # n_modes is the total number of modes kept along each dimension
         self.n_modes = n_modes
         self.order = len(self.n_modes)
+        
+        if max_n_modes is None:
+            max_n_modes = self.n_modes
+        elif isinstance(max_n_modes, int):
+            max_n_modes = [max_n_modes]
+        self.max_n_modes = max_n_modes
 
         init_std = (2 / (in_channels + out_channels))**0.5
 
         self.fft_norm = "forward"
         
-        weight_shape = (in_channels, out_channels, None) 
+        weight_shape = (in_channels, out_channels, *max_n_modes) 
         
         self.weight = torch.tensor(weight_shape, dtype=torch.cfloat)
-        
+
         self.weight.normal_(0, init_std)        
         
         self._contract = get_contract_fun(
@@ -342,7 +349,14 @@ class SpectralConv(BaseSpectralConv):
         tensorized_spectral_conv(x)
         """
         batchsize, channels, *mode_sizes = x.shape
+        
         fft_size = list(mode_sizes)
+        # if not self.complex_data:
+        #     fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
+        complex_dat = False
+        if not complex_dat:
+            fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
+             
         fft_dims = list(range(-self.order, 0))
         
         x = torch.fft.rfftn(x, norm=self.fft_norm, dim=fft_dims)
@@ -355,7 +369,8 @@ class SpectralConv(BaseSpectralConv):
         out_fft = torch.zeros([batchsize, self.out_channels, *fft_size],
                               device=x.device, dtype=out_dtype)
         
-        starts = [(max_modes - min(size, n_mode)) for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, None)]
+        
+        starts = [(max_modes - min(size, n_mode)) for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, self.max_n_modes)]
         
         slices_w =  [slice(None), slice(None)] # in_channels, out_channels
         
@@ -363,7 +378,10 @@ class SpectralConv(BaseSpectralConv):
         slices_w += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
         slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
         
+        import pdb; pdb.set_trace()
+        
         weight = self.weight[slices_w]
+        
             
         weight_start_idx = 2
             
