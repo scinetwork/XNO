@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution import SpectralConv
-from ..layers.padding import DomainPadding
+# from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
+# from ..layers.spectral_convolution import SpectralConv
+# from ..layers.padding import DomainPadding
 from ..layers.zno_block import ZNOBlocks
 from ..layers.channel_mlp import ChannelMLP
-from ..layers.complex import ComplexValued
+# from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
 class ZNO(BaseModel, name='ZNO'):
@@ -166,6 +166,7 @@ class ZNO(BaseModel, name='ZNO'):
         out_channels: int,
         hidden_channels: int,
         n_layers: int=4,
+        max_n_modes: Tuple[int]=None,
         **kwargs
     ):
         
@@ -186,9 +187,33 @@ class ZNO(BaseModel, name='ZNO'):
             out_channels=hidden_channels,
             n_modes=self.n_modes,
             n_layers=n_layers,
+            max_n_modes=max_n_modes,
             **kwargs
         )
+        
+        # self.projection_channel_ratio = 2
+        # self.projection_channels = 2 * self.hidden_channels
+        
+        lifting_in_channels = self.in_channels
+        non_linearity = F.gelu
+        self.lifting = ChannelMLP(
+                in_channels=lifting_in_channels,
+                hidden_channels=self.hidden_channels,
+                out_channels=self.hidden_channels,
+                n_layers=1,
+                n_dim=self.n_dim,
+                non_linearity=non_linearity
+            )
 
+        projection_channels = 256
+        self.projection = ChannelMLP(
+            in_channels=self.hidden_channels,
+            out_channels=out_channels,
+            hidden_channels=projection_channels,
+            n_layers=2,
+            n_dim=self.n_dim,
+            non_linearity=non_linearity,
+        )
 
     def forward(self, x, output_shape=None, **kwargs):
         """FNO's forward pass
@@ -264,14 +289,17 @@ class ZNO1d(ZNO):
         out_channels=1,
         n_layers=4,
         skip="soft-gating",
+        max_n_modes=None,
         **kwargs
     ):
         super().__init__(
             n_modes=(n_modes_height,),
             hidden_channels=hidden_channels,
             in_channels=in_channels,
+            out_channels=out_channels,
             n_layers=n_layers,
             skip=skip,
+            max_n_modes=max_n_modes,
         )
         self.n_modes_height = n_modes_height
 
@@ -298,6 +326,7 @@ class ZNO2d(ZNO):
         out_channels=1,
         n_layers=4,
         skip="soft-gating",
+        max_n_modes=None,
         **kwargs
     ):
         super().__init__(
@@ -307,6 +336,7 @@ class ZNO2d(ZNO):
             out_channels=out_channels,
             n_layers=n_layers,
             skip=skip,
+            max_n_modes=max_n_modes,
         )
         self.n_modes_height = n_modes_height
         self.n_modes_width = n_modes_width
@@ -337,6 +367,7 @@ class ZNO3d(ZNO):
         out_channels=1,
         n_layers=4,
         skip="soft-gating",
+        max_n_modes=None,
         **kwargs
     ):
         super().__init__(
@@ -346,6 +377,7 @@ class ZNO3d(ZNO):
             out_channels=out_channels,
             n_layers=n_layers,
             skip=skip,
+            max_n_modes=max_n_modes,
         )
         self.n_modes_height = n_modes_height
         self.n_modes_width = n_modes_width
