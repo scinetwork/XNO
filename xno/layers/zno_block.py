@@ -92,11 +92,14 @@ class ZNOBlocks(nn.Module):
         n_layers=1,
         non_linearity=F.gelu,
         conv_module=SpectralConv,
+        max_n_modes=None,
         **kwargs,
     ):
         super().__init__()
         if isinstance(n_modes, int):
             n_modes = [n_modes]
+            
+        self.max_n_modes = max_n_modes   
         self._n_modes = n_modes
         self.n_dim = len(n_modes)
         self.in_channels = in_channels
@@ -104,11 +107,13 @@ class ZNOBlocks(nn.Module):
         self.n_layers = n_layers
         self.non_linearity = non_linearity
         
+        
         self.convs = nn.ModuleList([
                 conv_module(
                 self.in_channels,
                 self.out_channels,
                 self.n_modes,
+                max_n_modes=max_n_modes,
             ) 
             for i in range(n_layers)])
         

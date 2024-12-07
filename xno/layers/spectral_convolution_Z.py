@@ -267,6 +267,10 @@ class SpectralConv(BaseSpectralConv):
         bias=True,
         device=None,
         max_n_modes=None,
+        factorization=None,
+        decomposition_kwargs: Optional[dict] = None,
+        rank=0.5,
+
     ):
         super().__init__(device=device)
 
@@ -282,6 +286,9 @@ class SpectralConv(BaseSpectralConv):
         elif isinstance(max_n_modes, int):
             max_n_modes = [max_n_modes]
         self.max_n_modes = max_n_modes
+        
+        self.rank = rank
+        self.factorization = factorization
 
         init_std = (2 / (in_channels + out_channels))**0.5
 
@@ -289,8 +296,18 @@ class SpectralConv(BaseSpectralConv):
         
         weight_shape = (in_channels, out_channels, *max_n_modes) 
         
-        self.weight = torch.tensor(weight_shape, dtype=torch.cfloat)
-
+        if factorization is None:
+            factorization = "Dense"  # No factorization
+            
+        tensor_kwargs = decomposition_kwargs if decomposition_kwargs is not None else {}
+        
+        if factorization is None:
+            self.weight = torch.tensor(weight_shape, dtype=torch.cfloat)
+        else:
+            self.weight = FactorizedTensor.new(weight_shape, rank=self.rank, 
+                                     factorization=factorization, fixed_rank_modes=None,
+                                     **tensor_kwargs, dtype=torch.cfloat) 
+            
         self.weight.normal_(0, init_std)        
         
         self._contract = get_contract_fun(
@@ -377,9 +394,7 @@ class SpectralConv(BaseSpectralConv):
         # The last mode already has redundant half removed in real FFT
         slices_w += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
         slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
-        
-        import pdb; pdb.set_trace()
-        
+                
         weight = self.weight[slices_w]
         
             
