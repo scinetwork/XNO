@@ -8,7 +8,7 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
-from .spectral_convolution import SpectralConv
+from .spectral_convolution_fourier import SpectralConv
 from ..utils import validate_scaling_factor
 
 

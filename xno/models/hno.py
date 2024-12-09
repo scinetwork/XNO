@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution_h import SpectralConv
+from ..layers.spectral_convolution_hilbert import SpectralConvHilbert
 from ..layers.padding import DomainPadding
 # from ..layers.fno_block import FNOBlocks
 from ..layers.hno_block import FNOBlocks
@@ -190,7 +190,7 @@ class HNO(BaseModel, name='HNO'):
         decomposition_kwargs: dict=dict(),
         separable: bool=False,
         preactivation: bool=False,
-        conv_module: nn.Module=SpectralConv,
+        conv_module: nn.Module=SpectralConvHilbert,
         **kwargs
     ):
         

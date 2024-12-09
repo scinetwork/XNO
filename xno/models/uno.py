@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 from ..layers.channel_mlp import ChannelMLP
-from ..layers.spectral_convolution import SpectralConv
+from ..layers.spectral_convolution_fourier import SpectralConv
 from ..layers.skip_connections import skip_connection
 from ..layers.padding import DomainPadding
 from ..layers.fno_block import FNOBlocks

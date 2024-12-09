@@ -8,7 +8,7 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
-from .spectral_convolution_hilbert import SpectralConvHilbert
+from .spectral_convolution_x import SpectralConv
 from ..utils import validate_scaling_factor
 
 
@@ -97,6 +97,7 @@ class FNOBlocks(nn.Module):
         in_channels,
         out_channels,
         n_modes,
+        transform="FNO",
         resolution_scaling_factor=None,
         n_layers=1,
         max_n_modes=None,
@@ -114,7 +115,7 @@ class FNOBlocks(nn.Module):
         separable=False,
         factorization=None,
         rank=1.0,
-        conv_module=SpectralConvHilbert,
+        conv_module=SpectralConv,
         fixed_rank_modes=False, #undoc
         implementation="factorized", #undoc
         decomposition_kwargs=dict(),
@@ -129,6 +130,8 @@ class FNOBlocks(nn.Module):
         self.resolution_scaling_factor: Union[
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
+        
+        self.transform = transform
 
         self.max_n_modes = max_n_modes
         self.fno_block_precision = fno_block_precision
@@ -162,6 +165,7 @@ class FNOBlocks(nn.Module):
                 self.in_channels,
                 self.out_channels,
                 self.n_modes,
+                transform=transform,
                 resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 max_n_modes=max_n_modes,
                 rank=rank,

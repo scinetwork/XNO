@@ -6,7 +6,7 @@ from .base_model import BaseModel
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.embeddings import SinusoidalEmbedding
 from ..layers.fno_block import FNOBlocks
-from ..layers.spectral_convolution import SpectralConv
+from ..layers.spectral_convolution_fourier import SpectralConv
 from ..layers.gno_block import GNOBlock
 
 class FNOGNO(BaseModel, name="FNOGNO"):

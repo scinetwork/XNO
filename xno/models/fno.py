@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution import SpectralConv
+from ..layers.spectral_convolution_fourier import SpectralConvFourier
 from ..layers.padding import DomainPadding
 from ..layers.fno_block import FNOBlocks
 from ..layers.channel_mlp import ChannelMLP
@@ -189,7 +189,7 @@ class FNO(BaseModel, name='FNO'):
         decomposition_kwargs: dict=dict(),
         separable: bool=False,
         preactivation: bool=False,
-        conv_module: nn.Module=SpectralConv,
+        conv_module: nn.Module=SpectralConvFourier,
         **kwargs
     ):
         
