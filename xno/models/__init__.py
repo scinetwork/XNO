@@ -1,6 +1,7 @@
-from .fno_original import TFNO, TFNO1d, TFNO2d, TFNO3d
-from .fno_original import FNO, FNO1d, FNO2d, FNO3d
+from .fno import TFNO, TFNO1d, TFNO2d, TFNO3d
+from .fno import FNO, FNO1d, FNO2d, FNO3d
 from .local_fno import LocalFNO
+from .hno import HNO, HNO1d, HNO2d, HNO3d
 # only import SFNO if torch_harmonics is built locally
 try:
     from .sfno import SFNO

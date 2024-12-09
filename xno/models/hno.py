@@ -10,33 +10,34 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution import SpectralConv
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import FNOBlocks
+# from ..layers.fno_block import FNOBlocks
+from ..layers.hno_block import FNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
-class FNO(BaseModel, name='FNO'):
-    """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
+class HNO(BaseModel, name='HNO'):
+    """N-Dimensional Hilbert Neural Operator. The HNO learns a mapping between
     spaces of functions discretized over regular grids using Fourier convolutions, 
     as described in [1]_.
     
-    The key component of an FNO is its SpectralConv layer (see 
+    The key component of an HNO is its SpectralConv layer (see 
     ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
     conv layer but operates in the frequency domain.
 
-    For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
+    For a deeper dive into the HNO architecture, refer to :ref:`fno_intro`.
 
     Parameters
     ----------
     n_modes : Tuple[int]
         number of modes to keep in Fourier Layer, along each dimension
-        The dimensionality of the FNO is inferred from ``len(n_modes)``
+        The dimensionality of the HNO is inferred from ``len(n_modes)``
     in_channels : int
         Number of channels in input function
     out_channels : int
         Number of channels in output function
     hidden_channels : int
-        width of the FNO (i.e. number of channels), by default 256
+        width of the HNO (i.e. number of channels), by default 256
     n_layers : int, optional
         Number of Fourier Layers, by default 4
 
@@ -46,15 +47,15 @@ class FNO(BaseModel, name='FNO'):
     ------------------
     lifting_channel_ratio : int, optional
         ratio of lifting channels to hidden_channels, by default 2
-        The number of liting channels in the lifting block of the FNO is
+        The number of liting channels in the lifting block of the HNO is
         lifting_channel_ratio * hidden_channels (e.g. default 512)
     projection_channel_ratio : int, optional
         ratio of projection channels to hidden_channels, by default 2
-        The number of projection channels in the projection block of the FNO is
+        The number of projection channels in the projection block of the HNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
     positional_embedding : Union[str, nn.Module], optional
         Positional embedding to apply to last channels of raw input
-        before being passed through the FNO. Defaults to "grid"
+        before being passed through the HNO. Defaults to "grid"
 
         * If "grid", appends a grid positional embedding with default settings to 
         the last channels of raw input. Assumes the inputs are discretized
@@ -73,13 +74,13 @@ class FNO(BaseModel, name='FNO'):
         Whether data is complex-valued (default False)
         if True, initializes complex-valued modules.
     channel_mlp_dropout : float, optional
-        dropout parameter for ChannelMLP in FNO Block, by default 0
+        dropout parameter for ChannelMLP in HNO Block, by default 0
     channel_mlp_expansion : float, optional
-        expansion parameter for ChannelMLP in FNO Block, by default 0.5
+        expansion parameter for ChannelMLP in HNO Block, by default 0.5
     channel_mlp_skip : str {'linear', 'identity', 'soft-gating'}, optional
         Type of skip connection to use in channel-mixing mlp, by default 'soft-gating'
     fno_skip : str {'linear', 'identity', 'soft-gating'}, optional
-        Type of skip connection to use in FNO layers, by default 'linear'
+        Type of skip connection to use in HNO layers, by default 'linear'
     resolution_scaling_factor : Union[Number, List[Number]], optional
         layer-wise factor by which to scale the domain resolution of function, by default None
         
@@ -96,7 +97,7 @@ class FNO(BaseModel, name='FNO'):
     fno_block_precision : str {'full', 'half', 'mixed'}, optional
         precision mode in which to perform spectral convolution, by default "full"
     stabilizer : str {'tanh'} | None, optional
-        whether to use a tanh stabilizer in FNO block, by default None
+        whether to use a tanh stabilizer in HNO block, by default None
 
         Note: stabilizer greatly improves performance in the case
         `fno_block_precision='mixed'`. 
@@ -111,7 +112,7 @@ class FNO(BaseModel, name='FNO'):
 
         This can be updated dynamically during training.
     factorization : str, optional
-        Tensor factorization of the FNO layer weights to use, by default None.
+        Tensor factorization of the HNO layer weights to use, by default None.
 
         * If None, a dense tensor parametrizes the Spectral convolutions
 
@@ -130,19 +131,19 @@ class FNO(BaseModel, name='FNO'):
     separable : bool, optional (**DEACTIVATED**)
         if True, use a depthwise separable spectral convolution, by default False   
     preactivation : bool, optional (**DEACTIVATED**)
-        whether to compute FNO forward pass with resnet-style preactivation, by default False
+        whether to compute HNO forward pass with resnet-style preactivation, by default False
     conv_module : nn.Module, optional
-        module to use for FNOBlock's convolutions, by default SpectralConv
+        module to use for HNOBlock's convolutions, by default SpectralConv
     
     Examples
     ---------
     
-    >>> from neuralop.models import FNO
-    >>> model = FNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
+    >>> from neuralop.models import HNO
+    >>> model = HNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
     >>> model
-    FNO(
+    HNO(
     (positional_embedding): GridEmbeddingND()
-    (fno_blocks): FNOBlocks(
+    (fno_blocks): HNOBlocks(
         (convs): SpectralConv(
         (weight): ModuleList(
             (0-3): 4 x DenseTensor(shape=torch.Size([64, 64, 12, 7]), rank=None)
@@ -395,7 +396,7 @@ class FNO(BaseModel, name='FNO'):
         self._n_modes = n_modes
 
 
-class FNO1d(FNO):
+class HNO1d(HNO):
     """1D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -467,7 +468,7 @@ class FNO1d(FNO):
         self.n_modes_height = n_modes_height
 
 
-class FNO2d(FNO):
+class HNO2d(HNO):
     """2D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -543,7 +544,7 @@ class FNO2d(FNO):
         self.n_modes_width = n_modes_width
 
 
-class FNO3d(FNO):
+class HNO3d(HNO):
     """3D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -652,7 +653,7 @@ def partialclass(new_name, cls, *args, **kwargs):
     return new_class
 
 
-TFNO = partialclass("TFNO", FNO, factorization="Tucker")
-TFNO1d = partialclass("TFNO1d", FNO1d, factorization="Tucker")
-TFNO2d = partialclass("TFNO2d", FNO2d, factorization="Tucker")
-TFNO3d = partialclass("TFNO3d", FNO3d, factorization="Tucker")
+TFNO = partialclass("TFNO", HNO, factorization="Tucker")
+TFNO1d = partialclass("TFNO1d", HNO1d, factorization="Tucker")
+TFNO2d = partialclass("TFNO2d", HNO2d, factorization="Tucker")
+TFNO3d = partialclass("TFNO3d", HNO3d, factorization="Tucker")

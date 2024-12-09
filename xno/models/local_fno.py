@@ -1,4 +1,3 @@
-from functools import partialmethod
 from typing import Tuple, List, Union
 
 Number = Union[float, int]
@@ -10,21 +9,17 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution import SpectralConv
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import FNOBlocks
+from neuralop.layers.local_fno_block import LocalFNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
-class FNO(BaseModel, name='FNO'):
-    """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
-    spaces of functions discretized over regular grids using Fourier convolutions, 
-    as described in [1]_.
-    
-    The key component of an FNO is its SpectralConv layer (see 
-    ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
-    conv layer but operates in the frequency domain.
-
-    For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
+class LocalFNO(BaseModel, name='LocalFNO'):
+    """N-Dimensional Local Fourier Neural Operator. The LocalFNO shares
+    its forward pass and architecture with the standard FNO, with the key difference
+    that its Fourier convolution layers are replaced with LocalFNOBlocks that place
+    differential kernel layers and local integral layers in parallel to its 
+    Fourier layers as detailed in [1]_.
 
     Parameters
     ----------
@@ -37,11 +32,35 @@ class FNO(BaseModel, name='FNO'):
         Number of channels in output function
     hidden_channels : int
         width of the FNO (i.e. number of channels), by default 256
+    default_in_shape : Tuple[int]
+        Default input shape on spatiotemporal dimensions for structured DISCO convolutions
     n_layers : int, optional
-        Number of Fourier Layers, by default 4
-
-    Documentation for more advanced parameters is below.
-
+        Number of FNO block Layers, by default 4
+    disco_layers : bool or bool list, optional
+        Must be same length as n_layers, dictates whether to include a
+        local integral kernel parallel connection at each layer. If a single
+        bool, shared for all layers.
+    disco_kernel_shape: Union[int, List[int]], optional
+        kernel shape for local integral. Expects either a single integer for isotropic kernels or two integers for anisotropic kernels
+    domain_length: torch.Tensor, optional
+        extent/length of the physical domain. Assumes square domain [-1, 1]^2 by default
+    disco_groups: int, optional
+        number of groups in the local integral convolution, by default 1
+    disco_bias: bool, optional
+        whether to use a bias for the integral kernel, by default True
+    radius_cutoff: float, optional
+        cutoff radius (with respect to domain_length) for the local integral kernel, by default None
+    diff_layers : bool or bool list, optional
+        Must be same length as n_layers, dictates whether to include a
+        differential kernel parallel connection at each layer. If a single
+        bool, shared for all layers.
+    conv_padding_mode : str in ['periodic', 'circular', 'replicate', 'reflect', 'zeros'], optional
+        Padding mode for spatial convolution kernels.
+    fin_diff_kernel_size : odd int, optional
+        Conv kernel size for finite difference convolution.
+    mix_derivatives : bool, optional
+        Whether to mix derivatives across channels.
+    
     Other parameters
     ------------------
     lifting_channel_ratio : int, optional
@@ -127,22 +146,18 @@ class FNO(BaseModel, name='FNO'):
         * If 'reconstructed', implements with the reconstructed full tensorized weight.
     decomposition_kwargs : dict, optional
         extra kwargs for tensor decomposition (see `tltorch.FactorizedTensor`), by default dict()
-    separable : bool, optional (**DEACTIVATED**)
-        if True, use a depthwise separable spectral convolution, by default False   
-    preactivation : bool, optional (**DEACTIVATED**)
-        whether to compute FNO forward pass with resnet-style preactivation, by default False
     conv_module : nn.Module, optional
         module to use for FNOBlock's convolutions, by default SpectralConv
     
     Examples
     ---------
     
-    >>> from neuralop.models import FNO
-    >>> model = FNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
+    >>> from neuralop.models import LocalFNO
+    >>> model = LocalFNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
     >>> model
     FNO(
     (positional_embedding): GridEmbeddingND()
-    (fno_blocks): FNOBlocks(
+    (fno_blocks): LocalFNOBlocks(
         (convs): SpectralConv(
         (weight): ModuleList(
             (0-3): 4 x DenseTensor(shape=torch.Size([64, 64, 12, 7]), rank=None)
@@ -152,10 +167,9 @@ class FNO(BaseModel, name='FNO'):
 
     References
     -----------
-    .. [1] :
-
-    Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
-        Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
+    .. [1] Liu-Schiaffini M., Berner J., Bonev B., Kurth T., Azizzadenesheli K., Anandkumar A.;
+        "Neural Operators with Localized Integral and Differential Kernels" (2024).  
+        ICML 2024, https://arxiv.org/pdf/2402.16845.
 
     """
 
@@ -165,7 +179,18 @@ class FNO(BaseModel, name='FNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
+        default_in_shape,
         n_layers: int=4,
+        disco_layers: Union[bool, List[bool]]=True,
+        disco_kernel_shape :List[int]=[2,4],
+        radius_cutoff: bool=None,
+        domain_length: List[int]=[2,2],
+        disco_groups: int=1,
+        disco_bias: bool=True,
+        diff_layers: Union[bool, List[bool]]=True,
+        conv_padding_mode: str='periodic',
+        fin_diff_kernel_size: int=3,
+        mix_derivatives: bool=True,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
         positional_embedding: Union[str, nn.Module]="grid",
@@ -263,11 +288,22 @@ class FNO(BaseModel, name='FNO'):
                 resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
         self.resolution_scaling_factor = resolution_scaling_factor
 
-        self.fno_blocks = FNOBlocks(
+        self.fno_blocks = LocalFNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
+            default_in_shape=default_in_shape,
             resolution_scaling_factor=resolution_scaling_factor,
+            disco_layers=disco_layers,
+            disco_kernel_shape=disco_kernel_shape,
+            radius_cutoff=radius_cutoff,
+            domain_length=domain_length,
+            disco_groups=disco_groups,
+            disco_bias=disco_bias,
+            diff_layers=diff_layers,
+            conv_padding_mode=conv_padding_mode,
+            fin_diff_kernel_size=fin_diff_kernel_size,
+            mix_derivatives=mix_derivatives,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
             non_linearity=non_linearity,
@@ -393,266 +429,3 @@ class FNO(BaseModel, name='FNO'):
     def n_modes(self, n_modes):
         self.fno_blocks.n_modes = n_modes
         self._n_modes = n_modes
-
-
-class FNO1d(FNO):
-    """1D Fourier Neural Operator
-
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
-
-    Parameters
-    ----------
-    modes_height : int
-        number of Fourier modes to keep along the height
-    """
-
-    def __init__(
-        self,
-        n_modes_height,
-        hidden_channels,
-        in_channels=3,
-        out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
-        max_n_modes=None,
-        n_layers=4,
-        resolution_scaling_factor=None,
-        non_linearity=F.gelu,
-        stabilizer=None,
-        complex_data=False,
-        fno_block_precision="full",
-        channel_mlp_dropout=0,
-        channel_mlp_expansion=0.5,
-        norm=None,
-        skip="soft-gating",
-        separable=False,
-        preactivation=False,
-        factorization=None,
-        rank=1.0,
-        fixed_rank_modes=False,
-        implementation="factorized",
-        decomposition_kwargs=dict(),
-        domain_padding=None,
-        domain_padding_mode="one-sided",
-        **kwargs
-    ):
-        super().__init__(
-            n_modes=(n_modes_height,),
-            hidden_channels=hidden_channels,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
-            n_layers=n_layers,
-            resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
-            stabilizer=stabilizer,
-            complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
-            channel_mlp_dropout=channel_mlp_dropout,
-            channel_mlp_expansion=channel_mlp_expansion,
-            max_n_modes=max_n_modes,
-            norm=norm,
-            skip=skip,
-            separable=separable,
-            preactivation=preactivation,
-            factorization=factorization,
-            rank=rank,
-            fixed_rank_modes=fixed_rank_modes,
-            implementation=implementation,
-            decomposition_kwargs=decomposition_kwargs,
-            domain_padding=domain_padding,
-            domain_padding_mode=domain_padding_mode,
-        )
-        self.n_modes_height = n_modes_height
-
-
-class FNO2d(FNO):
-    """2D Fourier Neural Operator
-
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
-
-    Parameters
-    ----------
-    n_modes_width : int
-        number of modes to keep in Fourier Layer, along the width
-    n_modes_height : int
-        number of Fourier modes to keep along the height
-    """
-
-    def __init__(
-        self,
-        n_modes_height,
-        n_modes_width,
-        hidden_channels,
-        in_channels=3,
-        out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
-        n_layers=4,
-        resolution_scaling_factor=None,
-        max_n_modes=None,
-        non_linearity=F.gelu,
-        stabilizer=None,
-        complex_data=False,
-        fno_block_precision="full",
-        channel_mlp_dropout=0,
-        channel_mlp_expansion=0.5,
-        norm=None,
-        skip="soft-gating",
-        separable=False,
-        preactivation=False,
-        factorization=None,
-        rank=1.0,
-        fixed_rank_modes=False,
-        implementation="factorized",
-        decomposition_kwargs=dict(),
-        domain_padding=None,
-        domain_padding_mode="one-sided",
-        **kwargs
-    ):
-        super().__init__(
-            n_modes=(n_modes_height, n_modes_width),
-            hidden_channels=hidden_channels,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
-            n_layers=n_layers,
-            resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
-            stabilizer=stabilizer,
-            complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
-            channel_mlp_dropout=channel_mlp_dropout,
-            channel_mlp_expansion=channel_mlp_expansion,
-            max_n_modes=max_n_modes,
-            norm=norm,
-            skip=skip,
-            separable=separable,
-            preactivation=preactivation,
-            factorization=factorization,
-            rank=rank,
-            fixed_rank_modes=fixed_rank_modes,
-            implementation=implementation,
-            decomposition_kwargs=decomposition_kwargs,
-            domain_padding=domain_padding,
-            domain_padding_mode=domain_padding_mode,
-        )
-        self.n_modes_height = n_modes_height
-        self.n_modes_width = n_modes_width
-
-
-class FNO3d(FNO):
-    """3D Fourier Neural Operator
-
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
-
-    Parameters
-    ----------
-    modes_width : int
-        number of modes to keep in Fourier Layer, along the width
-    modes_height : int
-        number of Fourier modes to keep along the height
-    modes_depth : int
-        number of Fourier modes to keep along the depth
-    """
-
-    def __init__(
-        self,
-        n_modes_height,
-        n_modes_width,
-        n_modes_depth,
-        hidden_channels,
-        in_channels=3,
-        out_channels=1,
-        lifting_channels=256,
-        projection_channels=256,
-        n_layers=4,
-        resolution_scaling_factor=None,
-        max_n_modes=None,
-        non_linearity=F.gelu,
-        stabilizer=None,
-        complex_data=False,
-        fno_block_precision="full",
-        channel_mlp_dropout=0,
-        channel_mlp_expansion=0.5,
-        norm=None,
-        skip="soft-gating",
-        separable=False,
-        preactivation=False,
-        factorization=None,
-        rank=1.0,
-        fixed_rank_modes=False,
-        implementation="factorized",
-        decomposition_kwargs=dict(),
-        domain_padding=None,
-        domain_padding_mode="one-sided",
-        **kwargs
-    ):
-        super().__init__(
-            n_modes=(n_modes_height, n_modes_width, n_modes_depth),
-            hidden_channels=hidden_channels,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            lifting_channels=lifting_channels,
-            projection_channels=projection_channels,
-            n_layers=n_layers,
-            resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
-            stabilizer=stabilizer,
-            complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
-            max_n_modes=max_n_modes,
-            channel_mlp_dropout=channel_mlp_dropout,
-            channel_mlp_expansion=channel_mlp_expansion,
-            norm=norm,
-            skip=skip,
-            separable=separable,
-            preactivation=preactivation,
-            factorization=factorization,
-            rank=rank,
-            fixed_rank_modes=fixed_rank_modes,
-            implementation=implementation,
-            decomposition_kwargs=decomposition_kwargs,
-            domain_padding=domain_padding,
-            domain_padding_mode=domain_padding_mode,
-        )
-        self.n_modes_height = n_modes_height
-        self.n_modes_width = n_modes_width
-        self.n_modes_depth = n_modes_depth
-
-
-def partialclass(new_name, cls, *args, **kwargs):
-    """Create a new class with different default values
-
-    Notes
-    -----
-    An obvious alternative would be to use functools.partial
-    >>> new_class = partial(cls, **kwargs)
-
-    The issue is twofold:
-    1. the class doesn't have a name, so one would have to set it explicitly:
-    >>> new_class.__name__ = new_name
-
-    2. the new class will be a functools object and one cannot inherit from it.
-
-    Instead, here, we define dynamically a new class, inheriting from the existing one.
-    """
-    __init__ = partialmethod(cls.__init__, *args, **kwargs)
-    new_class = type(
-        new_name,
-        (cls,),
-        {
-            "__init__": __init__,
-            "__doc__": cls.__doc__,
-            "forward": cls.forward,
-        },
-    )
-    return new_class
-
-
-TFNO = partialclass("TFNO", FNO, factorization="Tucker")
-TFNO1d = partialclass("TFNO1d", FNO1d, factorization="Tucker")
-TFNO2d = partialclass("TFNO2d", FNO2d, factorization="Tucker")
-TFNO3d = partialclass("TFNO3d", FNO3d, factorization="Tucker")
