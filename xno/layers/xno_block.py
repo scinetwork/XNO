@@ -17,8 +17,8 @@ from ..utils import validate_scaling_factor
 Number = Union[int, float]
 
 
-class FNOBlocks(nn.Module):
-    """FNOBlocks implements a sequence of Fourier layers, the operations of which 
+class XNOBlocks(nn.Module):
+    """XNOBlocks implements a sequence of Fourier layers, the operations of which 
     are first described in [1]_. The exact implementation details of the Fourier 
     layer architecture are discussed in [2]_.
 
@@ -39,7 +39,7 @@ class FNOBlocks(nn.Module):
         number of Fourier layers to apply in sequence, by default 1
     max_n_modes : int, List[int], optional
         maximum number of modes to keep along each dimension, by default None
-    fno_block_precision : str, optional
+    xno_block_precision : str, optional
         floating point precision to use for computations, by default "full"
     channel_mlp_dropout : int, optional
         dropout parameter for self.channel_mlp, by default 0
@@ -58,8 +58,8 @@ class FNOBlocks(nn.Module):
         whether to call forward pass with pre-activation, by default False
         if True, call nonlinear activation and norm before Fourier convolution
         if False, call activation and norms after Fourier convolutions
-    fno_skip : str, optional
-        module to use for FNO skip connections, by default "linear"
+    xno_skip : str, optional
+        module to use for XNO skip connections, by default "linear"
         see layers.skip_connections for more details
     channel_mlp_skip : str, optional
         module to use for ChannelMLP skip connections, by default "soft-gating"
@@ -68,7 +68,7 @@ class FNOBlocks(nn.Module):
     Other Parameters
     -------------------
     complex_data : bool, optional
-        whether the FNO's data takes on complex values in space, by default False
+        whether the XNO's data takes on complex values in space, by default False
     separable : bool, optional
         separable parameter for SpectralConv, by default False
     factorization : str, optional
@@ -76,7 +76,7 @@ class FNOBlocks(nn.Module):
     rank : float, optional
         rank parameter for SpectralConv, by default 1.0
     conv_module : BaseConv, optional
-        module to use for convolutions in FNO block, by default SpectralConv
+        module to use for convolutions in XNO block, by default SpectralConv
     joint_factorization : bool, optional
         whether to factorize all spectralConv weights as one tensor, by default False
     fixed_rank_modes : bool, optional
@@ -103,7 +103,7 @@ class FNOBlocks(nn.Module):
         resolution_scaling_factor=None,
         n_layers=1,
         max_n_modes=None,
-        fno_block_precision="full",
+        xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
         non_linearity=F.gelu,
@@ -111,7 +111,7 @@ class FNOBlocks(nn.Module):
         norm=None,
         ada_in_features=None,
         preactivation=False,
-        fno_skip="linear",
+        xno_skip="linear",
         channel_mlp_skip="soft-gating",
         complex_data=False,
         separable=False,
@@ -136,7 +136,7 @@ class FNOBlocks(nn.Module):
         self.transformation = transformation
 
         self.max_n_modes = max_n_modes
-        self.fno_block_precision = fno_block_precision
+        self.xno_block_precision = xno_block_precision
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.n_layers = n_layers
@@ -145,7 +145,7 @@ class FNOBlocks(nn.Module):
         self.factorization = factorization
         self.fixed_rank_modes = fixed_rank_modes
         self.decomposition_kwargs = decomposition_kwargs
-        self.fno_skip = fno_skip
+        self.xno_skip = xno_skip
         self.channel_mlp_skip = channel_mlp_skip
         self.complex_data = complex_data
 
@@ -184,26 +184,26 @@ class FNOBlocks(nn.Module):
                 implementation=implementation,
                 separable=separable,
                 factorization=factorization,
-                fno_block_precision=fno_block_precision,
+                xno_block_precision=xno_block_precision,
                 decomposition_kwargs=decomposition_kwargs,
                 complex_data=complex_data
             ) 
             for i in range(n_layers)])
 
-        self.fno_skips = nn.ModuleList(
+        self.xno_skips = nn.ModuleList(
             [
                 skip_connection(
                     self.in_channels,
                     self.out_channels,
-                    skip_type=fno_skip,
+                    skip_type=xno_skip,
                     n_dim=self.n_dim,
                 )
                 for _ in range(n_layers)
             ]
         )
         if self.complex_data:
-            self.fno_skips = nn.ModuleList(
-                [ComplexValued(x) for x in self.fno_skips]
+            self.xno_skips = nn.ModuleList(
+                [ComplexValued(x) for x in self.xno_skips]
                 )
 
         self.channel_mlp = nn.ModuleList(
@@ -292,8 +292,8 @@ class FNOBlocks(nn.Module):
             return self.forward_with_postactivation(x, index, output_shape)
 
     def forward_with_postactivation(self, x, index=0, output_shape=None):
-        x_skip_fno = self.fno_skips[index](x)
-        x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
+        x_skip_xno = self.xno_skips[index](x)
+        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
         x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
@@ -304,13 +304,13 @@ class FNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_xno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
 
         if self.norm is not None:
-            x_fno = self.norm[self.n_norms * index](x_fno)
+            x_xno = self.norm[self.n_norms * index](x_xno)
 
-        x = x_fno + x_skip_fno
+        x = x_xno + x_skip_xno
 
         if (index < (self.n_layers - 1)):
             x = self.non_linearity(x)
@@ -333,8 +333,8 @@ class FNOBlocks(nn.Module):
         if self.norm is not None:
             x = self.norm[self.n_norms * index](x)
 
-        x_skip_fno = self.fno_skips[index](x)
-        x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
+        x_skip_xno = self.xno_skips[index](x)
+        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
         x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
@@ -345,9 +345,9 @@ class FNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_xno = self.convs[index](x, output_shape=output_shape)
 
-        x = x_fno + x_skip_fno
+        x = x_xno + x_skip_xno
 
         if index < (self.n_layers - 1):
             x = self.non_linearity(x)
@@ -370,9 +370,9 @@ class FNOBlocks(nn.Module):
         self._n_modes = n_modes
 
     def get_block(self, indices):
-        """Returns a sub-FNO Block layer from the jointly parametrized main block
+        """Returns a sub-XNO Block layer from the jointly parametrized main block
 
-        The parametrization of an FNOBlock layer is shared with the main one.
+        The parametrization of an XNOBlock layer is shared with the main one.
         """
         if self.n_layers == 1:
             raise ValueError(

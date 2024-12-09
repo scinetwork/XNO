@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution_x import SpectralConv
 from ..layers.padding import DomainPadding
-from ..layers.xno_block import FNOBlocks
+from ..layers.xno_block import XNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
@@ -24,19 +24,17 @@ class XNO(BaseModel, name='XNO'):
     ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
     conv layer but operates in the frequency domain.
 
-    For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
-
     Parameters
     ----------
     n_modes : Tuple[int]
         number of modes to keep in Fourier Layer, along each dimension
-        The dimensionality of the FNO is inferred from ``len(n_modes)``
+        The dimensionality of the XNO is inferred from ``len(n_modes)``
     in_channels : int
         Number of channels in input function
     out_channels : int
         Number of channels in output function
     hidden_channels : int
-        width of the FNO (i.e. number of channels), by default 256
+        width of the XNO (i.e. number of channels), by default 256
     n_layers : int, optional
         Number of Fourier Layers, by default 4
 
@@ -46,15 +44,15 @@ class XNO(BaseModel, name='XNO'):
     ------------------
     lifting_channel_ratio : int, optional
         ratio of lifting channels to hidden_channels, by default 2
-        The number of liting channels in the lifting block of the FNO is
+        The number of liting channels in the lifting block of the XNO is
         lifting_channel_ratio * hidden_channels (e.g. default 512)
     projection_channel_ratio : int, optional
         ratio of projection channels to hidden_channels, by default 2
-        The number of projection channels in the projection block of the FNO is
+        The number of projection channels in the projection block of the XNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
     positional_embedding : Union[str, nn.Module], optional
         Positional embedding to apply to last channels of raw input
-        before being passed through the FNO. Defaults to "grid"
+        before being passed through the XNO. Defaults to "grid"
 
         * If "grid", appends a grid positional embedding with default settings to 
         the last channels of raw input. Assumes the inputs are discretized
@@ -73,13 +71,13 @@ class XNO(BaseModel, name='XNO'):
         Whether data is complex-valued (default False)
         if True, initializes complex-valued modules.
     channel_mlp_dropout : float, optional
-        dropout parameter for ChannelMLP in FNO Block, by default 0
+        dropout parameter for ChannelMLP in XNO Block, by default 0
     channel_mlp_expansion : float, optional
-        expansion parameter for ChannelMLP in FNO Block, by default 0.5
+        expansion parameter for ChannelMLP in XNO Block, by default 0.5
     channel_mlp_skip : str {'linear', 'identity', 'soft-gating'}, optional
         Type of skip connection to use in channel-mixing mlp, by default 'soft-gating'
-    fno_skip : str {'linear', 'identity', 'soft-gating'}, optional
-        Type of skip connection to use in FNO layers, by default 'linear'
+    xno_skip : str {'linear', 'identity', 'soft-gating'}, optional
+        Type of skip connection to use in XNO layers, by default 'linear'
     resolution_scaling_factor : Union[Number, List[Number]], optional
         layer-wise factor by which to scale the domain resolution of function, by default None
         
@@ -93,13 +91,13 @@ class XNO(BaseModel, name='XNO'):
         p1 corresponds to the percentage of padding along dim 1, etc.
     domain_padding_mode : str {'symmetric', 'one-sided'}, optional
         How to perform domain padding, by default 'one-sided'
-    fno_block_precision : str {'full', 'half', 'mixed'}, optional
+    xno_block_precision : str {'full', 'half', 'mixed'}, optional
         precision mode in which to perform spectral convolution, by default "full"
     stabilizer : str {'tanh'} | None, optional
-        whether to use a tanh stabilizer in FNO block, by default None
+        whether to use a tanh stabilizer in XNO block, by default None
 
         Note: stabilizer greatly improves performance in the case
-        `fno_block_precision='mixed'`. 
+        `xno_block_precision='mixed'`. 
 
     max_n_modes : Tuple[int] | None, optional
 
@@ -111,7 +109,7 @@ class XNO(BaseModel, name='XNO'):
 
         This can be updated dynamically during training.
     factorization : str, optional
-        Tensor factorization of the FNO layer weights to use, by default None.
+        Tensor factorization of the XNO layer weights to use, by default None.
 
         * If None, a dense tensor parametrizes the Spectral convolutions
 
@@ -130,19 +128,19 @@ class XNO(BaseModel, name='XNO'):
     separable : bool, optional (**DEACTIVATED**)
         if True, use a depthwise separable spectral convolution, by default False   
     preactivation : bool, optional (**DEACTIVATED**)
-        whether to compute FNO forward pass with resnet-style preactivation, by default False
+        whether to compute XNO forward pass with resnet-style preactivation, by default False
     conv_module : nn.Module, optional
-        module to use for FNOBlock's convolutions, by default SpectralConv
+        module to use for XNOBlock's convolutions, by default SpectralConv
     
     Examples
     ---------
     
-    >>> from neuralop.models import FNO
-    >>> model = FNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
+    >>> from neuralop.models import XNO
+    >>> model = XNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64, transformation="FNO")
     >>> model
-    FNO(
+    XNO(
     (positional_embedding): GridEmbeddingND()
-    (fno_blocks): FNOBlocks(
+    (xno_blocks): XNOBlocks(
         (convs): SpectralConv(
         (weight): ModuleList(
             (0-3): 4 x DenseTensor(shape=torch.Size([64, 64, 12, 7]), rank=None)
@@ -176,11 +174,11 @@ class XNO(BaseModel, name='XNO'):
         channel_mlp_dropout: float=0,
         channel_mlp_expansion: float=0.5,
         channel_mlp_skip: str="soft-gating",
-        fno_skip: str="linear",
+        xno_skip: str="linear",
         resolution_scaling_factor: Union[Number, List[Number]]=None,
         domain_padding: Union[Number, List[Number]]=None,
         domain_padding_mode: str="one-sided",
-        fno_block_precision: str="full",
+        xno_block_precision: str="full",
         stabilizer: str=None,
         max_n_modes: Tuple[int]=None,
         factorization: str=None,
@@ -198,7 +196,7 @@ class XNO(BaseModel, name='XNO'):
         self.n_dim = len(n_modes)
         
         # n_modes is a special property - see the class' property for underlying mechanism
-        # When updated, change should be reflected in fno blocks
+        # When updated, change should be reflected in xno blocks
         self._n_modes = n_modes
 
         self.hidden_channels = hidden_channels
@@ -221,13 +219,13 @@ class XNO(BaseModel, name='XNO'):
         self.factorization = factorization
         self.fixed_rank_modes = fixed_rank_modes
         self.decomposition_kwargs = decomposition_kwargs
-        self.fno_skip = (fno_skip,)
+        self.xno_skip = (xno_skip,)
         self.channel_mlp_skip = (channel_mlp_skip,)
         self.implementation = implementation
         self.separable = separable
         self.preactivation = preactivation
         self.complex_data = complex_data
-        self.fno_block_precision = fno_block_precision
+        self.xno_block_precision = xno_block_precision
         
         if positional_embedding == "grid":
             spatial_grid_boundaries = [[0., 1.]] * self.n_dim
@@ -244,7 +242,7 @@ class XNO(BaseModel, name='XNO'):
         elif positional_embedding == None:
             self.positional_embedding = None
         else:
-            raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
+            raise ValueError(f"Error: tried to instantiate XNO positional embedding with {positional_embedding},\
                               expected one of \'grid\', GridEmbeddingND")
         
         if domain_padding is not None and (
@@ -267,7 +265,7 @@ class XNO(BaseModel, name='XNO'):
                 resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
         self.resolution_scaling_factor = resolution_scaling_factor
 
-        self.fno_blocks = FNOBlocks(
+        self.xno_blocks = XNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
@@ -279,11 +277,11 @@ class XNO(BaseModel, name='XNO'):
             stabilizer=stabilizer,
             norm=norm,
             preactivation=preactivation,
-            fno_skip=fno_skip,
+            xno_skip=xno_skip,
             channel_mlp_skip=channel_mlp_skip,
             complex_data=complex_data,
             max_n_modes=max_n_modes,
-            fno_block_precision=fno_block_precision,
+            xno_block_precision=xno_block_precision,
             rank=rank,
             fixed_rank_modes=fixed_rank_modes,
             implementation=implementation,
@@ -336,7 +334,7 @@ class XNO(BaseModel, name='XNO'):
             self.projection = ComplexValued(self.projection)
 
     def forward(self, x, output_shape=None, **kwargs):
-        """FNO's forward pass
+        """XNO's forward pass
         
         1. Applies optional positional encoding
 
@@ -345,7 +343,7 @@ class XNO(BaseModel, name='XNO'):
 
         3. Applies optional domain padding to high-dimensional intermediate function representation
 
-        4. Applies `n_layers` Fourier/FNO layers in sequence (SpectralConvolution + skip connections, nonlinearity) 
+        4. Applies `n_layers` Fourier(or any other kernels)/XNO layers in sequence (SpectralConvolution + skip connections, nonlinearity) 
 
         5. If domain padding was applied, domain padding is removed
 
@@ -361,9 +359,9 @@ class XNO(BaseModel, name='XNO'):
             
             * If None, don't specify an output shape
 
-            * If tuple, specifies the output-shape of the **last** FNO Block
+            * If tuple, specifies the output-shape of the **last** XNO Block
 
-            * If tuple list, specifies the exact output-shape of each FNO Block
+            * If tuple list, specifies the exact output-shape of each XNO Block
         """
 
         if output_shape is None:
@@ -381,7 +379,7 @@ class XNO(BaseModel, name='XNO'):
             x = self.domain_padding.pad(x)
 
         for layer_idx in range(self.n_layers):
-            x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+            x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
 
         if self.domain_padding is not None:
             x = self.domain_padding.unpad(x)
@@ -396,14 +394,14 @@ class XNO(BaseModel, name='XNO'):
 
     @n_modes.setter
     def n_modes(self, n_modes):
-        self.fno_blocks.n_modes = n_modes
+        self.xno_blocks.n_modes = n_modes
         self._n_modes = n_modes
 
 
 class XNO1d(XNO):
     """1D Fourier Neural Operator
 
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
+    For the full list of parameters, see :class:`neuralop.models.XNO`.
 
     Parameters
     ----------
@@ -426,7 +424,7 @@ class XNO1d(XNO):
         non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
-        fno_block_precision="full",
+        xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
         norm=None,
@@ -455,7 +453,7 @@ class XNO1d(XNO):
             non_linearity=non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
+            xno_block_precision=xno_block_precision,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
             max_n_modes=max_n_modes,
@@ -477,7 +475,7 @@ class XNO1d(XNO):
 class XNO2d(XNO):
     """2D Fourier Neural Operator
 
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
+    For the full list of parameters, see :class:`neuralop.models.XNO`.
 
     Parameters
     ----------
@@ -503,7 +501,7 @@ class XNO2d(XNO):
         non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
-        fno_block_precision="full",
+        xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
         norm=None,
@@ -532,7 +530,7 @@ class XNO2d(XNO):
             non_linearity=non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
+            xno_block_precision=xno_block_precision,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
             max_n_modes=max_n_modes,
@@ -555,7 +553,7 @@ class XNO2d(XNO):
 class XNO3d(XNO):
     """3D Fourier Neural Operator
 
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
+    For the full list of parameters, see :class:`neuralop.models.XNO`.
 
     Parameters
     ----------
@@ -584,7 +582,7 @@ class XNO3d(XNO):
         non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
-        fno_block_precision="full",
+        xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
         norm=None,
@@ -613,7 +611,7 @@ class XNO3d(XNO):
             non_linearity=non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
-            fno_block_precision=fno_block_precision,
+            xno_block_precision=xno_block_precision,
             max_n_modes=max_n_modes,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
