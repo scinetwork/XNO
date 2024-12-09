@@ -280,6 +280,7 @@ class SpectralConv(BaseSpectralConv):
         fft_norm="forward",
         device=None,
     ):
+                
         super().__init__(device=device)
 
         self.in_channels = in_channels
@@ -414,8 +415,9 @@ class SpectralConv(BaseSpectralConv):
 
         if self.fno_block_precision == "half":
             x = x.half()
-            
+                        
         x = hilbert_nd(x, dim=fft_dims).imag
+                
         x = torch.fft.rfftn(x, norm=self.fft_norm, dim=fft_dims)
         # if self.complex_data:
         #     x = torch.fft.fftn(x, norm=self.fft_norm, dim=fft_dims)
@@ -485,8 +487,10 @@ class SpectralConv(BaseSpectralConv):
         #     x = torch.fft.ifftn(out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
         # else:
         #     x = torch.fft.irfftn(out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
+        
+        # import pdb; pdb.set_trace()
 
-        x = -hilbert_nd(out_fft, dim=fft_dims).imag
+        x = -hilbert_nd(x, dim=fft_dims).imag
         
         if self.bias is not None:
             x = x + self.bias

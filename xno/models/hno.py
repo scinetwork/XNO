@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution import SpectralConv
+from ..layers.spectral_convolution_h import SpectralConv
 from ..layers.padding import DomainPadding
 # from ..layers.fno_block import FNOBlocks
 from ..layers.hno_block import FNOBlocks
@@ -653,7 +653,7 @@ def partialclass(new_name, cls, *args, **kwargs):
     return new_class
 
 
-TFNO = partialclass("TFNO", HNO, factorization="Tucker")
-TFNO1d = partialclass("TFNO1d", HNO1d, factorization="Tucker")
-TFNO2d = partialclass("TFNO2d", HNO2d, factorization="Tucker")
-TFNO3d = partialclass("TFNO3d", HNO3d, factorization="Tucker")
+TFNO = partialclass("THNO", HNO, factorization="Tucker")
+TFNO1d = partialclass("THNO1d", HNO1d, factorization="Tucker")
+TFNO2d = partialclass("THNO2d", HNO2d, factorization="Tucker")
+TFNO3d = partialclass("THNO3d", HNO3d, factorization="Tucker")
