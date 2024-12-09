@@ -45,6 +45,7 @@ class SpectralConv(nn.Module):
         init_std="auto",
         fft_norm="forward",
         device=None,
+        **kwargs
         ):
         super().__init__()
         
@@ -60,29 +61,21 @@ class SpectralConv(nn.Module):
                 f"Unknown transform type '{transform}'. "
                 f"Available transforms: {list(SC_MAP.keys())}"
             )
-        
+            
+        print(f"Selected class: {SC_MAP[transform].__name__}")
         # Instantiate the selected spectral convolution module
-        self.sc = SC_MAP[transform](
-                                    in_channels,
-                                    out_channels,
-                                    n_modes,
-                                    complex_data,
-                                    max_n_modes,
-                                    bias,
-                                    separable, 
-                                    resolution_scaling_factor,
-                                    fno_block_precision,
-                                    rank,
-                                    factorization,
-                                    implementation,
-                                    fixed_rank_modes,
-                                    decomposition_kwargs,
-                                    init_std,
-                                    fft_norm,
-                                    device,
-                                    **kwargs
-                                    )
+        try:
+            self.sc = SpectralConvFourier(
+                in_channels,
+                out_channels,
+                n_modes,
+            )
+            print(f"SpectralConv initialized: {self.sc}")
+        except Exception as e:
+            print(f"Error initializing SpectralConv for transform '{transform}': {e}")
+            raise
 
+                
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass that delegates to the selected spectral convolution.
@@ -98,3 +91,26 @@ class SpectralConv(nn.Module):
             Output tensor of shape [batch_size, out_channels, ...].
         """
         return self.sc(x)
+    
+    
+    def __getattr__(self, name: str):
+        """
+        If the attribute isn't found in this class, 
+        try to return it from the underlying subclass instance (self.sc).
+
+        This makes the middleware behave like the subclass itself.
+        """
+        print(f"Attempting to access attribute: {name}")
+        
+        # Avoid infinite recursion by not using self.attribute directly for 'sc'
+        if name == 'sc':
+            # 'sc' is a known attribute on this class, so call the parent
+            return super().__getattribute__(name)
+        
+        # If the attribute doesn't exist on this class, 
+        # attempt to get it from the underlying sc object
+        if hasattr(self.sc, name):
+            return getattr(self.sc, name)
+        
+        # If not found anywhere, raise AttributeError as usual
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")

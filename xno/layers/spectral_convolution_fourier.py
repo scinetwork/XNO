@@ -280,7 +280,7 @@ class SpectralConvFourier(BaseSpectralConv):
         device=None,
     ):
         super().__init__(device=device)
-
+        
         self.in_channels = in_channels
         self.out_channels = out_channels
 
@@ -404,6 +404,8 @@ class SpectralConvFourier(BaseSpectralConv):
         -------
         tensorized_spectral_conv(x)
         """
+        print("FOURIER----------")
+        
         batchsize, channels, *mode_sizes = x.shape
 
         fft_size = list(mode_sizes)

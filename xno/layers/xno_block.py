@@ -9,6 +9,8 @@ from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
 from .spectral_convolution_x import SpectralConv
+from .spectral_convolution_fourier import SpectralConvFourier
+from .spectral_convolution_hilbert import SpectralConvHilbert
 from ..utils import validate_scaling_factor
 
 
@@ -97,7 +99,7 @@ class FNOBlocks(nn.Module):
         in_channels,
         out_channels,
         n_modes,
-        transform="FNO",
+        transformation="FNO",
         resolution_scaling_factor=None,
         n_layers=1,
         max_n_modes=None,
@@ -131,7 +133,7 @@ class FNOBlocks(nn.Module):
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
         
-        self.transform = transform
+        self.transformation = transformation
 
         self.max_n_modes = max_n_modes
         self.fno_block_precision = fno_block_precision
@@ -153,6 +155,15 @@ class FNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
+                
+        if transformation.lower() == "fno":
+            conv_module = SpectralConvFourier
+        elif transformation.lower() == "hno":
+            conv_module = SpectralConvHilbert
+        else:
+            raise ValueError(
+                f"Unknown transform type '{transformation}'. "
+            )
 
         # apply real nonlin if data is real, otherwise CGELU
         if self.complex_data:
@@ -165,7 +176,7 @@ class FNOBlocks(nn.Module):
                 self.in_channels,
                 self.out_channels,
                 self.n_modes,
-                transform=transform,
+                # transform=transformation,
                 resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 max_n_modes=max_n_modes,
                 rank=rank,

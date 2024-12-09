@@ -165,7 +165,7 @@ class XNO(BaseModel, name='XNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
-        transform: str="FNO",
+        transformation: str="FNO",
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
@@ -207,7 +207,7 @@ class XNO(BaseModel, name='XNO'):
         self.n_layers = n_layers
 
         # Define the kernel transformaiton 
-        self.transform = transform
+        self.transformation = transformation
 
         # init lifting and projection channels using ratios w.r.t hidden channels
         self.lifting_channel_ratio = lifting_channel_ratio
@@ -271,6 +271,7 @@ class XNO(BaseModel, name='XNO'):
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
+            transformation=transformation,
             resolution_scaling_factor=resolution_scaling_factor,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
@@ -414,6 +415,7 @@ class XNO1d(XNO):
         self,
         n_modes_height,
         hidden_channels,
+        transformation="FNO",
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -445,6 +447,7 @@ class XNO1d(XNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
+            transformation=transformation,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
@@ -489,6 +492,7 @@ class XNO2d(XNO):
         n_modes_height,
         n_modes_width,
         hidden_channels,
+        transformation="FNO",
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -520,6 +524,7 @@ class XNO2d(XNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
+            transformation=transformation,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
@@ -568,6 +573,7 @@ class XNO3d(XNO):
         n_modes_width,
         n_modes_depth,
         hidden_channels,
+        transformation="FNO",
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -599,6 +605,7 @@ class XNO3d(XNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
+            transformation=transformation,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
