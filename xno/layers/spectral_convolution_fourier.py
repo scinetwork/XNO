@@ -219,7 +219,7 @@ class SpectralConvFourier(BaseSpectralConv):
     init_std : float or 'auto', default is 'auto'
         std to use for the init
     factorization : str or None, {'tucker', 'cp', 'tt'}, default is None
-        If None, a single dense weight is learned for the FNO.
+        If None, a single dense weight is learned for the XNO.
         Otherwise, that weight, used for the contraction in the Fourier domain
         is learned in factorized form. In that case, `factorization` is the
         tensor factorization of the parameters weight used.
@@ -269,7 +269,7 @@ class SpectralConvFourier(BaseSpectralConv):
         bias=True,
         separable=False,
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
-        fno_block_precision="full",
+        xno_block_precision="full",
         rank=0.5,
         factorization=None,
         implementation="reconstructed",
@@ -296,7 +296,7 @@ class SpectralConvFourier(BaseSpectralConv):
             max_n_modes = [max_n_modes]
         self.max_n_modes = max_n_modes
 
-        self.fno_block_precision = fno_block_precision
+        self.xno_block_precision = xno_block_precision
         self.rank = rank
         self.factorization = factorization
         self.implementation = implementation
@@ -379,7 +379,7 @@ class SpectralConvFourier(BaseSpectralConv):
     
     @n_modes.setter
     def n_modes(self, n_modes):
-        if isinstance(n_modes, int): # Should happen for 1D FNO only
+        if isinstance(n_modes, int): # Should happen for 1D XNO only
             n_modes = [n_modes]
         else:
             n_modes = list(n_modes)
@@ -404,7 +404,6 @@ class SpectralConvFourier(BaseSpectralConv):
         -------
         tensorized_spectral_conv(x)
         """
-        print("FOURIER----------")
         
         batchsize, channels, *mode_sizes = x.shape
 
@@ -413,7 +412,7 @@ class SpectralConvFourier(BaseSpectralConv):
             fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
         fft_dims = list(range(-self.order, 0))
 
-        if self.fno_block_precision == "half":
+        if self.xno_block_precision == "half":
             x = x.half()
 
         if self.complex_data:
@@ -423,12 +422,12 @@ class SpectralConvFourier(BaseSpectralConv):
         if self.order > 1:
             x = torch.fft.fftshift(x, dim=fft_dims[:-1])
 
-        if self.fno_block_precision == "mixed":
+        if self.xno_block_precision == "mixed":
             # if 'mixed', the above fft runs in full precision, but the
             # following operations run at half precision
             x = x.chalf()
 
-        if self.fno_block_precision in ["half", "mixed"]:
+        if self.xno_block_precision in ["half", "mixed"]:
             out_dtype = torch.chalf
         else:
             out_dtype = torch.cfloat

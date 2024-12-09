@@ -202,7 +202,7 @@ class SpectralConvLaplace(BaseSpectralConv):
         Whether to use separable weights, by default False
     resolution_scaling_factor : float or list[float], optional
         Resolution scaling, by default None
-    fno_block_precision : str, optional
+    xno_block_precision : str, optional
         Precision setting ('full', 'half', 'mixed'), by default 'full'
     rank : float, optional
         Factorization rank, by default 0.5
@@ -243,7 +243,7 @@ class SpectralConvLaplace(BaseSpectralConv):
         bias=True,
         separable=False,
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
-        fno_block_precision="full",
+        xno_block_precision="full",
         rank=0.5,
         factorization=None,
         implementation="reconstructed",
@@ -271,7 +271,7 @@ class SpectralConvLaplace(BaseSpectralConv):
             max_n_modes = [max_n_modes]
         self.max_n_modes = max_n_modes
 
-        self.fno_block_precision = fno_block_precision
+        self.xno_block_precision = xno_block_precision
         self.rank = rank
         self.factorization = factorization
         self.implementation = implementation
@@ -396,7 +396,7 @@ class SpectralConvLaplace(BaseSpectralConv):
         batchsize, channels, *mode_sizes = x.shape
         fft_dims = list(range(-self.order, 0))
 
-        if self.fno_block_precision == "half":
+        if self.xno_block_precision == "half":
             x = x.half()
 
         # Forward transform
@@ -404,10 +404,10 @@ class SpectralConvLaplace(BaseSpectralConv):
         # complex_data is allowed. If complex_data=False, we still do full fftn (not rfft)
         x_fft = torch.fft.fftn(x, norm=self.fft_norm, dim=fft_dims)
 
-        if self.fno_block_precision == "mixed":
+        if self.xno_block_precision == "mixed":
             x_fft = x_fft.chalf()
 
-        if self.fno_block_precision in ["half", "mixed"]:
+        if self.xno_block_precision in ["half", "mixed"]:
             out_dtype = torch.chalf
         else:
             out_dtype = torch.cfloat

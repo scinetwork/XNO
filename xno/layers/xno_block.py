@@ -11,6 +11,7 @@ from .skip_connections import skip_connection
 from .spectral_convolution_x import SpectralConv
 from .spectral_convolution_fourier import SpectralConvFourier
 from .spectral_convolution_hilbert import SpectralConvHilbert
+from .spectral_convolution_laplace import SpectralConvLaplace
 from ..utils import validate_scaling_factor
 
 
@@ -160,6 +161,8 @@ class XNOBlocks(nn.Module):
             conv_module = SpectralConvFourier
         elif transformation.lower() == "hno":
             conv_module = SpectralConvHilbert
+        elif transformation.lower() == "lno":
+            conv_module = SpectralConvLaplace
         else:
             raise ValueError(
                 f"Unknown transform type '{transformation}'. "
