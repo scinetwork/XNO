@@ -436,7 +436,6 @@ class SpectralConvFourier(BaseSpectralConv):
         
         # if current modes are less than max, start indexing modes closer to the center of the weight tensor
         starts = [(max_modes - min(size, n_mode)) for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, self.max_n_modes)]
-
         # if contraction is separable, weights have shape (channels, modes_x, ...)
         # otherwise they have shape (in_channels, out_channels, modes_x, ...)
         if self.separable: 
@@ -466,6 +465,7 @@ class SpectralConvFourier(BaseSpectralConv):
         else:
             slices_x += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
             slices_x += [slice(None, -starts[-1]) if starts[-1] else slice(None)] # The last mode already has redundant half removed
+        
         out_fft[slices_x] = self._contract(x[slices_x], weight, separable=self.separable)
 
         if self.resolution_scaling_factor is not None and output_shape is None:

@@ -509,21 +509,6 @@ class SpectralConvHilbert(BaseSpectralConv):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # class SpectralConv1d(SpectralConv):
 #     """1D Spectral Conv
 

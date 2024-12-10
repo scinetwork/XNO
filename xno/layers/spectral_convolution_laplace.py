@@ -457,12 +457,19 @@ class SpectralConvLaplace(BaseSpectralConv):
         # Create meshgrid of lambda_i
         truncated_shape = alpha_sub.shape[2:]  # shape of truncated freq domain
         lambda_coords = []
+        
         for i, c in enumerate(coords):
             # extract exactly truncated_shape[i] frequencies
-            start_freq = starts[i]//2 if starts[i]%2==0 else (starts[i]//2)
-            end_freq = None if starts[i] == 0 else (-starts[i]//2)
-            lambda_coords.append(c[start_freq:end_freq])
-
+            # start_freq = starts[i]//2 if starts[i]%2==0 else (starts[i]//2)
+            # end_freq = None if starts[i] == 0 else (-starts[i]//2)
+            # lambda_coords.append(c[start_freq:end_freq])
+            
+            tsize = truncated_sizes[i]
+            if tsize == 0:
+                # Ensure that n_modes and input sizes are set so tsize > 0.
+                raise ValueError("Truncated size is zero. Check n_modes and input dimensions.")
+            lambda_coords.append(c[:tsize])
+       
         lambda_grid = torch.meshgrid(*lambda_coords, indexing='ij')  # each lambda_grid[i] has shape truncated_shape
 
         # Expand residues and compute Hw:
@@ -489,6 +496,18 @@ class SpectralConvLaplace(BaseSpectralConv):
             # Hw: (B, In, ...), Actually Hw: (In, Out, ...) or (Ch,...)
             # Insert at front two dims for in/out if not separable:
             lambda_expanded = lambda_grid[i].unsqueeze(0).unsqueeze(0) if not self.separable else lambda_grid[i].unsqueeze(0)
+                           
+            tsize = truncated_sizes[i]
+            w_pole_i = w_pole_i[..., :tsize] 
+            
+            w_pole_i_expanded = w_pole_i.reshape(
+                *(
+                    w_pole_i.shape[:2] if not self.separable else w_pole_i.shape[:1]
+                ),
+                *([1]*i), tsize, *([1]*(self.order-i-1))
+            )
+                        
+            lambda_expanded = lambda_grid[i].unsqueeze(0).unsqueeze(0) if not self.separable else lambda_grid[i].unsqueeze(0)
 
             # Compute denominator
             denom = (lambda_expanded - w_pole_i_expanded)
@@ -501,7 +520,7 @@ class SpectralConvLaplace(BaseSpectralConv):
         # We can just contract alpha_sub and Hw similarly as Fourier: alpha_sub (B,In,...) and Hw (In,Out,...)
         # For separable: (B,Ch,...) and (Ch,...) -> (B,Ch,...)
         # For non-separable: (B,In,...) and (In,Out,...) -> (B,Out,...)
-
+        
         output_residue1 = _contract_dense(alpha_sub, Hw, separable=self.separable)
         # Let's define Pk = -Hw for PDE scenario
         Pk = -Hw
