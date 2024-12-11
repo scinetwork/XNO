@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import Optional, Union, Sequence
+from typing import List, Optional, Tuple, Union
 
+Number = Union[int, float]
 
 
 def _compute_dt(shape, start_points=None, end_points=None):
@@ -45,38 +47,43 @@ def _compute_dt(shape, start_points=None, end_points=None):
 
 
 
-class SpectralConvLaplace(nn.Module):
-    """
-    Base class for Laplace layer with pole-residue operations.
-    Implements shared logic for 1D, 2D, and 3D variants.
-    """
-    def __init__(self, 
-                 linspace_steps=None, 
-                 linspace_startpoints=None, 
-                 linspace_endpoints=None):
-        super(SpectralConvLaplace, self).__init__()
-        self.linspace_steps = linspace_steps
-        self.linspace_startpoints = linspace_startpoints
-        self.linspace_endpoints = linspace_endpoints
-
-
 # ====================================
 #  Laplace layer: pole-residue operation is used to calculate the poles and residues of the output
 # ====================================
-class SpectralConvLaplace1D(SpectralConvLaplace):
-    def __init__(self, 
-                 in_channels, 
-                 out_channels, 
-                 modes1, 
-                 linspace_steps=None, 
-                 linspace_startpoints=None, 
-                 linspace_endpoints=None):
-        super(SpectralConvLaplace1D, self).__init__(
-            linspace_steps=linspace_steps, 
-            linspace_startpoints=linspace_startpoints, 
-            linspace_endpoints=linspace_endpoints
-        )
-        self.modes1 = modes1
+class SpectralConvLaplace1D(nn.Module):
+    def __init__(
+        self, 
+        in_channels, 
+        out_channels, 
+        n_modes,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        fft_norm="forward",
+        device=None, 
+        linspace_steps=None, 
+        linspace_startpoints=None, 
+        linspace_endpoints=None, 
+        
+        ):
+        super(SpectralConvLaplace1D, self).__init__()
+        
+        
+        self.linspace_steps = linspace_steps
+        self.linspace_startpoints = linspace_startpoints
+        self.linspace_endpoints = linspace_endpoints
+        
+        modes = list(n_modes)
+        self.modes1 = modes[0]
         self.scale = (1 / (in_channels*out_channels))
         self.weights_pole = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
         self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
@@ -125,23 +132,41 @@ class SpectralConvLaplace1D(SpectralConvLaplace):
         return x1+x2
 
 
-class SpectralConvLaplace2D(SpectralConvLaplace):
-    def __init__(self, 
-                 in_channels, 
-                 out_channels, 
-                 modes1, 
-                 modes2, 
-                 linspace_steps=None, 
-                 linspace_startpoints=None, 
-                 linspace_endpoints=None):
-        super(SpectralConvLaplace2D, self).__init__(
-            linspace_steps=linspace_steps, 
-            linspace_startpoints=linspace_startpoints, 
-            linspace_endpoints=linspace_endpoints
-        )
+class SpectralConvLaplace2D(nn.Module):
+    def __init__(
+        self, 
+        in_channels, 
+        out_channels, 
+        n_modes,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        fft_norm="forward",
+        device=None,
+        linspace_steps=None, 
+        linspace_startpoints=None, 
+        linspace_endpoints=None
+        ):
+        
+        super(SpectralConvLaplace2D, self).__init__()
+        
+        self.linspace_steps = linspace_steps
+        self.linspace_startpoints = linspace_startpoints
+        self.linspace_endpoints = linspace_endpoints
+        
+        modes = list(n_modes)
 
-        self.modes1 = modes1
-        self.modes2 = modes2
+        self.modes1 = modes[0]
+        self.modes2 = modes[1]
         self.scale = (1 / (in_channels*out_channels))
         self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
         self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
@@ -197,25 +222,41 @@ class SpectralConvLaplace2D(SpectralConvLaplace):
         return x1+x2
 
 
-class SpectralConvLaplace3D(SpectralConvLaplace):
-    def __init__(self, 
-                 in_channels, 
-                 out_channels, 
-                 modes1, 
-                 modes2, 
-                 modes3, 
-                 linspace_steps=None, 
-                 linspace_startpoints=None, 
-                 linspace_endpoints=None):
-        super(SpectralConvLaplace3D, self).__init__(
-            linspace_steps=linspace_steps, 
-            linspace_startpoints=linspace_startpoints, 
-            linspace_endpoints=linspace_endpoints
-        )
+class SpectralConvLaplace3D(nn.Module):
+    def __init__(
+        self, 
+        in_channels, 
+        out_channels,  
+        n_modes,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        fft_norm="forward",
+        device=None,
+        linspace_steps=None, 
+        linspace_startpoints=None, 
+        linspace_endpoints=None
+        ):
+        super(SpectralConvLaplace3D, self).__init__()
+        
+        self.linspace_steps = linspace_steps
+        self.linspace_startpoints = linspace_startpoints
+        self.linspace_endpoints = linspace_endpoints
+        
+        modes = list(n_modes)
 
-        self.modes1 = modes1
-        self.modes2 = modes2
-        self.modes3 = modes3
+        self.modes1 = modes[0]
+        self.modes2 = modes[1]
+        self.modes3 = modes[2]
         self.scale = (1 / (in_channels*out_channels))
         self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
         self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))

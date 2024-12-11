@@ -11,7 +11,7 @@ from .skip_connections import skip_connection
 from .spectral_convolution_x import SpectralConv
 from .spectral_convolution_fourier import SpectralConvFourier
 from .spectral_convolution_hilbert import SpectralConvHilbert
-from .spectral_convolution_laplace import SpectralConvLaplace
+from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
 from ..utils import validate_scaling_factor
 
 
@@ -19,10 +19,7 @@ Number = Union[int, float]
 
 
 class XNOBlocks(nn.Module):
-    """XNOBlocks implements a sequence of Fourier layers, the operations of which 
-    are first described in [1]_. The exact implementation details of the Fourier 
-    layer architecture are discussed in [2]_.
-
+    """XNOBlocks
     Parameters
     ----------
     in_channels : int
@@ -89,11 +86,7 @@ class XNOBlocks(nn.Module):
     
     References
     -----------
-    .. [1] Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
-           Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
-    .. [2] Kossaifi, J., Kovachki, N., Azizzadenesheli, K., Anandkumar, A. "Multi-Grid
-           Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024). 
-           TMLR 2024, https://openreview.net/pdf?id=AWiDlO63bH.
+    
     """
     def __init__(
         self,
@@ -162,7 +155,16 @@ class XNOBlocks(nn.Module):
         elif transformation.lower() == "hno":
             conv_module = SpectralConvHilbert
         elif transformation.lower() == "lno":
-            conv_module = SpectralConvLaplace
+            dim  = len(n_modes)
+            if dim == 1:
+                conv_module = SpectralConvLaplace1D
+            elif dim == 2:
+                conv_module = SpectralConvLaplace2D
+            elif dim == 3:
+                conv_module = SpectralConvLaplace3D
+            else: 
+                raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+            
         else:
             raise ValueError(
                 f"Unknown transform type '{transformation}'. "
