@@ -3,6 +3,8 @@ import torch.nn as nn
 import numpy as np
 from typing import Optional, Union, Sequence
 from typing import List, Optional, Tuple, Union
+from .resample import resample
+
 
 Number = Union[int, float]
 
@@ -82,12 +84,32 @@ class SpectralConvLaplace1D(nn.Module):
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
         
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         modes = list(n_modes)
         self.modes1 = modes[0]
         self.scale = (1 / (in_channels*out_channels))
         self.weights_pole = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
         self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
        
+    
+    def transform(self, x, output_shape=None):
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
+    
     def output_PR(self, lambda1,alpha, weights_pole, weights_residue):   
         Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],lambda1.shape[0], device=alpha.device, dtype=torch.cfloat)
         term1=torch.div(1,torch.sub(lambda1,weights_pole))
@@ -163,14 +185,33 @@ class SpectralConvLaplace2D(nn.Module):
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
         
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         modes = list(n_modes)
-
         self.modes1 = modes[0]
         self.modes2 = modes[1]
         self.scale = (1 / (in_channels*out_channels))
         self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
         self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
         self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, dtype=torch.cfloat))
+        
+        
+    def transform(self, x, output_shape=None):
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
     
     def output_PR(self, lambda1, lambda2, alpha, weights_pole1, weights_pole2, weights_residue):
         Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],weights_residue.shape[3],lambda1.shape[0], lambda2.shape[0], device=alpha.device, dtype=torch.cfloat)
@@ -252,6 +293,8 @@ class SpectralConvLaplace3D(nn.Module):
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
         
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         modes = list(n_modes)
 
         self.modes1 = modes[0]
@@ -263,6 +306,25 @@ class SpectralConvLaplace3D(nn.Module):
         self.weights_pole3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes3, dtype=torch.cfloat))
         self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, self.modes3, dtype=torch.cfloat))
 
+    
+    def transform(self, x, output_shape=None):
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
+    
+    
     def output_PR(self, lambda1, lambda2, lambda3, alpha, weights_pole1, weights_pole2, weights_pole3, weights_residue):
         Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],weights_residue.shape[3],weights_residue.shape[4],lambda1.shape[0], lambda2.shape[0], lambda2.shape[3], device=alpha.device, dtype=torch.cfloat)
         term1=torch.div(1,torch.einsum("pbix,qbik,rbio->pqrbixko",torch.sub(lambda1,weights_pole1),torch.sub(lambda2,weights_pole2),torch.sub(lambda3,weights_pole3)))
