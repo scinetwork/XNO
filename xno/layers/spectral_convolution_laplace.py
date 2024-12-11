@@ -118,9 +118,11 @@ class SpectralConvLaplace1D(nn.Module):
         output_residue2=torch.einsum("bix,xiok->bok", alpha, -Hw) 
         return output_residue1,output_residue2    
 
-    def forward(self, x):
+    def forward(
+        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
+    ):
         
-        # t=grid_x_train.cuda()
+        # t=grid_x_train
         # #Compute input poles and resudes by FFT
         # dt=(t[1]-t[0]).item()
         
@@ -136,7 +138,7 @@ class SpectralConvLaplace1D(nn.Module):
         alpha = torch.fft.fft(x)
         lambda0=torch.fft.fftfreq(t.shape[0], dt)*2*np.pi*1j
         lambda1=lambda0.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        lambda1=lambda1.cuda()
+        lambda1=lambda1
     
     
         # Obtain output poles and residues for transient part and steady-state part
@@ -196,6 +198,29 @@ class SpectralConvLaplace2D(nn.Module):
         self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, dtype=torch.cfloat))
         
         
+        # # Handle n_modes and max_n_modes
+        # self.n_modes = n_modes  # Uses the setter
+        # if max_n_modes is None:
+        #     self.max_n_modes = self.n_modes
+        # else:
+        #     self.max_n_modes = max_n_modes
+        
+        # self.scale = 1 / (in_channels * out_channels)
+        
+        # # Initialize single weight tensor combining poles and residues
+        # # Shape: (in_channels, out_channels, modes1 + modes2 + modes1 * modes2)
+        # if isinstance(self.max_n_modes, int):
+        #     max_modes1 = max_modes2 = self.max_n_modes
+        # else:
+        #     max_modes1, max_modes2 = self.max_n_modes
+        
+        # total_modes = max_modes1 + max_modes2 + (max_modes1 * max_modes2)
+        # self.weight = nn.Parameter(
+        #     self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+        # )
+
+        
+        
     def transform(self, x, output_shape=None):
         in_shape = list(x.shape[2:])
 
@@ -222,9 +247,11 @@ class SpectralConvLaplace2D(nn.Module):
         output_residue2=torch.einsum("biox,oxikpq->bkpq", alpha, Pk) 
         return output_residue1,output_residue2
 
-    def forward(self, x):
-        # tx=T.cuda()
-        # ty=X.cuda()
+    def forward(
+        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
+    ):
+        # tx=T
+        # ty=X
         # #Compute input poles and resudes by FFT
         # dty=(ty[0,1]-ty[0,0]).item()  # location interval
         # dtx=(tx[0,1]-tx[0,0]).item()  # time interval
@@ -239,14 +266,13 @@ class SpectralConvLaplace2D(nn.Module):
         tx = shape[1]
         dty = dt_list[0] 
         dtx = dt_list[1] 
-        
         alpha = torch.fft.fft2(x, dim=[-2,-1])
-        omega1=torch.fft.fftfreq(ty.shape[1], dty)*2*np.pi*1j   # location frequency
-        omega2=torch.fft.fftfreq(tx.shape[1], dtx)*2*np.pi*1j   # time frequency
+        omega1=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   # location frequency
+        omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   # time frequency
         omega1=omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega2=omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        lambda1=omega1.cuda()
-        lambda2=omega2.cuda()
+        lambda1=omega1
+        lambda2=omega2
  
         # Obtain output poles and residues for transient part and steady-state part
         output_residue1,output_residue2 = self.output_PR(lambda1, lambda2, alpha, self.weights_pole1, self.weights_pole2, self.weights_residue)
@@ -334,10 +360,12 @@ class SpectralConvLaplace3D(nn.Module):
         return output_residue1,output_residue2
     
 
-    def forward(self, x):
-        # tt=T.cuda()
-        # tx=X.cuda()
-        # ty=Y.cuda()
+    def forward(
+        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
+    ):
+        # tt=T
+        # tx=X
+        # ty=Y
         
         # dty=(ty[0,1]-ty[0,0]).item()  # location interval
         # dtx=(tx[0,1]-tx[0,0]).item()  # location interval
@@ -358,15 +386,15 @@ class SpectralConvLaplace3D(nn.Module):
         dtx = dt_list[2] 
         
         alpha = torch.fft.fftn(x, dim=[-3,-2,-1])
-        omega1=torch.fft.fftfreq(tz.shape[1], dtz)*2*np.pi*1j   # time frequency
-        omega2=torch.fft.fftfreq(tx.shape[1], dtx)*2*np.pi*1j   # location frequency
-        omega3=torch.fft.fftfreq(ty.shape[1], dty)*2*np.pi*1j   # location frequency
+        omega1=torch.fft.fftfreq(tz.shape[0], dtz)*2*np.pi*1j   # time frequency
+        omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   # location frequency
+        omega3=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   # location frequency
         omega1=omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega2=omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega3=omega3.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        lambda1=omega1.cuda()
-        lambda2=omega2.cuda()    
-        lambda3=omega3.cuda()
+        lambda1=omega1
+        lambda2=omega2    
+        lambda3=omega3
 
         # Obtain output poles and residues for transient part and steady-state part
         output_residue1,output_residue2 = self.output_PR(lambda1, lambda2, lambda3, alpha, self.weights_pole1, self.weights_pole2, self.weights_pole3, self.weights_residue)
