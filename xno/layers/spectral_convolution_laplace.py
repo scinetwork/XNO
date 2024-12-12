@@ -189,36 +189,37 @@ class SpectralConvLaplace2D(nn.Module):
         
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        modes = list(n_modes)
-        self.modes1 = modes[0]
-        self.modes2 = modes[1]
-        self.scale = (1 / (in_channels*out_channels))
-        self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
-        self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
-        self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, dtype=torch.cfloat))
+        # modes = list(n_modes)
+        # self.modes1 = modes[0]
+        # self.modes2 = modes[1]
+        # self.scale = (1 / (in_channels*out_channels))
+        # self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
+        # self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
+        # self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, dtype=torch.cfloat))
         
+        """
+            Commulating all weights into a single weight attribute on the class, and break it down for different applications like weights_pole1, etc. in convolution process. 
+        """
+        # Handle n_modes and max_n_modes
+        self.n_modes = n_modes  # Uses the setter
+        if max_n_modes is None:
+            self.max_n_modes = self.n_modes
+        else:
+            self.max_n_modes = max_n_modes
         
-        # # Handle n_modes and max_n_modes
-        # self.n_modes = n_modes  # Uses the setter
-        # if max_n_modes is None:
-        #     self.max_n_modes = self.n_modes
-        # else:
-        #     self.max_n_modes = max_n_modes
+        self.scale = 1 / (in_channels * out_channels)
         
-        # self.scale = 1 / (in_channels * out_channels)
+        # Initialize single weight tensor combining poles and residues
+        # Shape: (in_channels, out_channels, modes1 + modes2 + modes1 * modes2)
+        if isinstance(self.max_n_modes, int):
+            max_modes1 = max_modes2 = self.max_n_modes
+        else:
+            max_modes1, max_modes2 = self.max_n_modes
         
-        # # Initialize single weight tensor combining poles and residues
-        # # Shape: (in_channels, out_channels, modes1 + modes2 + modes1 * modes2)
-        # if isinstance(self.max_n_modes, int):
-        #     max_modes1 = max_modes2 = self.max_n_modes
-        # else:
-        #     max_modes1, max_modes2 = self.max_n_modes
-        
-        # total_modes = max_modes1 + max_modes2 + (max_modes1 * max_modes2)
-        # self.weight = nn.Parameter(
-        #     self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
-        # )
-
+        total_modes = max_modes1 + max_modes2 + (max_modes1 * max_modes2)
+        self.weight = nn.Parameter(
+            self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+        )
         
         
     def transform(self, x, output_shape=None):
@@ -243,6 +244,10 @@ class SpectralConvLaplace2D(nn.Module):
         term1=torch.div(1,torch.einsum("pbix,qbik->pqbixk",torch.sub(lambda1,weights_pole1),torch.sub(lambda2,weights_pole2)))
         Hw=torch.einsum("bixk,pqbixk->pqbixk",weights_residue,term1)
         Pk=Hw  # for ode, Pk=-Hw; for 2d pde, Pk=Hw; for 3d pde, Pk=-Hw; 
+        
+        print(f"Alpha: {alpha.shape}")
+        print(f"Hw: {Hw.shape}")
+        
         output_residue1=torch.einsum("biox,oxikpq->bkox", alpha, Hw) 
         output_residue2=torch.einsum("biox,oxikpq->bkpq", alpha, Pk) 
         return output_residue1,output_residue2
@@ -250,6 +255,23 @@ class SpectralConvLaplace2D(nn.Module):
     def forward(
         self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
     ):
+        """
+            Dynamically assigning different shapes of the self.weight to the each set of required weights.
+            This is dynamic because of the grad_explained() in incremental.py. 
+        """
+        modes1, modes2 = self.n_modes
+        start_pole1 = 0
+        end_pole1 = modes1
+        start_pole2 = end_pole1
+        end_pole2 = start_pole2 + modes2
+        start_residue = end_pole2
+        end_residue = start_residue + (modes1 * modes2)
+
+        # Pre-slice weights
+        self.weights_pole1 = self.weight[:, :, start_pole1:end_pole1].view(self.weight.size(0), self.weight.size(1), modes1)
+        self.weights_pole2 = self.weight[:, :, start_pole2:end_pole2].view(self.weight.size(0), self.weight.size(1), modes2)
+        self.weights_residue = self.weight[:, :, start_residue:end_residue].view(self.weight.size(0), self.weight.size(1), modes1, modes2)
+        
         # tx=T
         # ty=X
         # #Compute input poles and resudes by FFT
@@ -262,6 +284,8 @@ class SpectralConvLaplace2D(nn.Module):
         dt_list, shape = _compute_dt(shape=self.linspace_steps, 
                                      start_points=self.linspace_startpoints, 
                                      end_points=self.linspace_endpoints)
+        
+        print(f"X shape: {x.shape}")
         ty = shape[0]
         tx = shape[1]
         dty = dt_list[0] 

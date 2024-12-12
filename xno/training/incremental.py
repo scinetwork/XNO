@@ -145,6 +145,7 @@ class IncrementalFNOTrainer(Trainer):
         if self.grad_iter <= self.incremental_grad_max_iter:
             self.grad_iter += 1
             self.accumulated_grad += self.model.xno_blocks.convs[0].weight
+            # import pdb; pdb.set_trace()
         else:
             incremental_final = []
             for i in range(self.ndim):
