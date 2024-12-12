@@ -332,6 +332,9 @@ class XNO(BaseModel, name='XNO'):
         )
         if self.complex_data:
             self.projection = ComplexValued(self.projection)
+            
+    def get_blocks(self):
+        return self.xno_blocks  # Return fno_blocks for XNO
 
     def forward(self, x, output_shape=None, **kwargs):
         """XNO's forward pass
