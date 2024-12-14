@@ -189,14 +189,6 @@ class SpectralConvLaplace2D(nn.Module):
         
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        # modes = list(n_modes)
-        # self.modes1 = modes[0]
-        # self.modes2 = modes[1]
-        # self.scale = (1 / (in_channels*out_channels))
-        # self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
-        # self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
-        # self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, dtype=torch.cfloat))
-        
         """
             Commulating all weights into a single weight attribute on the class, and break it down for different applications like weights_pole1, etc. in convolution process. 
         """
@@ -220,7 +212,6 @@ class SpectralConvLaplace2D(nn.Module):
         self.weight = nn.Parameter(
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
         )
-        
         
     def transform(self, x, output_shape=None):
         in_shape = list(x.shape[2:])
@@ -249,66 +240,6 @@ class SpectralConvLaplace2D(nn.Module):
         output_residue2=torch.einsum("biox,oxikpq->bkpq", alpha, Pk) 
         return output_residue1,output_residue2
 
-    # def forward(
-    #     self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
-    # ):
-    #     """
-    #         Dynamically assigning different shapes of the self.weight to the each set of required weights.
-    #         This is dynamic because of the grad_explained() in incremental.py. 
-    #     """
-    #     modes1, modes2 = self.n_modes
-    #     start_pole1 = 0
-    #     end_pole1 = modes1
-    #     start_pole2 = end_pole1
-    #     end_pole2 = start_pole2 + modes2
-    #     start_residue = end_pole2
-    #     end_residue = start_residue + (modes1 * modes2)
-
-    #     # Pre-slice weights
-    #     self.weights_pole1 = self.weight[:, :, start_pole1:end_pole1].view(self.weight.size(0), self.weight.size(1), modes1)
-    #     self.weights_pole2 = self.weight[:, :, start_pole2:end_pole2].view(self.weight.size(0), self.weight.size(1), modes2)
-    #     self.weights_residue = self.weight[:, :, start_residue:end_residue].view(self.weight.size(0), self.weight.size(1), modes1, modes2)
-        
-    #     # tx=T
-    #     # ty=X
-    #     # #Compute input poles and resudes by FFT
-    #     # dty=(ty[0,1]-ty[0,0]).item()  # location interval
-    #     # dtx=(tx[0,1]-tx[0,0]).item()  # time interval
-        
-    #     if self.linspace_steps is None:
-    #         self.linspace_steps = x.shape[2:]
-            
-    #     dt_list, shape = _compute_dt(shape=self.linspace_steps, 
-    #                                  start_points=self.linspace_startpoints, 
-    #                                  end_points=self.linspace_endpoints)
-        
-    #     print(f"X shape: {x.shape}")
-    #     ty = shape[0]
-    #     tx = shape[1]
-    #     dty = dt_list[0] 
-    #     dtx = dt_list[1] 
-    #     alpha = torch.fft.fft2(x, dim=[-2,-1])
-    #     omega1=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   # location frequency
-    #     omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   # time frequency
-    #     omega1=omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-    #     omega2=omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-    #     lambda1=omega1
-    #     lambda2=omega2
- 
-    #     # Obtain output poles and residues for transient part and steady-state part
-    #     output_residue1,output_residue2 = self.output_PR(lambda1, lambda2, alpha, self.weights_pole1, self.weights_pole2, self.weights_residue)
-
-    #     # Obtain time histories of transient response and steady-state response
-    #     x1 = torch.fft.ifft2(output_residue1, s=(x.size(-2), x.size(-1)))
-    #     x1 = torch.real(x1)    
-    #     term1=torch.einsum("bip,kz->bipz", self.weights_pole1, ty.type(torch.complex64).reshape(1,-1))
-    #     term2=torch.einsum("biq,kx->biqx", self.weights_pole2, tx.type(torch.complex64).reshape(1,-1))
-    #     term3=torch.einsum("bipz,biqx->bipqzx", torch.exp(term1),torch.exp(term2))
-    #     x2=torch.einsum("kbpq,bipqzx->kizx", output_residue2,term3)
-    #     x2=torch.real(x2)
-    #     x2=x2/x.size(-1)/x.size(-2)
-    #     return x1+x2
-    
     def forward(self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None):
         modes1, modes2 = self.n_modes
         H, W = x.shape[-2], x.shape[-1]
@@ -316,9 +247,9 @@ class SpectralConvLaplace2D(nn.Module):
         # Ensure we do not exceed the actual resolution
         modes1 = min(modes1, H)
         modes2 = min(modes2, W)
-        
-        if self.linspace_steps is None:
-            self.linspace_steps = x.shape[2:]
+            
+        self.linspace_steps = x.shape[2:]
+
         dt_list, shape = _compute_dt(shape=self.linspace_steps, 
                                     start_points=self.linspace_startpoints, 
                                     end_points=self.linspace_endpoints)
@@ -327,7 +258,7 @@ class SpectralConvLaplace2D(nn.Module):
         tx = shape[1]
         dty = dt_list[0]
         dtx = dt_list[1]
-
+                
         alpha = torch.fft.fft2(x, dim=[-2, -1])
 
         # Compute frequency grids
@@ -354,38 +285,25 @@ class SpectralConvLaplace2D(nn.Module):
         # Proceed with the existing logic
         output_residue1, output_residue2 = self.output_PR(lambda1, lambda2, alpha, self.weights_pole1, self.weights_pole2, self.weights_residue)
         
-        # After computing output_residue1, output_residue2 as before
-
         x1 = torch.fft.ifft2(output_residue1, s=(x.size(-2), x.size(-1)))
         x1 = torch.real(x1)  # shape: (b, o, H, W)
 
-        # Let's say you have only one input channel or you just take mean over i:
-        # weights_pole1: [i, o, p], weights_pole2: [i, o, q]
-        # If multiple input channels: average over i (or select i=0)
-        weights_pole1_single = self.weights_pole1.mean(dim=0)  # now (o, p)
-        weights_pole2_single = self.weights_pole2.mean(dim=0)  # now (o, q)
-
-        # Resample ty and tx to match H and W
-        ty = torch.linspace(ty[0].item(), ty[-1].item(), H, device=ty.device, dtype=ty.dtype)
-        tx = torch.linspace(tx[0].item(), tx[-1].item(), W, device=tx.device, dtype=tx.dtype)
-
         # Now ty has length H and tx has length W
-        term1 = torch.einsum("op,z->opz", weights_pole1_single, ty.type(torch.complex64))  # (o, p, H)
-        term2 = torch.einsum("oq,x->oqx", weights_pole2_single, tx.type(torch.complex64))  # (o, q, W)
+        term1 = torch.einsum("iop,z->iopz", self.weights_pole1, ty.type(torch.complex64))  # (i, o, p, H)
+        term2 = torch.einsum("ioq,x->ioqx", self.weights_pole2, tx.type(torch.complex64))  # (i, o, q, W)        
 
-        term1 = torch.exp(term1)  # (o, p, H)
-        term2 = torch.exp(term2)  # (o, q, W)
+        term1 = torch.exp(term1)  # (i, o, p, H)
+        term2 = torch.exp(term2)  # (i, o, q, W)
 
-        term3 = torch.einsum("opz,oqx->opqzx", term1, term2)  # (o, p, q, H, W)
+        term3 = torch.einsum("iopz,ioqx->iopqzx", term1, term2)  # (i, o, p, q, H, W)
 
         # output_residue2: (b, o, p, q)
         # term3: (o, p, q, H, W)
-        x2 = torch.einsum("bopq,opqzx->bozx", output_residue2, term3)  # (b, o, H, W)
+        x2 = torch.einsum("bopq,iopqzx->bozx", output_residue2, term3)  # (b, o, H, W)
 
         x2 = torch.real(x2) / (x.size(-1) * x.size(-2))
 
         return x1 + x2  # Both are (b, o, H, W)
-
 
 class SpectralConvLaplace3D(nn.Module):
     def __init__(
