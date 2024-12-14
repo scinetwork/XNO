@@ -333,7 +333,7 @@ class LNO(BaseModel, name='LNO'):
 
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
-
+        
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):

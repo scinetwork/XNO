@@ -366,6 +366,8 @@ class XNO(BaseModel, name='XNO'):
 
             * If tuple list, specifies the exact output-shape of each XNO Block
         """
+        
+        # import pdb; pdb.set_trace()
 
         if output_shape is None:
             output_shape = [None]*self.n_layers
