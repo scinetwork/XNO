@@ -86,11 +86,26 @@ class SpectralConvLaplace1D(nn.Module):
         
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        modes = list(n_modes)
-        self.modes1 = modes[0]
-        self.scale = (1 / (in_channels*out_channels))
-        self.weights_pole = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
-        self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat))
+        # Handle n_modes and max_n_modes
+        self.n_modes = n_modes
+        if max_n_modes is None:
+            self.max_n_modes = self.n_modes
+        else:
+            self.max_n_modes = max_n_modes
+        
+        self.scale = 1 / (in_channels * out_channels)
+        
+        # Initialize single weight tensor combining poles and residues
+        
+        if isinstance(self.max_n_modes, int):
+            max_n_modes = self.max_n_modes
+        else:
+            max_n_modes, = self.max_n_modes
+        
+        total_modes = max_n_modes
+        self.weight = nn.Parameter(
+            self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+        )
        
     
     def transform(self, x, output_shape=None):
@@ -111,35 +126,53 @@ class SpectralConvLaplace1D(nn.Module):
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
     
     def output_PR(self, lambda1,alpha, weights_pole, weights_residue):   
-        Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],lambda1.shape[0], device=alpha.device, dtype=torch.cfloat)
+        Hw=torch.zeros(
+            weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],
+            lambda1.shape[0], 
+            device=alpha.device, 
+            dtype=torch.cfloat
+        )
+        
         term1=torch.div(1,torch.sub(lambda1,weights_pole))
         Hw=weights_residue*term1
+        
         output_residue1=torch.einsum("bix,xiok->box", alpha, Hw) 
         output_residue2=torch.einsum("bix,xiok->bok", alpha, -Hw) 
+        
         return output_residue1,output_residue2    
 
     def forward(
-        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
+        self, 
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
     ):
         
-        # t=grid_x_train
-        # #Compute input poles and resudes by FFT
-        # dt=(t[1]-t[0]).item()
+        modes1, = self.n_modes
+        L = x.shape[-1]
         
-        if self.linspace_steps is None:
-            self.linspace_steps = x.shape[2:]
-            
-        dt_list, shape = _compute_dt(shape=self.linspace_steps, 
-                                     start_points=self.linspace_startpoints, 
-                                     end_points=self.linspace_endpoints)
+        # Ensure we do not exceed the actual resolution
+        modes1 = min(modes1, L)
+        
+        # if self.linspace_steps is None:
+        #     self.linspace_steps = x.shape[2:]
+        self.linspace_steps = x.shape[2:]
+        
+        dt_list, shape = _compute_dt(
+            shape=self.linspace_steps, 
+            start_points=self.linspace_startpoints, 
+            end_points=self.linspace_endpoints
+        )
         t = shape[0]
         dt = dt_list[0]        
         
-        alpha = torch.fft.fft(x)
+        alpha = torch.fft.fft(x, dim=-1)
         lambda0=torch.fft.fftfreq(t.shape[0], dt)*2*np.pi*1j
-        lambda1=lambda0.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        lambda1=lambda1
-    
+        lambda1=lambda0[:modes1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        
+        # Slice alpha and weights to match the truncated modes
+        alpha = alpha[:, :, :modes1]
+        self.weights_pole = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
+        self.weights_residue = self.weight[:, :, modes1:(modes1 * 2)].view(self.weight.size(0), self.weight.size(1), modes1)
     
         # Obtain output poles and residues for transient part and steady-state part
         output_residue1,output_residue2= self.output_PR(lambda1, alpha, self.weights_pole, self.weights_residue)
@@ -147,6 +180,7 @@ class SpectralConvLaplace1D(nn.Module):
         # Obtain time histories of transient response and steady-state response
         x1 = torch.fft.ifft(output_residue1, n=x.size(-1))
         x1 = torch.real(x1)
+        
         x2=torch.zeros(output_residue2.shape[0],output_residue2.shape[1],t.shape[0], device=alpha.device, dtype=torch.cfloat)    
         term1=torch.einsum("bix,kz->bixz", self.weights_pole, t.type(torch.complex64).reshape(1,-1))
         term2=torch.exp(term1) 
@@ -240,7 +274,12 @@ class SpectralConvLaplace2D(nn.Module):
         output_residue2=torch.einsum("biox,oxikpq->bkpq", alpha, Pk) 
         return output_residue1,output_residue2
 
-    def forward(self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None):
+    def forward(
+        self, 
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
+    ):
+        
         modes1, modes2 = self.n_modes
         H, W = x.shape[-2], x.shape[-1]
 
@@ -248,11 +287,15 @@ class SpectralConvLaplace2D(nn.Module):
         modes1 = min(modes1, H)
         modes2 = min(modes2, W)
             
+        # if self.linspace_steps is None:
+        #     self.linspace_steps = x.shape[2:]
         self.linspace_steps = x.shape[2:]
 
-        dt_list, shape = _compute_dt(shape=self.linspace_steps, 
-                                    start_points=self.linspace_startpoints, 
-                                    end_points=self.linspace_endpoints)
+        dt_list, shape = _compute_dt(
+            shape=self.linspace_steps, 
+            start_points=self.linspace_startpoints, 
+            end_points=self.linspace_endpoints
+        )
 
         ty = shape[0]
         tx = shape[1]
@@ -302,8 +345,9 @@ class SpectralConvLaplace2D(nn.Module):
         x2 = torch.einsum("bopq,iopqzx->bozx", output_residue2, term3)  # (b, o, H, W)
 
         x2 = torch.real(x2) / (x.size(-1) * x.size(-2))
-
+        
         return x1 + x2  # Both are (b, o, H, W)
+
 
 class SpectralConvLaplace3D(nn.Module):
     def __init__(
