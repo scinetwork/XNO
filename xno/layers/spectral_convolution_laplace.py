@@ -175,7 +175,11 @@ class SpectralConvLaplace1D(nn.Module):
         self.weights_residue = self.weight[:, :, modes1:(modes1 * 2)].view(self.weight.size(0), self.weight.size(1), modes1)
     
         # Obtain output poles and residues for transient part and steady-state part
-        output_residue1,output_residue2= self.output_PR(lambda1, alpha, self.weights_pole, self.weights_residue)
+        output_residue1,output_residue2= self.output_PR(lambda1, 
+                                                        alpha, 
+                                                        self.weights_pole, 
+                                                        self.weights_residue
+                                                        )
     
         # Obtain time histories of transient response and steady-state response
         x1 = torch.fft.ifft(output_residue1, n=x.size(-1))
@@ -381,16 +385,33 @@ class SpectralConvLaplace3D(nn.Module):
         
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        modes = list(n_modes)
+        self.n_modes = n_modes
+        
+        self.modes1, self.modes2, self.modes3 = self.n_modes
+         
+        if max_n_modes is None:
+            self.max_n_modes = self.n_modes
+        else:
+            self.max_n_modes = max_n_modes
+            
+        # Compute total number of modes to combine into single weight tensor
+        if isinstance(self.max_n_modes, int):
+            max_modes1 = max_modes2 = max_modes3 = self.max_n_modes
+        else:
+            max_modes1, max_modes2, max_modes3 = self.max_n_modes
+            
+        total_modes = max_modes1 + max_modes2 + max_modes3 + (max_modes1 * max_modes2 * max_modes3)
 
-        self.modes1 = modes[0]
-        self.modes2 = modes[1]
-        self.modes3 = modes[2]
-        self.scale = (1 / (in_channels*out_channels))
-        self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
-        self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
-        self.weights_pole3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes3, dtype=torch.cfloat))
-        self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, self.modes3, dtype=torch.cfloat))
+        self.scale = (1 / (in_channels * out_channels))
+        self.weight = nn.Parameter(
+            self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+        )
+        
+        # self.scale = (1 / (in_channels*out_channels))
+        # self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
+        # self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
+        # self.weights_pole3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes3, dtype=torch.cfloat))
+        # self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, self.modes3, dtype=torch.cfloat))
 
     
     def transform(self, x, output_shape=None):
@@ -411,9 +432,37 @@ class SpectralConvLaplace3D(nn.Module):
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
     
     
-    def output_PR(self, lambda1, lambda2, lambda3, alpha, weights_pole1, weights_pole2, weights_pole3, weights_residue):
-        Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],weights_residue.shape[3],weights_residue.shape[4],lambda1.shape[0], lambda2.shape[0], lambda2.shape[3], device=alpha.device, dtype=torch.cfloat)
-        term1=torch.div(1,torch.einsum("pbix,qbik,rbio->pqrbixko",torch.sub(lambda1,weights_pole1),torch.sub(lambda2,weights_pole2),torch.sub(lambda3,weights_pole3)))
+    def output_PR(
+        self, 
+        lambda1, 
+        lambda2, 
+        lambda3, 
+        alpha, 
+        weights_pole1, 
+        weights_pole2, 
+        weights_pole3, 
+        weights_residue
+        ):
+        
+        Hw=torch.zeros(
+            weights_residue.shape[0],
+            weights_residue.shape[0],
+            weights_residue.shape[2],
+            weights_residue.shape[3],
+            weights_residue.shape[4],
+            lambda1.shape[0], 
+            lambda2.shape[0], 
+            lambda2.shape[3], 
+            device=alpha.device, 
+            dtype=torch.cfloat)
+        
+        term1=torch.div(
+            1,
+            torch.einsum("pbix,qbik,rbio->pqrbixko",
+            torch.sub(lambda1,weights_pole1),
+            torch.sub(lambda2,weights_pole2),
+            torch.sub(lambda3,weights_pole3)))
+        
         Hw=torch.einsum("bixko,pqrbixko->pqrbixko",weights_residue,term1)
         output_residue1=torch.einsum("bioxs,oxsikpqr->bkoxs", alpha, Hw) 
         output_residue2=torch.einsum("bioxs,oxsikpqr->bkpqr", alpha, -Hw) 
@@ -421,22 +470,24 @@ class SpectralConvLaplace3D(nn.Module):
     
 
     def forward(
-        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
+        self, 
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
     ):
-        # tt=T
-        # tx=X
-        # ty=Y
         
-        # dty=(ty[0,1]-ty[0,0]).item()  # location interval
-        # dtx=(tx[0,1]-tx[0,0]).item()  # location interval
-        # dtt=(tt[0,1]-tt[0,0]).item()  # time interval
+        modes1, modes2, modes3 = self.n_modes
+        D, H, W = x.shape[-3], x.shape[-2], x.shape[-1]
         
-        if self.linspace_steps is None:
-            self.linspace_steps = x.shape[2:]
-            
+        modes1, modes2, modes3 = min(modes1, D), min(modes2, H), min(modes3, W)
+        
+        # if self.linspace_steps is None:
+        #     self.linspace_steps = x.shape[2:]
+        self.linspace_steps = x.shape[2:]
+        
         dt_list, shape = _compute_dt(shape=self.linspace_steps, 
                                      start_points=self.linspace_startpoints, 
-                                     end_points=self.linspace_endpoints)
+                                     end_points=self.linspace_endpoints
+                                     )
         tz = shape[0]
         ty = shape[1]
         tx = shape[2]
@@ -446,28 +497,63 @@ class SpectralConvLaplace3D(nn.Module):
         dtx = dt_list[2] 
         
         alpha = torch.fft.fftn(x, dim=[-3,-2,-1])
-        omega1=torch.fft.fftfreq(tz.shape[0], dtz)*2*np.pi*1j   # time frequency
-        omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   # location frequency
-        omega3=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   # location frequency
+        
+        # Frequency grids
+        omega1=torch.fft.fftfreq(tz.shape[0], dtz)*2*np.pi*1j   
+        omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   
+        omega3=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   
         omega1=omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega2=omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega3=omega3.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         lambda1=omega1
         lambda2=omega2    
         lambda3=omega3
+        
+        # Slice the combined weight tensor
+        i, o, _ = self.weight.shape
+        
+        weights_pole1 = self.weight[:, :, :modes1].view(i, o, modes1)
+        weights_pole2 = self.weight[:, :, modes1:(modes1+modes2)].view(i, o, modes2)
+        weights_pole3 = self.weight[:, :, (modes1+modes2):(modes1+modes2+modes3)].view(i, o, modes3)
+        weights_residue = self.weight[:, :, (modes1+modes2+modes3):(modes1+modes2+modes3+(modes1*modes2*modes3))].view(i, o, modes1, modes2, modes3)
 
         # Obtain output poles and residues for transient part and steady-state part
-        output_residue1,output_residue2 = self.output_PR(lambda1, lambda2, lambda3, alpha, self.weights_pole1, self.weights_pole2, self.weights_pole3, self.weights_residue)
+        output_residue1,output_residue2 = self.output_PR(lambda1, 
+                                                         lambda2, 
+                                                         lambda3, 
+                                                         alpha, 
+                                                         weights_pole1, 
+                                                         weights_pole2, 
+                                                         weights_pole3, 
+                                                         weights_residue
+                                                         )
  
       
         # Obtain time histories of transient response and steady-state response
-        x1 = torch.fft.ifftn(output_residue1, s=(x.size(-3),x.size(-2), x.size(-1)))
+        x1 = torch.fft.ifftn(output_residue1, 
+                             s=(x.size(-3),
+                             x.size(-2),
+                             x.size(-1))
+                             )
         x1 = torch.real(x1)
-        term1=torch.einsum("bip,kz->bipz", self.weights_pole1, tz.type(torch.complex64).reshape(1,-1))
-        term2=torch.einsum("biq,kx->biqx", self.weights_pole2, tx.type(torch.complex64).reshape(1,-1))
-        term3=torch.einsum("bim,ky->bimy", self.weights_pole3, ty.type(torch.complex64).reshape(1,-1))
-        term4=torch.einsum("bipz,biqx,bimy->bipqmzxy", torch.exp(term1),torch.exp(term2),torch.exp(term3))
-        x2=torch.einsum("kbpqm,bipqmzxy->kizxy", output_residue2,term4)
+        
+        term1=torch.einsum("bip,kz->bipz", 
+                           weights_pole1, 
+                           tz.type(torch.complex64).reshape(1,-1))
+        term2=torch.einsum("biq,kx->biqx", 
+                           weights_pole2, 
+                           tx.type(torch.complex64).reshape(1,-1))
+        term3=torch.einsum("bim,ky->bimy", 
+                           weights_pole3, 
+                           ty.type(torch.complex64).reshape(1,-1))
+        term4=torch.einsum("bipz,biqx,bimy->bipqmzxy", 
+                           torch.exp(term1),
+                           torch.exp(term2),torch.exp(term3))
+        
+        x2=torch.einsum("kbpqm,bipqmzxy->kizxy", 
+                        output_residue2,
+                        term4)
         x2=torch.real(x2)
         x2=x2/x.size(-1)/x.size(-2)/x.size(-3)
+        
         return x1+x2
