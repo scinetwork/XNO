@@ -9,7 +9,11 @@ from .resample import resample
 Number = Union[int, float]
 
 
-def _compute_dt(shape, start_points=None, end_points=None):
+def _compute_dt(
+    shape, 
+    start_points=None, 
+    end_points=None
+    ):
     """
     Compute uniform spacing (dt) for each dimension based on domain lengths, step sizes,
     start points, and end points. Defaults to a unit domain if not specified.
@@ -108,7 +112,12 @@ class SpectralConvLaplace1D(nn.Module):
         )
        
     
-    def transform(self, x, output_shape=None):
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+        ):
+        
         in_shape = list(x.shape[2:])
 
         if self.resolution_scaling_factor is not None and output_shape is None:
@@ -125,7 +134,14 @@ class SpectralConvLaplace1D(nn.Module):
         else:
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
     
-    def output_PR(self, lambda1,alpha, weights_pole, weights_residue):   
+    def output_PR(
+        self, 
+        lambda1,
+        alpha, 
+        weights_pole, 
+        weights_residue
+        ):   
+        
         Hw=torch.zeros(
             weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],
             lambda1.shape[0], 
@@ -133,11 +149,20 @@ class SpectralConvLaplace1D(nn.Module):
             dtype=torch.cfloat
         )
         
-        term1=torch.div(1,torch.sub(lambda1,weights_pole))
+        term1=torch.div(1,
+                        torch.sub(lambda1,weights_pole)
+                        )
+
         Hw=weights_residue*term1
         
-        output_residue1=torch.einsum("bix,xiok->box", alpha, Hw) 
-        output_residue2=torch.einsum("bix,xiok->bok", alpha, -Hw) 
+        output_residue1=torch.einsum("bix,xiok->box", 
+                                     alpha, 
+                                     Hw
+                                     ) 
+        output_residue2=torch.einsum("bix,xiok->bok", 
+                                     alpha, 
+                                     -Hw
+                                     ) 
         
         return output_residue1,output_residue2    
 
@@ -157,11 +182,11 @@ class SpectralConvLaplace1D(nn.Module):
         #     self.linspace_steps = x.shape[2:]
         self.linspace_steps = x.shape[2:]
         
-        dt_list, shape = _compute_dt(
-            shape=self.linspace_steps, 
-            start_points=self.linspace_startpoints, 
-            end_points=self.linspace_endpoints
-        )
+        dt_list, shape = _compute_dt(shape=self.linspace_steps, 
+                                     start_points=self.linspace_startpoints, 
+                                     end_points=self.linspace_endpoints
+                                     )
+        
         t = shape[0]
         dt = dt_list[0]        
         
@@ -171,24 +196,33 @@ class SpectralConvLaplace1D(nn.Module):
         
         # Slice alpha and weights to match the truncated modes
         alpha = alpha[:, :, :modes1]
-        self.weights_pole = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
-        self.weights_residue = self.weight[:, :, modes1:(modes1 * 2)].view(self.weight.size(0), self.weight.size(1), modes1)
+        
+        weights_pole = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
+        weights_residue = self.weight[:, :, modes1:(modes1 * 2)].view(self.weight.size(0), self.weight.size(1), modes1)
     
         # Obtain output poles and residues for transient part and steady-state part
         output_residue1,output_residue2= self.output_PR(lambda1, 
                                                         alpha, 
-                                                        self.weights_pole, 
-                                                        self.weights_residue
+                                                        weights_pole, 
+                                                        weights_residue
                                                         )
     
         # Obtain time histories of transient response and steady-state response
         x1 = torch.fft.ifft(output_residue1, n=x.size(-1))
         x1 = torch.real(x1)
         
-        x2=torch.zeros(output_residue2.shape[0],output_residue2.shape[1],t.shape[0], device=alpha.device, dtype=torch.cfloat)    
-        term1=torch.einsum("bix,kz->bixz", self.weights_pole, t.type(torch.complex64).reshape(1,-1))
+        x2=torch.zeros(output_residue2.shape[0],
+                       output_residue2.shape[1],
+                       t.shape[0],
+                       device=alpha.device,
+                       dtype=torch.cfloat)    
+        term1=torch.einsum("bix,kz->bixz", 
+                           weights_pole, 
+                           t.type(torch.complex64).reshape(1,-1))
         term2=torch.exp(term1) 
-        x2=torch.einsum("bix,ioxz->boz", output_residue2,term2)
+        x2=torch.einsum("bix,ioxz->boz",
+                        output_residue2,
+                        term2)
         x2=torch.real(x2)
         x2=x2/x.size(-1)
         return x1+x2
@@ -251,7 +285,11 @@ class SpectralConvLaplace2D(nn.Module):
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
         )
         
-    def transform(self, x, output_shape=None):
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+    ):
         in_shape = list(x.shape[2:])
 
         if self.resolution_scaling_factor is not None and output_shape is None:
@@ -268,14 +306,43 @@ class SpectralConvLaplace2D(nn.Module):
         else:
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
     
-    def output_PR(self, lambda1, lambda2, alpha, weights_pole1, weights_pole2, weights_residue):
-        Hw=torch.zeros(weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],weights_residue.shape[3],lambda1.shape[0], lambda2.shape[0], device=alpha.device, dtype=torch.cfloat)
-        term1=torch.div(1,torch.einsum("pbix,qbik->pqbixk",torch.sub(lambda1,weights_pole1),torch.sub(lambda2,weights_pole2)))
-        Hw=torch.einsum("bixk,pqbixk->pqbixk",weights_residue,term1)
-        Pk=Hw  # for ode, Pk=-Hw; for 2d pde, Pk=Hw; for 3d pde, Pk=-Hw; 
+    def output_PR(
+        self, 
+        lambda1, 
+        lambda2, 
+        alpha, 
+        weights_pole1, 
+        weights_pole2, 
+        weights_residue
+    ):
+        Hw=torch.zeros(weights_residue.shape[0],
+                       weights_residue.shape[0],
+                       weights_residue.shape[2],
+                       weights_residue.shape[3],
+                       lambda1.shape[0], 
+                       lambda2.shape[0], 
+                       device=alpha.device, 
+                       dtype=torch.cfloat
+                       )
         
-        output_residue1=torch.einsum("biox,oxikpq->bkox", alpha, Hw) 
-        output_residue2=torch.einsum("biox,oxikpq->bkpq", alpha, Pk) 
+        term1=torch.div(1,
+                        torch.einsum("pbix,qbik->pqbixk",
+                                     torch.sub(lambda1,weights_pole1),
+                                     torch.sub(lambda2,weights_pole2)))
+        
+        Hw=torch.einsum("bixk,pqbixk->pqbixk",
+                        weights_residue,
+                        term1)
+        
+        Pk=Hw  # for ode, Pk=-Hw; for 2d pde, Pk=Hw; for 3d pde, Pk=-Hw; 
+        import pdb; pdb.set_trace()
+        output_residue1=torch.einsum("biox,oxikpq->bkox", 
+                                     alpha, 
+                                     Hw) 
+        output_residue2=torch.einsum("biox,oxikpq->bkpq",
+                                     alpha, 
+                                     Pk) 
+        
         return output_residue1,output_residue2
 
     def forward(
@@ -321,32 +388,45 @@ class SpectralConvLaplace2D(nn.Module):
         lambda1 = omega1
         lambda2 = omega2
 
-        # Also slice alpha to only consider the selected modes
+        # Slice alpha to only consider the selected modes
         alpha = alpha[:, :, :modes1, :modes2]
 
         # Slice weights to match the truncated modes
-        self.weights_pole1 = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
-        self.weights_pole2 = self.weight[:, :, modes1:(modes1+modes2)].view(self.weight.size(0), self.weight.size(1), modes2)
-        self.weights_residue = self.weight[:, :, (modes1+modes2):(modes1+modes2+modes1*modes2)].view(self.weight.size(0), self.weight.size(1), modes1, modes2)
+        weights_pole1 = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
+        weights_pole2 = self.weight[:, :, modes1:(modes1+modes2)].view(self.weight.size(0), self.weight.size(1), modes2)
+        weights_residue = self.weight[:, :, (modes1+modes2):(modes1+modes2+modes1*modes2)].view(self.weight.size(0), self.weight.size(1), modes1, modes2)
 
         # Proceed with the existing logic
-        output_residue1, output_residue2 = self.output_PR(lambda1, lambda2, alpha, self.weights_pole1, self.weights_pole2, self.weights_residue)
+        output_residue1, output_residue2 = self.output_PR(lambda1, 
+                                                          lambda2, 
+                                                          alpha, 
+                                                          weights_pole1, 
+                                                          weights_pole2, 
+                                                          weights_residue)
         
         x1 = torch.fft.ifft2(output_residue1, s=(x.size(-2), x.size(-1)))
         x1 = torch.real(x1)  # shape: (b, o, H, W)
 
         # Now ty has length H and tx has length W
-        term1 = torch.einsum("iop,z->iopz", self.weights_pole1, ty.type(torch.complex64))  # (i, o, p, H)
-        term2 = torch.einsum("ioq,x->ioqx", self.weights_pole2, tx.type(torch.complex64))  # (i, o, q, W)        
+        term1 = torch.einsum("iop,z->iopz", 
+                             weights_pole1, 
+                             ty.type(torch.complex64))  # (i, o, p, H)
+        term2 = torch.einsum("ioq,x->ioqx", 
+                             weights_pole2, 
+                             tx.type(torch.complex64))  # (i, o, q, W)        
 
         term1 = torch.exp(term1)  # (i, o, p, H)
         term2 = torch.exp(term2)  # (i, o, q, W)
 
-        term3 = torch.einsum("iopz,ioqx->iopqzx", term1, term2)  # (i, o, p, q, H, W)
+        term3 = torch.einsum("iopz,ioqx->iopqzx", 
+                             term1, 
+                             term2)  # (i, o, p, q, H, W)
 
         # output_residue2: (b, o, p, q)
         # term3: (o, p, q, H, W)
-        x2 = torch.einsum("bopq,iopqzx->bozx", output_residue2, term3)  # (b, o, H, W)
+        x2 = torch.einsum("bopq,iopqzx->bozx", 
+                          output_residue2, 
+                          term3)  # (b, o, H, W)
 
         x2 = torch.real(x2) / (x.size(-1) * x.size(-2))
         
@@ -406,13 +486,6 @@ class SpectralConvLaplace3D(nn.Module):
         self.weight = nn.Parameter(
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
         )
-        
-        # self.scale = (1 / (in_channels*out_channels))
-        # self.weights_pole1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  dtype=torch.cfloat))
-        # self.weights_pole2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes2, dtype=torch.cfloat))
-        # self.weights_pole3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes3, dtype=torch.cfloat))
-        # self.weights_residue = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1,  self.modes2, self.modes3, dtype=torch.cfloat))
-
     
     def transform(self, x, output_shape=None):
         in_shape = list(x.shape[2:])
@@ -430,7 +503,6 @@ class SpectralConvLaplace3D(nn.Module):
             return x
         else:
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
-    
     
     def output_PR(
         self, 
@@ -463,9 +535,16 @@ class SpectralConvLaplace3D(nn.Module):
             torch.sub(lambda2,weights_pole2),
             torch.sub(lambda3,weights_pole3)))
         
-        Hw=torch.einsum("bixko,pqrbixko->pqrbixko",weights_residue,term1)
-        output_residue1=torch.einsum("bioxs,oxsikpqr->bkoxs", alpha, Hw) 
-        output_residue2=torch.einsum("bioxs,oxsikpqr->bkpqr", alpha, -Hw) 
+        Hw=torch.einsum("bixko,pqrbixko->pqrbixko",
+                        weights_residue,
+                        term1)
+
+        output_residue1=torch.einsum("bioxs,oxsikpqr->bkoxs", 
+                                     alpha, 
+                                     Hw) 
+        output_residue2=torch.einsum("bioxs,oxsikpqr->bkpqr", 
+                                     alpha, 
+                                     -Hw) 
         return output_residue1,output_residue2
     
 
@@ -502,6 +581,12 @@ class SpectralConvLaplace3D(nn.Module):
         omega1=torch.fft.fftfreq(tz.shape[0], dtz)*2*np.pi*1j   
         omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   
         omega3=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   
+        
+        # Slice frequencies to match the chosen modes
+        omega1 = omega1[:modes1]
+        omega2 = omega2[:modes2]
+        omega3 = omega3[:modes3]
+        
         omega1=omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega2=omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega3=omega3.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
@@ -509,6 +594,9 @@ class SpectralConvLaplace3D(nn.Module):
         lambda2=omega2    
         lambda3=omega3
         
+        # Slice alpha to only consider the selected modes
+        alpha = alpha[:, :, :modes1, :modes2, :modes3]
+
         # Slice the combined weight tensor
         i, o, _ = self.weight.shape
         
@@ -532,8 +620,8 @@ class SpectralConvLaplace3D(nn.Module):
         # Obtain time histories of transient response and steady-state response
         x1 = torch.fft.ifftn(output_residue1, 
                              s=(x.size(-3),
-                             x.size(-2),
-                             x.size(-1))
+                                x.size(-2),
+                                x.size(-1))
                              )
         x1 = torch.real(x1)
         
@@ -548,7 +636,8 @@ class SpectralConvLaplace3D(nn.Module):
                            ty.type(torch.complex64).reshape(1,-1))
         term4=torch.einsum("bipz,biqx,bimy->bipqmzxy", 
                            torch.exp(term1),
-                           torch.exp(term2),torch.exp(term3))
+                           torch.exp(term2),
+                           torch.exp(term3))
         
         x2=torch.einsum("kbpqm,bipqmzxy->kizxy", 
                         output_residue2,
