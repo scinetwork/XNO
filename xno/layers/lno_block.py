@@ -97,6 +97,7 @@ class LNOBlocks(nn.Module):
         in_channels,
         out_channels,
         n_modes,
+        hidden_channels,
         # resolution_scaling_factor=None,
         n_layers=1,
         # max_n_modes=None,
@@ -145,6 +146,7 @@ class LNOBlocks(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.n_layers = n_layers
+        self.hidden_channels = hidden_channels
         # self.stabilizer = stabilizer
         # self.rank = rank
         # self.factorization = factorization
@@ -167,6 +169,11 @@ class LNOBlocks(nn.Module):
         # else:
         #     self.non_linearity = non_linearity
         self.non_linearity = non_linearity
+        
+        """
+        Laplace Spectral Convolution specific normalizer.
+        """
+        self.nd_normalizer = NDNormalizer(num_channels=self.hidden_channels)
         
         self.convs = nn.ModuleList([
                 conv_module(
@@ -302,15 +309,14 @@ class LNOBlocks(nn.Module):
         #         x = ctanh(x)
         #     else:
         #         x = torch.tanh(x)
-
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_lno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
 
         # if self.norm is not None:
-        #     x_fno = self.norm[self.n_norms * index](x_fno)
+        #     x_lno = self.norm[self.n_norms * index](x_lno)
 
-        # x = x_fno + x_skip_fno
-        x = x_fno
+        # x = x_lno + x_skip_fno
+        x = self.nd_normalizer(x_lno)
 
         if (index < (self.n_layers - 1)):
             x = self.non_linearity(x)
@@ -403,3 +409,11 @@ class SubModule(nn.Module):
 
     def forward(self, x):
         return self.main_module.forward(x, self.indices)
+    
+class NDNormalizer(nn.Module):
+    def __init__(self, num_channels):
+        super(NDNormalizer, self).__init__()
+        self.norm = nn.GroupNorm(num_groups=1, num_channels=num_channels)
+
+    def forward(self, x):
+        return self.norm(x)

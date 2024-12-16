@@ -335,7 +335,6 @@ class SpectralConvLaplace2D(nn.Module):
                         term1)
         
         Pk=Hw  # for ode, Pk=-Hw; for 2d pde, Pk=Hw; for 3d pde, Pk=-Hw; 
-        import pdb; pdb.set_trace()
         output_residue1=torch.einsum("biox,oxikpq->bkox", 
                                      alpha, 
                                      Hw) 
@@ -350,7 +349,6 @@ class SpectralConvLaplace2D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
-        
         modes1, modes2 = self.n_modes
         H, W = x.shape[-2], x.shape[-1]
 
@@ -429,9 +427,8 @@ class SpectralConvLaplace2D(nn.Module):
                           term3)  # (b, o, H, W)
 
         x2 = torch.real(x2) / (x.size(-1) * x.size(-2))
-        
-        return x1 + x2  # Both are (b, o, H, W)
 
+        return x1 + x2  # Both are (b, o, H, W)
 
 class SpectralConvLaplace3D(nn.Module):
     def __init__(

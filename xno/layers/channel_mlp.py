@@ -59,7 +59,7 @@ class ChannelMLP(nn.Module):
             else:
                 self.fcs.append(nn.Conv1d(self.hidden_channels, self.hidden_channels, 1))
 
-    def forward(self, x):
+    def forward(self, x):        
         reshaped = False
         size = list(x.shape)
         if x.ndim > 3:  
@@ -80,7 +80,6 @@ class ChannelMLP(nn.Module):
         # same logic as above: .reshape() handles contiguous tensors as well
         if reshaped:
             x = x.reshape((size[0], self.out_channels, *size[2:]))
-
         return x
 
 

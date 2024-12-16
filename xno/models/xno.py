@@ -367,8 +367,6 @@ class XNO(BaseModel, name='XNO'):
             * If tuple list, specifies the exact output-shape of each XNO Block
         """
         
-        # import pdb; pdb.set_trace()
-
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
@@ -379,10 +377,10 @@ class XNO(BaseModel, name='XNO'):
             x = self.positional_embedding(x)
         
         x = self.lifting(x)
-
+        
         if self.domain_padding is not None:
             x = self.domain_padding.pad(x)
-
+        
         for layer_idx in range(self.n_layers):
             x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
 

@@ -237,6 +237,7 @@ class LNO(BaseModel, name='LNO'):
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
+            hidden_channels=self.hidden_channels,
             # resolution_scaling_factor=resolution_scaling_factor,
             # channel_mlp_dropout=channel_mlp_dropout,
             # channel_mlp_expansion=channel_mlp_expansion,
