@@ -290,6 +290,7 @@ class XNO(BaseModel, name='XNO'):
             decomposition_kwargs=decomposition_kwargs,
             conv_module=conv_module,
             n_layers=n_layers,
+            # normalization = self.normalization
             **kwargs
         )
         

@@ -31,6 +31,9 @@ class XNOBlocks(nn.Module):
         in frequency space. Can either be specified as
         an int (for all dimensions) or an iterable with one
         number per dimension
+    transformation : str
+        The mathematical transformation ("X..") option as the convolution kernel. 
+        This is what X stands on XNO. 
     resolution_scaling_factor : Optional[Union[Number, List[Number]]], optional
         factor by which to scale outputs for super-resolution, by default None
     n_layers : int, optional
@@ -83,7 +86,7 @@ class XNOBlocks(nn.Module):
         implementation parameter for SpectralConv, by default "factorized"
     decomposition_kwargs : _type_, optional
         kwargs for tensor decomposition in SpectralConv, by default dict()
-    
+
     References
     -----------
     
@@ -122,6 +125,8 @@ class XNOBlocks(nn.Module):
             n_modes = [n_modes]
         self._n_modes = n_modes
         self.n_dim = len(n_modes)
+        
+        # self.hidden_channels = hidden_channels
 
         self.resolution_scaling_factor: Union[
             None, List[List[float]]
@@ -149,12 +154,15 @@ class XNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
-                
+                        
         if transformation.lower() == "fno":
             conv_module = SpectralConvFourier
         elif transformation.lower() == "hno":
             conv_module = SpectralConvHilbert
         elif transformation.lower() == "lno":
+            # Adding Laplace kernel special normaliazer. 
+            if norm is None:
+                norm = "group_norm"
             dim  = len(n_modes)
             if dim == 1:
                 conv_module = SpectralConvLaplace1D
@@ -407,3 +415,15 @@ class SubModule(nn.Module):
 
     def forward(self, x):
         return self.main_module.forward(x, self.indices)
+    
+"""
+Statndard N-Dim pytorch normalizer. 
+This helps avoid exponential growth after each convolution in SpectralConv class (if needed). 
+"""
+class NDNormalizer(nn.Module):
+    def __init__(self, num_channels):
+        super(NDNormalizer, self).__init__()
+        self.norm = nn.GroupNorm(num_groups=1, num_channels=num_channels)
+
+    def forward(self, x):
+        return self.norm(x)
