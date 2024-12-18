@@ -251,7 +251,6 @@ class Trainer:
         self.n_samples = 0
 
         for idx, sample in enumerate(train_loader):
-            
             loss = self.train_one_batch(idx, sample, training_loss)
             loss.backward()
             self.optimizer.step()
@@ -462,7 +461,6 @@ class Trainer:
             }
 
         self.n_samples += sample["y"].size(0)
-
         out = self.model(**sample)
 
         if self.data_processor is not None:
