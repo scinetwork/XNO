@@ -484,7 +484,12 @@ class SpectralConvLaplace3D(nn.Module):
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
         )
     
-    def transform(self, x, output_shape=None):
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+    ):
+        
         in_shape = list(x.shape[2:])
 
         if self.resolution_scaling_factor is not None and output_shape is None:
