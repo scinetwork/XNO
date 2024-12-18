@@ -104,7 +104,7 @@ class LNOBlocks(nn.Module):
         # fno_block_precision="full",
         # channel_mlp_dropout=0,
         # channel_mlp_expansion=0.5,
-        non_linearity=F.gelu,
+        non_linearity=torch.sin,
         # stabilizer=None,
         # norm=None,
         # ada_in_features=None,

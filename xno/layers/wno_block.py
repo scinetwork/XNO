@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import torch
 from torch import nn
 import torch.nn.functional as F
+from typing import Tuple, List, Union
 
 from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
@@ -98,12 +99,16 @@ class WNOBlocks(nn.Module):
         out_channels,
         n_modes,
         # resolution_scaling_factor=None,
+        wavelet_level, 
+        wavelet_size, 
+        wavelet_filter: Tuple[int], 
+        wavelet_mode: str='symmetric', 
         n_layers=1,
         # max_n_modes=None,
         # fno_block_precision="full",
         # channel_mlp_dropout=0,
         # channel_mlp_expansion=0.5,
-        non_linearity=F.gelu,
+        non_linearity=F.mish,
         # stabilizer=None,
         # norm=None,
         # ada_in_features=None,
@@ -125,6 +130,20 @@ class WNOBlocks(nn.Module):
             n_modes = [n_modes]
         self._n_modes = n_modes
         self.n_dim = len(n_modes)
+        
+        if self.n_dim == 1:
+            conv_module = SpectralConvWavelet1D
+        elif self.n_dim == 2: 
+            conv_module = SpectralConvWavelet2D
+        elif self.n_dim == 3: 
+            conv_module == SpectralConvWavelet3D
+        else:
+            raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {self.n_dim} dimensions.")
+        
+        self.wavelet_level = wavelet_level
+        self.wavelet_size = wavelet_size
+        self.wavelet_filter = wavelet_filter
+        self.wavelet_mode = wavelet_mode
 
         # self.resolution_scaling_factor: Union[
         #     None, List[List[float]]
@@ -160,9 +179,12 @@ class WNOBlocks(nn.Module):
         
         self.convs = nn.ModuleList([
                 conv_module(
-                self.in_channels,
-                self.out_channels,
-                self.n_modes,
+                in_channels=self.in_channels,
+                out_channels=self.out_channels,
+                wavelet_size=self.wavelet_level,
+                wavelet_filter= self.wavelet_filter,
+                wavelet_mode = self.wavelet_mode
+                # self.n_modes,
                 # resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 # max_n_modes=max_n_modes,
                 # rank=rank,
