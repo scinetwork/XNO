@@ -10,33 +10,33 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution_fourier import SpectralConvFourier
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import FNOBlocks
+from ..layers.fno_block import WNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
-class FNO(BaseModel, name='FNO'):
-    """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
+class WNO(BaseModel, name='WNO'):
+    """N-Dimensional Fourier Neural Operator. The WNO learns a mapping between
     spaces of functions discretized over regular grids using Fourier convolutions, 
     as described in [1]_.
     
-    The key component of an FNO is its SpectralConv layer (see 
+    The key component of an WNO is its SpectralConv layer (see 
     ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
     conv layer but operates in the frequency domain.
 
-    For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
+    For a deeper dive into theƒ WNO architecture, refer to :ref:`fno_intro`.
 
     Parameters
     ----------
     n_modes : Tuple[int]
         number of modes to keep in Fourier Layer, along each dimension
-        The dimensionality of the FNO is inferred from ``len(n_modes)``
+        The dimensionality of the WNO is inferred from ``len(n_modes)``
     in_channels : int
         Number of channels in input function
     out_channels : int
         Number of channels in output function
     hidden_channels : int
-        width of the FNO (i.e. number of channels), by default 256
+        width of the WNO (i.e. number of channels), by default 256
     n_layers : int, optional
         Number of Fourier Layers, by default 4
 
@@ -46,15 +46,15 @@ class FNO(BaseModel, name='FNO'):
     ------------------
     lifting_channel_ratio : int, optional
         ratio of lifting channels to hidden_channels, by default 2
-        The number of liting channels in the lifting block of the FNO is
+        The number of liting channels in the lifting block of the WNO is
         lifting_channel_ratio * hidden_channels (e.g. default 512)
     projection_channel_ratio : int, optional
         ratio of projection channels to hidden_channels, by default 2
-        The number of projection channels in the projection block of the FNO is
+        The number of projection channels in the projection block of the WNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
     positional_embedding : Union[str, nn.Module], optional
         Positional embedding to apply to last channels of raw input
-        before being passed through the FNO. Defaults to "grid"
+        before being passed through the WNO. Defaults to "grid"
 
         * If "grid", appends a grid positional embedding with default settings to 
         the last channels of raw input. Assumes the inputs are discretized
@@ -73,13 +73,13 @@ class FNO(BaseModel, name='FNO'):
         Whether data is complex-valued (default False)
         if True, initializes complex-valued modules.
     ~~ channel_mlp_dropout : float, optional
-        dropout parameter for ChannelMLP in FNO Block, by default 0
+        dropout parameter for ChannelMLP in WNO Block, by default 0
     ~~ channel_mlp_expansion : float, optional
-        expansion parameter for ChannelMLP in FNO Block, by default 0.5
+        expansion parameter for ChannelMLP in WNO Block, by default 0.5
     ~~ channel_mlp_skip : str {'linear', 'identity', 'soft-gating'}, optional
         Type of skip connection to use in channel-mixing mlp, by default 'soft-gating'
     ~~ fno_skip : str {'linear', 'identity', 'soft-gating'}, optional
-        Type of skip connection to use in FNO layers, by default 'linear'
+        Type of skip connection to use in WNO layers, by default 'linear'
     ~~ resolution_scaling_factor : Union[Number, List[Number]], optional
         layer-wise factor by which to scale the domain resolution of function, by default None
         
@@ -96,7 +96,7 @@ class FNO(BaseModel, name='FNO'):
     ~~ fno_block_precision : str {'full', 'half', 'mixed'}, optional
         precision mode in which to perform spectral convolution, by default "full"
     ~~ stabilizer : str {'tanh'} | None, optional
-        whether to use a tanh stabilizer in FNO block, by default None
+        whether to use a tanh stabilizer in WNO block, by default None
 
         Note: stabilizer greatly improves performance in the case
         `fno_block_precision='mixed'`. 
@@ -111,7 +111,7 @@ class FNO(BaseModel, name='FNO'):
 
         This can be updated dynamically during training.
     ~~ factorization : str, optional
-        Tensor factorization of the FNO layer weights to use, by default None.
+        Tensor factorization of the WNO layer weights to use, by default None.
 
         * If None, a dense tensor parametrizes the Spectral convolutions
 
@@ -130,19 +130,19 @@ class FNO(BaseModel, name='FNO'):
     ~~ separable : bool, optional (**DEACTIVATED**)
         if True, use a depthwise separable spectral convolution, by default False   
     ~~ preactivation : bool, optional (**DEACTIVATED**)
-        whether to compute FNO forward pass with resnet-style preactivation, by default False
+        whether to compute WNO forward pass with resnet-style preactivation, by default False
     ~~ conv_module : nn.Module, optional
-        module to use for FNOBlock's convolutions, by default SpectralConv
+        module to use for WNOBlock's convolutions, by default SpectralConv
     
     Examples
     ---------
     
-    >>> from neuralop.models import FNO
-    >>> model = FNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
+    >>> from neuralop.models import WNO
+    >>> model = WNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
     >>> model
-    FNO(
+    WNO(
     (positional_embedding): GridEmbeddingND()
-    (fno_blocks): FNOBlocks(
+    (fno_blocks): WNOBlocks(
         (convs): SpectralConv(
         (weight): ModuleList(
             (0-3): 4 x DenseTensor(shape=torch.Size([64, 64, 12, 7]), rank=None)
@@ -177,7 +177,7 @@ class FNO(BaseModel, name='FNO'):
         self.n_dim = len(n_modes)
         
         # n_modes is a special property - see the class' property for underlying mechanism
-        # When updated, change should be reflected in fno blocks
+        # When updated, change should be reflected in wno blocks
         self._n_modes = n_modes
 
         self.hidden_channels = hidden_channels
@@ -209,7 +209,7 @@ class FNO(BaseModel, name='FNO'):
         elif positional_embedding == None:
             self.positional_embedding = None
         else:
-            raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
+            raise ValueError(f"Error: tried to instantiate WNO positional embedding with {positional_embedding},\
                               expected one of \'grid\', GridEmbeddingND")
         
         # if domain_padding is not None and (
@@ -232,7 +232,7 @@ class FNO(BaseModel, name='FNO'):
         #         resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
         # self.resolution_scaling_factor = resolution_scaling_factor
 
-        self.fno_blocks = FNOBlocks(
+        self.fno_blocks = WNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
@@ -300,7 +300,7 @@ class FNO(BaseModel, name='FNO'):
         #     self.projection = ComplexValued(self.projection)
 
     def forward(self, x, output_shape=None, **kwargs):
-        """FNO's forward pass
+        """WNO's forward pass
         
         1. Applies optional positional encoding
 
@@ -325,9 +325,9 @@ class FNO(BaseModel, name='FNO'):
             
             * If None, don't specify an output shape
 
-            * If tuple, specifies the output-shape of the **last** FNO Block
+            * If tuple, specifies the output-shape of the **last** WNO Block
 
-            * If tuple list, specifies the exact output-shape of each FNO Block
+            * If tuple list, specifies the exact output-shape of each WNO Block
         """
 
         if output_shape is None:
@@ -364,10 +364,10 @@ class FNO(BaseModel, name='FNO'):
         self._n_modes = n_modes
 
 
-class FNO1d(FNO):
+class WNO1d(WNO):
     """1D Fourier Neural Operator
 
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
+    For the full list of parameters, see :class:`neuralop.models.WNO`.
 
     Parameters
     ----------
@@ -436,7 +436,7 @@ class FNO1d(FNO):
         self.n_modes_height = n_modes_height
 
 
-class FNO2d(FNO):
+class WNO2d(WNO):
     """2D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -512,10 +512,10 @@ class FNO2d(FNO):
         self.n_modes_width = n_modes_width
 
 
-class FNO3d(FNO):
+class WNO3d(WNO):
     """3D Fourier Neural Operator
 
-    For the full list of parameters, see :class:`neuralop.models.FNO`.
+    For the full list of parameters, see :class:`neuralop.models.WNO`.
 
     Parameters
     ----------
@@ -621,12 +621,12 @@ def partialclass(new_name, cls, *args, **kwargs):
     return new_class
 
 
-# TFNO = partialclass("TFNO", FNO, factorization="Tucker")
-# TFNO1d = partialclass("TFNO1d", FNO1d, factorization="Tucker")
-# TFNO2d = partialclass("TFNO2d", FNO2d, factorization="Tucker")
-# TFNO3d = partialclass("TFNO3d", FNO3d, factorization="Tucker")
+# TWNO = partialclass("TWNO", WNO, factorization="Tucker")
+# TWNO1d = partialclass("TWNO1d", WNO1d, factorization="Tucker")
+# TWNO2d = partialclass("TWNO2d", WNO2d, factorization="Tucker")
+# TWNO3d = partialclass("TWNO3d", WNO3d, factorization="Tucker")
 
-TFNO = partialclass("TFNO", FNO)
-TFNO1d = partialclass("TFNO1d", FNO1d)
-TFNO2d = partialclass("TFNO2d", FNO2d)
-TFNO3d = partialclass("TFNO3d", FNO3d)
+TWNO = partialclass("TWNO", WNO)
+TWNO1d = partialclass("TWNO1d", WNO1d)
+TWNO2d = partialclass("TWNO2d", WNO2d)
+TWNO3d = partialclass("TWNO3d", WNO3d)
