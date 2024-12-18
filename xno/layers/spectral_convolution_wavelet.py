@@ -25,7 +25,7 @@ except ImportError:
 
 
 """ Def: 1d Wavelet convolutional layer """
-class WaveConv1d(nn.Module):
+class SpectralConvWavelet1D(nn.Module):
     def __init__(
         self, 
         in_channels, 
@@ -35,7 +35,7 @@ class WaveConv1d(nn.Module):
         wavelet='db4',
         wavelet_mode='symmetric'
     ):
-        super(WaveConv1d, self).__init__()
+        super(SpectralConvWavelet1D, self).__init__()
 
         """
         1D Wavelet layer. It does Wavelet Transform, linear transform, and
@@ -145,7 +145,7 @@ class WaveConv1d(nn.Module):
 
 
 """ Def: 2d Wavelet convolutional layer (discrete) """
-class WaveConv2d(nn.Module):
+class SpectralConvWavelet2D(nn.Module):
     def __init__(
         self, 
         in_channels, 
@@ -155,7 +155,7 @@ class WaveConv2d(nn.Module):
         wavelet,
         wavelet_mode='symmetric'
     ):
-        super(WaveConv2d, self).__init__()
+        super(SpectralConvWavelet2D, self).__init__()
 
         """
         2D Wavelet layer. It does DWT, linear transform, and Inverse dWT. 
@@ -191,7 +191,7 @@ class WaveConv2d(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
-        self.wavelet = wavelet       
+        self.wavelet = wavelet[0]       
         self.wavelet_mode = wavelet_mode
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
         dwt_ = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet)
@@ -277,7 +277,7 @@ class WaveConv2d(nn.Module):
 
     
 """ Def: 2d Wavelet convolutional layer (slim continuous) """
-class WaveConv2dCwt(nn.Module):
+class SpectralConvWavelet2DCwt(nn.Module):
     def __init__(
         self, 
         in_channels, 
@@ -287,7 +287,7 @@ class WaveConv2dCwt(nn.Module):
         wavelet1, 
         wavelet2
     ):
-        super(WaveConv2dCwt, self).__init__()
+        super(SpectralConvWavelet2DCwt, self).__init__()
 
         """
         !! It is computationally expensive than the discrete "WaveConv2d" !!
@@ -426,7 +426,7 @@ class WaveConv2dCwt(nn.Module):
     
     
 """ Def: 3d Wavelet convolutional layer """
-class WaveConv3d(nn.Module):
+class SpectralConvWavelet3D(nn.Module):
     def __init__(
         self, 
         in_channels, 
@@ -436,7 +436,7 @@ class WaveConv3d(nn.Module):
         wavelet='db4', 
         wavelet_mode='periodic'
     ):
-        super(WaveConv3d, self).__init__()
+        super(SpectralConvWavelet3D, self).__init__()
 
         """
         3D Wavelet layer. It does 3D DWT, linear transform, and Inverse dWT.    

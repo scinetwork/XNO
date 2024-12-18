@@ -181,8 +181,9 @@ class WNOBlocks(nn.Module):
                 conv_module(
                 in_channels=self.in_channels,
                 out_channels=self.out_channels,
-                wavelet_size=self.wavelet_level,
-                wavelet_filter= self.wavelet_filter,
+                wavelet_level=self.wavelet_level,
+                wavelet_size=self.wavelet_size,
+                wavelet= self.wavelet_filter,
                 wavelet_mode = self.wavelet_mode
                 # self.n_modes,
                 # resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],

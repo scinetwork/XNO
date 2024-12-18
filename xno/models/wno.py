@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
 from ..layers.spectral_convolution_fourier import SpectralConvFourier
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import WNOBlocks
+from ..layers.wno_block import WNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
@@ -165,6 +165,10 @@ class WNO(BaseModel, name='WNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
+        wavelet_level: int=4,
+        wavelet_size: List[int]=[64, 64],
+        wavelet_filter: List[str]=['db4'], 
+        wavelet_mode: str='symmetric',
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
@@ -184,6 +188,11 @@ class WNO(BaseModel, name='WNO'):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.n_layers = n_layers
+        
+        self.wavelet_level = wavelet_level
+        self.wavelet_size = wavelet_size
+        self.wavelet_filter = wavelet_filter
+        self.wavelet_mode = wavelet_mode
 
         # init lifting and projection channels using ratios w.r.t hidden channels
         self.lifting_channel_ratio = lifting_channel_ratio
@@ -236,6 +245,10 @@ class WNO(BaseModel, name='WNO'):
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
+            wavelet_level=self.wavelet_level,
+            wavelet_size=self.wavelet_size,
+            wavelet_filter=self.wavelet_filter,
+            wavelet_mode=self.wavelet_mode,
             # resolution_scaling_factor=resolution_scaling_factor,
             # channel_mlp_dropout=channel_mlp_dropout,
             # channel_mlp_expansion=channel_mlp_expansion,

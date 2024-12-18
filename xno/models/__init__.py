@@ -3,6 +3,8 @@ from .fno import FNO, FNO1d, FNO2d, FNO3d
 from .hno import HNO, HNO1d, HNO2d, HNO3d
 from .xno import XNO, XNO1d, XNO2d, XNO3d
 from .lno import LNO, LNO1d, LNO2d, LNO3d
+from .wno import WNO, WNO1d, WNO2d, WNO3d
+
 
 
 from .local_fno import LocalFNO
