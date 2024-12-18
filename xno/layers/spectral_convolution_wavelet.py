@@ -1,18 +1,13 @@
-class SpectralConvWavelet1D:
-    pass
-
-class SpectralConvWavelet2D:
-    pass
-
-class SpectralConvWavelet3D:
-    pass
-
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from typing import List, Optional, Tuple, Union
+from .resample import resample
+
+
+Number = Union[int, float]
 
 try:
     import ptwt, pywt
@@ -32,8 +27,9 @@ class SpectralConvWavelet1D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet='db4',
-        wavelet_mode='symmetric'
+        wavelet=['db4'],
+        wavelet_mode='symmetric',
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
     ):
         super(SpectralConvWavelet1D, self).__init__()
 
@@ -65,8 +61,10 @@ class SpectralConvWavelet1D(nn.Module):
             self.wavelet_size = wavelet_size
         else:
             raise Exception("wavelet_size: WaveConv1d accepts signal length in scalar only") 
-        self.wavelet = wavelet 
+        self.wavelet = wavelet[0]
         self.wavelet_mode = wavelet_mode
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         self.dwt_ = DWT1D(wave=self.wavelet, J=self.wavelet_level, mode=self.wavelet_mode)
         dummy_data = torch.randn( 1,1,self.wavelet_size ) 
         mode_data, _ = self.dwt_(dummy_data)
@@ -76,6 +74,28 @@ class SpectralConvWavelet1D(nn.Module):
         self.scale = (1 / (in_channels*out_channels))
         self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1))
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1))
+    
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+        ):
+        
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
 
     # Convolution
     def mul1d(
@@ -101,7 +121,8 @@ class SpectralConvWavelet1D(nn.Module):
 
     def forward(
         self, 
-        x
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
     ):
         """
         Input parameters: 
@@ -153,7 +174,8 @@ class SpectralConvWavelet2D(nn.Module):
         wavelet_level, 
         wavelet_size, 
         wavelet,
-        wavelet_mode='symmetric'
+        wavelet_mode='symmetric', 
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
     ):
         super(SpectralConvWavelet2D, self).__init__()
 
@@ -193,6 +215,8 @@ class SpectralConvWavelet2D(nn.Module):
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
         self.wavelet = wavelet[0]       
         self.wavelet_mode = wavelet_mode
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
         dwt_ = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet)
         mode_data, mode_coef = dwt_(dummy_data)
@@ -205,6 +229,28 @@ class SpectralConvWavelet2D(nn.Module):
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
         self.weights3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
         self.weights4 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+        ):
+        
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
 
     # Convolution
     def mul2d(
@@ -230,7 +276,8 @@ class SpectralConvWavelet2D(nn.Module):
 
     def forward(
         self, 
-        x
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
     ):
         """
         Input parameters: 
@@ -284,8 +331,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size,
-        wavelet1, 
-        wavelet2
+        wavelet=['near_sym_b', 'qshift_b'],
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None
     ):
         super(SpectralConvWavelet2DCwt, self).__init__()
 
@@ -321,11 +368,13 @@ class SpectralConvWavelet2DCwt(nn.Module):
             if len(wavelet_size) != 2:
                 raise Exception('wavelet_size: WaveConv2dCwt accepts the wavelet_size of 2D signal in list with 2 elements')
             else:
-                self.size = size
+                self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
-        self.wavelet_level1 = wavelet1
-        self.wavelet_level2 = wavelet2        
+        self.wavelet_level1 = wavelet[0]
+        self.wavelet_level2 = wavelet[1]       
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         dummy_data = torch.randn( 1,1,*self.wavelet_size ) 
         dwt_ = DTCWTForward(J=self.wavelet_level, biort=self.wavelet_level1, qshift=self.wavelet_level2)
         mode_data, mode_coef = dwt_(dummy_data)
@@ -349,6 +398,28 @@ class SpectralConvWavelet2DCwt(nn.Module):
         self.weights135c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
         self.weights165r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
         self.weights165c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
+        
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+        ):
+        
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
 
     # Convolution
     def mul2d(
@@ -372,7 +443,11 @@ class SpectralConvWavelet2DCwt(nn.Module):
         """
         return torch.einsum("bixy,ioxy->boxy", input, weights)
 
-    def forward(self, x):
+    def forward(
+        self, 
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
+    ):
         """
         Input parameters: 
         -----------------
@@ -433,8 +508,9 @@ class SpectralConvWavelet3D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet='db4', 
-        wavelet_mode='periodic'
+        wavelet=['db4'], 
+        wavelet_mode='periodic',
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
     ):
         super(SpectralConvWavelet3D, self).__init__()
 
@@ -468,14 +544,15 @@ class SpectralConvWavelet3D(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 3D signal is list')
-        self.wavelet = wavelet
+        self.wavelet = wavelet[0]
         self.mwavelet_modeode = wavelet_mode
         dummy_data = torch.randn( [*self.wavelet_size] ).unsqueeze(0)
         mode_data = wavedec3(dummy_data, pywt.Wavelet(self.wavelet), level=self.wavelet_level, mode=self.wavelet_mode)
         self.modes1 = mode_data[0].shape[-3]
         self.modes2 = mode_data[0].shape[-2]
         self.modes3 = mode_data[0].shape[-1]
-
+        self.resolution_scaling_factor = resolution_scaling_factor
+        
         self.scale = (1 / (in_channels * out_channels))
         self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
@@ -485,6 +562,28 @@ class SpectralConvWavelet3D(nn.Module):
         self.weights6 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
         self.weights7 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
         self.weights8 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
+        
+    def transform(
+        self, 
+        x, 
+        output_shape=None
+        ):
+        
+        in_shape = list(x.shape[2:])
+
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            out_shape = tuple(
+                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+            )
+        elif output_shape is not None:
+            out_shape = output_shape
+        else:
+            out_shape = in_shape
+
+        if in_shape == out_shape:
+            return x
+        else:
+            return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
 
     # Convolution
     def mul3d(
@@ -510,7 +609,8 @@ class SpectralConvWavelet3D(nn.Module):
 
     def forward(
         self, 
-        x
+        x: torch.Tensor, 
+        output_shape: Optional[Tuple[int]] = None
     ):
         xr = torch.zemusoros(x.shape, device = x.device)
         for i in range(x.shape[0]):

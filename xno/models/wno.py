@@ -142,7 +142,7 @@ class WNO(BaseModel, name='WNO'):
     >>> model
     WNO(
     (positional_embedding): GridEmbeddingND()
-    (fno_blocks): WNOBlocks(
+    (wno_blocks): WNOBlocks(
         (convs): SpectralConv(
         (weight): ModuleList(
             (0-3): 4 x DenseTensor(shape=torch.Size([64, 64, 12, 7]), rank=None)
@@ -241,7 +241,7 @@ class WNO(BaseModel, name='WNO'):
         #         resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
         # self.resolution_scaling_factor = resolution_scaling_factor
 
-        self.fno_blocks = WNOBlocks(
+        self.wno_blocks = WNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
@@ -311,6 +311,10 @@ class WNO(BaseModel, name='WNO'):
         )
         # if self.complex_data:
         #     self.projection = ComplexValued(self.projection)
+        
+    def get_blocks(self):
+        return self.wno_blocks  # Return lno_blocks for LNO
+
 
     def forward(self, x, output_shape=None, **kwargs):
         """WNO's forward pass
@@ -358,7 +362,7 @@ class WNO(BaseModel, name='WNO'):
         #     x = self.domain_padding.pad(x)
 
         for layer_idx in range(self.n_layers):
-            x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+            x = self.wno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
 
         # if self.domain_padding is not None:
         #     x = self.domain_padding.unpad(x)
@@ -373,7 +377,7 @@ class WNO(BaseModel, name='WNO'):
 
     @n_modes.setter
     def n_modes(self, n_modes):
-        self.fno_blocks.n_modes = n_modes
+        self.wno_blocks.n_modes = n_modes
         self._n_modes = n_modes
 
 

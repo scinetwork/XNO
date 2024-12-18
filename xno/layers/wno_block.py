@@ -304,10 +304,10 @@ class WNOBlocks(nn.Module):
 
     def forward_with_postactivation(self, x, index=0, output_shape=None):
         # x_skip_fno = self.fno_skips[index](x)
-        x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
+        # x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
 
         # x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        # x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
 
         # if self.stabilizer == "tanh":
         #     if self.complex_data:
@@ -315,18 +315,19 @@ class WNOBlocks(nn.Module):
         #     else:
         #         x = torch.tanh(x)
 
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_wno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
 
         # if self.norm is not None:
-        #     x_fno = self.norm[self.n_norms * index](x_fno)
+        #     x_wno = self.norm[self.n_norms * index](x_wno)
 
-        x = x_fno + x_skip_fno
+        # x = x_wno + x_skip_fno
 
         if (index < (self.n_layers - 1)):
             x = self.non_linearity(x)
 
-        x = self.channel_mlp[index](x) + x_skip_channel_mlp
+        # x = self.channel_mlp[index](x) + x_skip_channel_mlp
+        x = self.channel_mlp[index](x)
 
         # if self.norm is not None:
             # x = self.norm[self.n_norms * index + 1](x)
