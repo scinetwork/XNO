@@ -1,0 +1,7 @@
+torch
+numpy
+pandas
+PyWavelets
+ptwt
+# Pytorch Wavelets library (from GitHub)
+git+https://github.com/fbcotter/pytorch_wavelets.git
