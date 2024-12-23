@@ -223,12 +223,24 @@ class SpectralConvWavelet2D(nn.Module):
         self.modes1 = mode_data.shape[-2]
         self.modes2 = mode_data.shape[-1]
         
+        self.n_modes = (self.modes1, self.modes2)
+                
         # Parameter initilization
         self.scale = (1 / (in_channels * out_channels))
-        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        self.weights3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        self.weights4 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        # self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        # self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        # self.weights3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        # self.weights4 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
+        
+        self.weight = nn.Parameter(
+            self.scale * torch.randn(
+                4, 
+                in_channels,
+                out_channels, 
+                self.modes1, 
+                self.modes2
+            )
+        )
         
     def transform(
         self, 
@@ -309,13 +321,23 @@ class SpectralConvWavelet2D(nn.Module):
         # Instantiate higher level coefficients as zeros
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
+                
+        # # Multiply the final approximate Wavelet modes
+        # out_ft = self.mul2d(x_ft, self.weights1)
+        # # Multiply the final detailed wavelet coefficients
+        # out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weights2)
+        # out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weights3)
+        # out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weights4)
+
+        # if x.shape[-1] != 16: import pdb; pdb.set_trace()
+        import pdb; pdb.set_trace()
         
         # Multiply the final approximate Wavelet modes
-        out_ft = self.mul2d(x_ft, self.weights1)
+        out_ft = self.mul2d(x_ft, self.weight[0])
         # Multiply the final detailed wavelet coefficients
-        out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weights2)
-        out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weights3)
-        out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weights4)
+        out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weight[1])
+        out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weight[2])
+        out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weight[3])
         
         # Return to physical space        
         idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
