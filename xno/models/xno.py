@@ -135,7 +135,7 @@ class XNO(BaseModel, name='XNO'):
     preactivation : bool, optional (**DEACTIVATED**)
         whether to compute XNO forward pass with resnet-style preactivation, by default False
     conv_module : nn.Module, optional
-        module to use for XNOBlock's convolutions, by default SpectralConv
+        module to use for XNOBlock's convolutions, by default None
     
     Examples
     ---------
@@ -194,7 +194,7 @@ class XNO(BaseModel, name='XNO'):
         decomposition_kwargs: dict=dict(),
         separable: bool=False,
         preactivation: bool=False,
-        conv_module: nn.Module=SpectralConv,
+        conv_module: nn.Module=None,
         **kwargs
     ):
         

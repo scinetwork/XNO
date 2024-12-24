@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2024 Saman Pordanesh
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software...
+
 from typing import List, Optional, Union
 
 import torch
@@ -8,11 +12,14 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
-from .spectral_convolution_x import SpectralConv
-from .spectral_convolution_fourier import SpectralConvFourier
-from .spectral_convolution_hilbert import SpectralConvHilbert
-from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
-from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet2DCwt, SpectralConvWavelet3D
+
+# from .spectral_convolution_x import SpectralConv
+# from .spectral_convolution_fourier import SpectralConvFourier
+# from .spectral_convolution_hilbert import SpectralConvHilbert
+# from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
+# from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet2DCwt, SpectralConvWavelet3D
+
+from .spectral_conv_factory import SpectralConvFactory
 from ..utils import validate_scaling_factor
 import inspect
 
@@ -119,7 +126,7 @@ class XNOBlocks(nn.Module):
         separable=False,
         factorization=None,
         rank=1.0,
-        conv_module=SpectralConv,
+        conv_module=None,
         fixed_rank_modes=False, #undoc
         implementation="factorized", #undoc
         decomposition_kwargs=dict(),
@@ -164,78 +171,99 @@ class XNOBlocks(nn.Module):
         extra_args = None  
         dim  = len(n_modes) 
                      
-        if self.transformation.lower() == "fno":
-            conv_module = SpectralConvFourier
-        elif self.transformation.lower() == "hno":
-            conv_module = SpectralConvHilbert
-        elif self.transformation.lower() == "lno":
-            # Adding Laplace kernel special normaliazer. 
-            if norm is None:
-                norm = "group_norm"
-            if dim == 1:
-                conv_module = SpectralConvLaplace1D
-            elif dim == 2:
-                conv_module = SpectralConvLaplace2D
-            elif dim == 3:
-                conv_module = SpectralConvLaplace3D
-            else: 
-                raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+        # if self.transformation.lower() == "fno":
+        #     conv_module = SpectralConvFourier
+        # elif self.transformation.lower() == "hno":
+        #     conv_module = SpectralConvHilbert
+        # elif self.transformation.lower() == "lno":
+        #     # Adding Laplace kernel special normaliazer. 
+        #     if norm is None:
+        #         norm = "group_norm"
+        #     if dim == 1:
+        #         conv_module = SpectralConvLaplace1D
+        #     elif dim == 2:
+        #         conv_module = SpectralConvLaplace2D
+        #     elif dim == 3:
+        #         conv_module = SpectralConvLaplace3D
+        #     else: 
+        #         raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
             
-        elif self.transformation.lower() == "wno":
+        # elif self.transformation.lower() == "wno":
             
-            if dim == 1:
-                conv_module = SpectralConvWavelet1D
-            elif dim == 2:
-                conv_module = SpectralConvWavelet2D
-            elif dim == 3:
-                conv_module = SpectralConvWavelet3D
-            else: 
-                raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+        #     if dim == 1:
+        #         conv_module = SpectralConvWavelet1D
+        #     elif dim == 2:
+        #         conv_module = SpectralConvWavelet2D
+        #     elif dim == 3:
+        #         conv_module = SpectralConvWavelet3D
+        #     else: 
+        #         raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
             
             
-            # Dynamically filter arguments for the conv_module
-            conv_signature = inspect.signature(conv_module.__init__)
-            conv_supported_args = conv_signature.parameters.keys()
+        #     # Dynamically filter arguments for the conv_module
+        #     conv_signature = inspect.signature(conv_module.__init__)
+        #     conv_supported_args = conv_signature.parameters.keys()
 
-            # Check if transformation_kwargs is provided
-            if self.transformation_kwargs is None:
-                raise ValueError(
-                    "Missing `transformation_kwargs` for WNO. "
-                    "Expected a dictionary with keys: 'wavelet_level', 'wavelet_size', 'wavelet_filter', 'wavelet_mode'."
-                ) 
-            if "wavelet_level" not in self.transformation_kwargs:
-                raise ValueError("Missing mandatory argument `wavelet_level` in `transformation_kwargs` for WNO.")
-            if not isinstance(self.transformation_kwargs["wavelet_level"], int) or self.transformation_kwargs["wavelet_level"] <= 0:
-                raise ValueError("`wavelet_level` must be a positive integer.")
+        #     # Check if transformation_kwargs is provided
+        #     if self.transformation_kwargs is None:
+        #         raise ValueError(
+        #             "Missing `transformation_kwargs` for WNO. "
+        #             "Expected a dictionary with keys: 'wavelet_level', 'wavelet_size', 'wavelet_filter', 'wavelet_mode'."
+        #         ) 
+        #     if "wavelet_level" not in self.transformation_kwargs:
+        #         raise ValueError("Missing mandatory argument `wavelet_level` in `transformation_kwargs` for WNO.")
+        #     if not isinstance(self.transformation_kwargs["wavelet_level"], int) or self.transformation_kwargs["wavelet_level"] <= 0:
+        #         raise ValueError("`wavelet_level` must be a positive integer.")
             
-            if "wavelet_size" not in self.transformation_kwargs:
-                raise ValueError("Missing mandatory argument `wavelet_size` in `transformation_kwargs` for WNO.")
-            if not isinstance(self.transformation_kwargs["wavelet_size"], list) or len(self.transformation_kwargs["wavelet_size"]) != 2:
-                raise ValueError("`wavelet_size` must be a list of two integers (e.g., [32, 32]).")
+        #     if "wavelet_size" not in self.transformation_kwargs:
+        #         raise ValueError("Missing mandatory argument `wavelet_size` in `transformation_kwargs` for WNO.")
+        #     if not isinstance(self.transformation_kwargs["wavelet_size"], list) or len(self.transformation_kwargs["wavelet_size"]) != 2:
+        #         raise ValueError("`wavelet_size` must be a list of two integers (e.g., [32, 32]).")
             
-            # Extract or use defaults for optional arguments
-            wavelet_filter = self.transformation_kwargs.get("wavelet_filter", None)
-            wavelet_mode = self.transformation_kwargs.get("wavelet_mode", None)
+        #     # Extract or use defaults for optional arguments
+        #     wavelet_filter = self.transformation_kwargs.get("wavelet_filter", None)
+        #     wavelet_mode = self.transformation_kwargs.get("wavelet_mode", None)
 
-            # Prepare arguments for the constructor
-            extra_args = {
-                "wavelet_level": self.transformation_kwargs["wavelet_level"],
-                "wavelet_size": self.transformation_kwargs["wavelet_size"],
-            }
+        #     # Prepare arguments for the constructor
+        #     extra_args = {
+        #         "wavelet_level": self.transformation_kwargs["wavelet_level"],
+        #         "wavelet_size": self.transformation_kwargs["wavelet_size"],
+        #     }
             
-            # Add optional arguments only if they are explicitly provided
-            if wavelet_filter is not None:
-                extra_args["wavelet_filter"] = wavelet_filter
-            if wavelet_mode is not None:
-                extra_args["wavelet_mode"] = wavelet_mode
+        #     # Add optional arguments only if they are explicitly provided
+        #     if wavelet_filter is not None:
+        #         extra_args["wavelet_filter"] = wavelet_filter
+        #     if wavelet_mode is not None:
+        #         extra_args["wavelet_mode"] = wavelet_mode
                 
-            extra_args = {k: v for k, v in extra_args.items() if k in conv_supported_args and v is not None}
+        #     extra_args = {k: v for k, v in extra_args.items() if k in conv_supported_args and v is not None}
 
-        else:
-            raise ValueError(
-                f"Unknown transform type '{transformation}'. "
-                "XNO just accepts FNO, HNO, LNO, and WNO as transformation argument."
+        # else:
+        #     raise ValueError(
+        #         f"Unknown transform type '{transformation}'. "
+        #         "XNO just accepts FNO, HNO, LNO, and WNO as transformation argument."
+        #     )
+        
+        
+         # Decide if we are auto-selecting the spectral conv or using a user-supplied one
+        if conv_module is None:
+            # Use the new OOP factory
+            factory = SpectralConvFactory(
+                transformation=self.transformation,
+                n_modes=self._n_modes,
+                norm=norm,
+                transformation_kwargs=self.transformation_kwargs
             )
+            sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+            conv_module = sub_factory.select_conv_class()
+            extra_args = sub_factory.get_extra_args()
+            # Possibly update 'norm' if needed
+            norm = sub_factory.update_norm_if_needed()
+        else:
+            # user manually gave a conv, so no special logic
+            conv_module_class = conv_module
+            extra_args = {}
+
 
         # apply real nonlin if data is real, otherwise CGELU
         if self.complex_data:
