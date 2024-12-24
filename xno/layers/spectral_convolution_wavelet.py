@@ -816,31 +816,64 @@ class SpectralConvWavelet3D(nn.Module):
             else:
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
                 x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level, mode=self.wavelet_mode)
+                
+            D_COE0, H_COE0, W_COE0 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
+            D_COE1, H_COE1, W_COE1 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
+            
+            modes1_coe0 = min(self.modes1, D_COE0)
+            modes2_coe0 = min(self.modes2, H_COE0)
+            modes3_coe0 = min(self.modes3, W_COE0)
+            modes1_coe1 = min(self.modes1, D_COE1)
+            modes2_coe1 = min(self.modes2, H_COE1)
+            modes3_coe1 = min(self.modes3, W_COE1)
+            
             
             # Multiply relevant Wavelet modes
             tmp_aaa = x_coeff[0].clone()
-            x_coeff[0][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_aaa[..., :self.modes1, :self.modes2, :self.modes3], self.weight[0])
+            x_coeff[0][..., :modes1_coe0, :modes2_coe0, :modes3_coe0] = self.mul3d(
+                tmp_aaa[..., :modes1_coe0, :modes2_coe0, :modes3_coe0], 
+                self.weight[0][..., :modes1_coe0, :modes2_coe0, :modes3_coe0]
+            )
             
             tmp_aad = x_coeff[1]['aad'].clone()
-            x_coeff[1]['aad'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_aad[..., :self.modes1, :self.modes2, :self.modes3], self.weight[1])
+            x_coeff[1]['aad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_aad[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], self.weight[1][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             tmp_ada = x_coeff[1]['ada'].clone()
-            x_coeff[1]['ada'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_ada[..., :self.modes1, :self.modes2, :self.modes3], self.weight[2])
+            x_coeff[1]['ada'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_ada[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], self.weight[2][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             tmp_add = x_coeff[1]['add'].clone()
-            x_coeff[1]['add'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_add[..., :self.modes1, :self.modes2, :self.modes3], self.weight[3])
+            x_coeff[1]['add'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_add[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], 
+                self.weight[3][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             tmp_daa = x_coeff[1]['daa'].clone()
-            x_coeff[1]['daa'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_daa[..., :self.modes1, :self.modes2, :self.modes3], self.weight[4])
+            x_coeff[1]['daa'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_daa[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
+                self.weight[4][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             tmp_dad = x_coeff[1]['dad'].clone()
-            x_coeff[1]['dad'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_dad[..., :self.modes1, :self.modes2, :self.modes3], self.weight[5])
+            x_coeff[1]['dad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_dad[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
+                self.weight[5][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             tmp_dda = x_coeff[1]['dda'].clone()
-            x_coeff[1]['dda'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_dda[..., :self.modes1, :self.modes2, :self.modes3], self.weight[6])
+            x_coeff[1]['dda'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_dda[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
+                self.weight[6]
+            )
             
             tmp_ddd = x_coeff[1]['ddd'].clone()
-            x_coeff[1]['ddd'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_ddd[..., :self.modes1, :self.modes2, :self.modes3], self.weight[7])
+            x_coeff[1]['ddd'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+                tmp_ddd[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
+                self.weight[7][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
+            )
             
             # Instantiate higher wavelet_level coefficients as zeros
             for jj in range(2, self.wavelet_level + 1):
