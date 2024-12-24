@@ -294,6 +294,7 @@ class Trainer:
         # evaluate and gather metrics across each loader in test_loaders
         all_metrics = {}
         for loader_name, loader in test_loaders.items():
+                        
             loader_metrics = self.evaluate(eval_losses, loader,
                                     log_prefix=loader_name)   
             all_metrics.update(**loader_metrics)
@@ -339,6 +340,7 @@ class Trainer:
                 return_output = False
                 if idx == len(data_loader) - 1:
                     return_output = True
+                                        
                 eval_step_losses, outs = self.eval_one_batch(sample, loss_dict, return_output=return_output)
 
                 for loss_name, val_loss in eval_step_losses.items():
@@ -401,6 +403,7 @@ class Trainer:
             }
 
         self.n_samples += sample["y"].shape[0]
+        
 
         if self.mixed_precision:
             with torch.autocast(device_type=self.autocast_device_type):
@@ -459,7 +462,7 @@ class Trainer:
                 for k, v in sample.items()
                 if torch.is_tensor(v)
             }
-
+        
         self.n_samples += sample["y"].size(0)
         out = self.model(**sample)
 

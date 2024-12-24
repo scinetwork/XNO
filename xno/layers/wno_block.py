@@ -315,13 +315,16 @@ class WNOBlocks(nn.Module):
         #     else:
         #         x = torch.tanh(x)
 
+        # print(x.shape)
+        
         x_wno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
 
         # if self.norm is not None:
         #     x_wno = self.norm[self.n_norms * index](x_wno)
-
+        
         # x = x_wno + x_skip_fno
+        x = x_wno
 
         if (index < (self.n_layers - 1)):
             x = self.non_linearity(x)

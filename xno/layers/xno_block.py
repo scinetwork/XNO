@@ -242,9 +242,7 @@ class XNOBlocks(nn.Module):
             self.non_linearity = CGELU
         else:
             self.non_linearity = non_linearity
-            
-        # import pdb; pdb.set_trace()
-        
+                    
         self.convs = nn.ModuleList([
                 conv_module(
                 in_channels=self.in_channels,
