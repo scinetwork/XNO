@@ -13,7 +13,7 @@ class BaseConvFactory(abc.ABC):
     Subclasses must implement:
         - select_conv_class()
         - get_extra_args()
-        - Possibly override the update_norm_if_needed() if that transformation changes the default norm.
+        - Possibly override the update_norm() if that transformation changes the default norm.
     """
 
     def __init__(
@@ -40,7 +40,7 @@ class BaseConvFactory(abc.ABC):
         """
         pass
 
-    def update_norm_if_needed(self) -> str:
+    def update_norm(self) -> str:
         """
         Some transformations (like LNO) might require you to use 'group_norm' if not specified.
         Subclasses can override if needed.
@@ -80,7 +80,7 @@ class LNOConvFactory(BaseConvFactory):
     def get_extra_args(self) -> Dict:
         return {}
 
-    def update_norm_if_needed(self) -> str:
+    def update_norm(self) -> str:
         # LNO might require 'group_norm' if norm is None
         if self.norm is None:
             return "group_norm"
@@ -163,9 +163,17 @@ class SpectralConvFactory:
             )
             
         if self.verbose:
-            print("====Selected Kernel Description====")
+            print("======== Selected Kernel Description =======")
             print(f"Dimentionality: {self.dim}D")
             print(self.describe())
+            config = (
+                "================== Config ==================\n"
+                f">>> Normaliztion: {factory.update_norm() or None}\n"
+                ">>> Activation Function: \n"
+                "============================================\n"
+            )
+            print(config)
+            
         return factory
 
     def describe(self) -> str:
@@ -188,7 +196,7 @@ CONV_DESCRIPTIONS = {
         ">>> Reference:\n"
         "Li, Z. et al. 'Fourier Neural Operator for Parametric Partial Differential Equations' (ICLR 2021).\n"
         "Link: https://arxiv.org/pdf/2010.08895\n"
-        "==============================================\n"
+        "============================================\n"
     ),
     "hno": (
         "Transformation: [ Hilbert Neural Operator (HNO) Kernel ]\n"
@@ -200,7 +208,7 @@ CONV_DESCRIPTIONS = {
         "- Suitable for scenarios requiring advanced spectral analysis.\n\n"
         ">>> Reference:\n"
         "This is an experimental implementation. Currently no formal reference.\n"
-        "==============================================\n"
+        "============================================\n"
     ),
     "lno": (
         "Transformation: [ Laplace Neural Operator (LNO) Kernel ]\n"
@@ -213,7 +221,7 @@ CONV_DESCRIPTIONS = {
         ">>> Reference:\n"
         "Cao, Q. et al. 'LNO: Laplace Neural Operator for Solving Differential Equations'.\n"
         "Link: https://arxiv.org/pdf/2303.10528\n"
-        "==============================================\n"
+        "============================================\n"
     ),
     "wno": (
         "Transformation: [ Wavelet Neural Operator (WNO) Kernel ]\n"
@@ -227,6 +235,6 @@ CONV_DESCRIPTIONS = {
         ">>> Reference:\n"
         "Tripura, T. et al. 'Wavelet neural operator: a neural operator for parametric partial differential equations'.\n"
         "Link: https://arxiv.org/pdf/2205.02191\n"
-        "==============================================\n"
+        "============================================\n"
     ),
 }
