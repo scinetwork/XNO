@@ -14,6 +14,7 @@ from .spectral_convolution_hilbert import SpectralConvHilbert
 from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
 from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet2DCwt, SpectralConvWavelet3D
 from ..utils import validate_scaling_factor
+import inspect
 
 
 Number = Union[int, float]
@@ -161,7 +162,8 @@ class XNOBlocks(nn.Module):
         self.ada_in_features = ada_in_features
                
         extra_args = None  
-        dim  = len(n_modes)              
+        dim  = len(n_modes) 
+                     
         if self.transformation.lower() == "fno":
             conv_module = SpectralConvFourier
         elif self.transformation.lower() == "hno":
@@ -190,7 +192,12 @@ class XNOBlocks(nn.Module):
             else: 
                 raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
             
-           # Check if transformation_kwargs is provided
+            
+            # Dynamically filter arguments for the conv_module
+            conv_signature = inspect.signature(conv_module.__init__)
+            conv_supported_args = conv_signature.parameters.keys()
+
+            # Check if transformation_kwargs is provided
             if self.transformation_kwargs is None:
                 raise ValueError(
                     "Missing `transformation_kwargs` for WNO. "
@@ -221,6 +228,8 @@ class XNOBlocks(nn.Module):
                 extra_args["wavelet_filter"] = wavelet_filter
             if wavelet_mode is not None:
                 extra_args["wavelet_mode"] = wavelet_mode
+                
+            extra_args = {k: v for k, v in extra_args.items() if k in conv_supported_args and v is not None}
 
         else:
             raise ValueError(
@@ -233,12 +242,14 @@ class XNOBlocks(nn.Module):
             self.non_linearity = CGELU
         else:
             self.non_linearity = non_linearity
+            
+        # import pdb; pdb.set_trace()
         
         self.convs = nn.ModuleList([
                 conv_module(
-                self.in_channels,
-                self.out_channels,
-                self.n_modes,
+                in_channels=self.in_channels,
+                out_channels=self.out_channels,
+                n_modes=self.n_modes,
                 resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 max_n_modes=max_n_modes,
                 rank=rank,

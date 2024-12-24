@@ -197,7 +197,7 @@ class SpectralConvWavelet2D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet_filter,
+        wavelet_filter=['db4'],
         wavelet_mode ='symmetric',
         n_modes=None,
         complex_data=False,
