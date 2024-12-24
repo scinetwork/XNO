@@ -42,7 +42,9 @@ class SpectralConvWavelet1D(nn.Module):
         fixed_rank_modes=False,
         decomposition_kwargs: Optional[dict] = None,
         init_std="auto",
-        device=None,    ):
+        device=None,    
+        **kwargs,
+    ):
         super(SpectralConvWavelet1D, self).__init__()
 
         """
@@ -211,6 +213,7 @@ class SpectralConvWavelet2D(nn.Module):
         decomposition_kwargs: Optional[dict] = None,
         init_std="auto",
         device=None,
+        **kwargs,
     ):
         super(SpectralConvWavelet2D, self).__init__()
 
@@ -374,8 +377,22 @@ class SpectralConvWavelet2DCwt(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size,
-        wavelet=['near_sym_b', 'qshift_b'],
-        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None
+        wavelet_filter=['near_sym_b', 'qshift_b'],
+        n_modes=None,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
+        resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        device=None,    
+        **kwargs,
     ):
         super(SpectralConvWavelet2DCwt, self).__init__()
 
@@ -390,8 +407,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
         wavelet_size         : scalar, length of input 1D signal
-        wavelet1     : string, Specifies the first level biorthogonal wavelet filters
-        wavelet2     : string, Specifies the second level quarter shift filters
+        wavelet_filter[0]     : string, Specifies the first level biorthogonal wavelet filters
+        wavelet_filter[1]     : string, Specifies the second level quarter shift filters
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -414,8 +431,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
-        self.wavelet_level1 = wavelet[0]
-        self.wavelet_level2 = wavelet[1]       
+        self.wavelet_level1 = wavelet_filter[0]
+        self.wavelet_level2 = wavelet_filter[1]       
         self.resolution_scaling_factor = resolution_scaling_factor
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size ) 
@@ -596,7 +613,7 @@ class SpectralConvWavelet3D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet=['db4'], 
+        wavelet_filter=['db4'], 
         wavelet_mode='periodic',
         n_modes=None,
         complex_data=False,
@@ -611,7 +628,8 @@ class SpectralConvWavelet3D(nn.Module):
         fixed_rank_modes=False,
         decomposition_kwargs: Optional[dict] = None,
         init_std="auto",
-        device=None,    
+        device=None, 
+        **kwargs,   
     ):
         super(SpectralConvWavelet3D, self).__init__()
 
@@ -624,7 +642,7 @@ class SpectralConvWavelet3D(nn.Module):
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
         wavelet_size         : scalar, length of input 1D signal
-        wavelet      : string, Specifies the first level biorthogonal wavelet filters
+        wavelet_filter      : string, Specifies the first level biorthogonal wavelet filters
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -645,10 +663,10 @@ class SpectralConvWavelet3D(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 3D signal is list')
-        self.wavelet = wavelet[0]
+        self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
         dummy_data = torch.randn( [*self.wavelet_size] ).unsqueeze(0)
-        mode_data = wavedec3(dummy_data, pywt.Wavelet(self.wavelet), level=self.wavelet_level, mode=self.wavelet_mode)
+        mode_data = wavedec3(dummy_data, pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level, mode=self.wavelet_mode)
         self.modes1 = mode_data[0].shape[-3]
         self.modes2 = mode_data[0].shape[-2]
         self.modes3 = mode_data[0].shape[-1]
@@ -725,16 +743,16 @@ class SpectralConvWavelet3D(nn.Module):
                 factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
                 
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet), level=self.wavelet_level+factor, mode=self.wavelet_mode)
+                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level+factor, mode=self.wavelet_mode)
             
             elif x.shape[-1] < self.wavelet_size[-1]:
                 factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
                 
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet), level=self.wavelet_level-factor, mode=self.wavelet_mode)        
+                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level-factor, mode=self.wavelet_mode)        
             else:
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet), level=self.wavelet_level, mode=self.wavelet_mode)
+                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level, mode=self.wavelet_mode)
             
             # Multiply relevant Wavelet modes
             tmp_aaa = x_coeff[0].clone()
@@ -767,5 +785,5 @@ class SpectralConvWavelet3D(nn.Module):
                                 for key in x_coeff[jj].keys()}
             
             # Return to physical space        
-            xr[i, ...] = waverec3(x_coeff, pywt.Wavelet(self.wavelet))
+            xr[i, ...] = waverec3(x_coeff, pywt.Wavelet(self.wavelet_filter))
         return xr
