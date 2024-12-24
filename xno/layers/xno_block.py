@@ -12,6 +12,7 @@ from .spectral_convolution_x import SpectralConv
 from .spectral_convolution_fourier import SpectralConvFourier
 from .spectral_convolution_hilbert import SpectralConvHilbert
 from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
+from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet2DCwt, SpectralConvWavelet3D
 from ..utils import validate_scaling_factor
 
 
@@ -34,6 +35,8 @@ class XNOBlocks(nn.Module):
     transformation : str
         The mathematical transformation ("X..") option as the convolution kernel. 
         This is what X stands on XNO. 
+    transformation_kwargs : dict
+        For extra keyword prompting where the spectral convolution kernel needs more tailored configuration. 
     resolution_scaling_factor : Optional[Union[Number, List[Number]]], optional
         factor by which to scale outputs for super-resolution, by default None
     n_layers : int, optional
@@ -97,6 +100,7 @@ class XNOBlocks(nn.Module):
         out_channels,
         n_modes,
         transformation="FNO",
+        transformation_kwargs=None,
         resolution_scaling_factor=None,
         n_layers=1,
         max_n_modes=None,
@@ -133,6 +137,7 @@ class XNOBlocks(nn.Module):
         ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
         
         self.transformation = transformation
+        self.transformation_kwargs = transformation_kwargs
 
         self.max_n_modes = max_n_modes
         self.xno_block_precision = xno_block_precision
@@ -154,16 +159,17 @@ class XNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
-                        
-        if transformation.lower() == "fno":
+               
+        extra_args = None  
+        dim  = len(n_modes)              
+        if self.transformation.lower() == "fno":
             conv_module = SpectralConvFourier
-        elif transformation.lower() == "hno":
+        elif self.transformation.lower() == "hno":
             conv_module = SpectralConvHilbert
-        elif transformation.lower() == "lno":
+        elif self.transformation.lower() == "lno":
             # Adding Laplace kernel special normaliazer. 
             if norm is None:
                 norm = "group_norm"
-            dim  = len(n_modes)
             if dim == 1:
                 conv_module = SpectralConvLaplace1D
             elif dim == 2:
@@ -173,9 +179,53 @@ class XNOBlocks(nn.Module):
             else: 
                 raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
             
+        elif self.transformation.lower() == "wno":
+            
+            if dim == 1:
+                conv_module = SpectralConvWavelet1D
+            elif dim == 2:
+                conv_module = SpectralConvWavelet2D
+            elif dim == 3:
+                conv_module = SpectralConvWavelet3D
+            else: 
+                raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+            
+           # Check if transformation_kwargs is provided
+            if self.transformation_kwargs is None:
+                raise ValueError(
+                    "Missing `transformation_kwargs` for WNO. "
+                    "Expected a dictionary with keys: 'wavelet_level', 'wavelet_size', 'wavelet_filter', 'wavelet_mode'."
+                ) 
+            if "wavelet_level" not in self.transformation_kwargs:
+                raise ValueError("Missing mandatory argument `wavelet_level` in `transformation_kwargs` for WNO.")
+            if not isinstance(self.transformation_kwargs["wavelet_level"], int) or self.transformation_kwargs["wavelet_level"] <= 0:
+                raise ValueError("`wavelet_level` must be a positive integer.")
+            
+            if "wavelet_size" not in self.transformation_kwargs:
+                raise ValueError("Missing mandatory argument `wavelet_size` in `transformation_kwargs` for WNO.")
+            if not isinstance(self.transformation_kwargs["wavelet_size"], list) or len(self.transformation_kwargs["wavelet_size"]) != 2:
+                raise ValueError("`wavelet_size` must be a list of two integers (e.g., [32, 32]).")
+            
+            # Extract or use defaults for optional arguments
+            wavelet_filter = self.transformation_kwargs.get("wavelet_filter", None)
+            wavelet_mode = self.transformation_kwargs.get("wavelet_mode", None)
+
+            # Prepare arguments for the constructor
+            extra_args = {
+                "wavelet_level": self.transformation_kwargs["wavelet_level"],
+                "wavelet_size": self.transformation_kwargs["wavelet_size"],
+            }
+            
+            # Add optional arguments only if they are explicitly provided
+            if wavelet_filter is not None:
+                extra_args["wavelet_filter"] = wavelet_filter
+            if wavelet_mode is not None:
+                extra_args["wavelet_mode"] = wavelet_mode
+
         else:
             raise ValueError(
                 f"Unknown transform type '{transformation}'. "
+                "XNO just accepts FNO, HNO, LNO, and WNO as transformation argument."
             )
 
         # apply real nonlin if data is real, otherwise CGELU
@@ -189,7 +239,6 @@ class XNOBlocks(nn.Module):
                 self.in_channels,
                 self.out_channels,
                 self.n_modes,
-                # transform=transformation,
                 resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 max_n_modes=max_n_modes,
                 rank=rank,
@@ -199,7 +248,8 @@ class XNOBlocks(nn.Module):
                 factorization=factorization,
                 xno_block_precision=xno_block_precision,
                 decomposition_kwargs=decomposition_kwargs,
-                complex_data=complex_data
+                complex_data=complex_data,
+                **extra_args
             ) 
             for i in range(n_layers)])
 

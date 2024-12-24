@@ -42,6 +42,11 @@ class XNO(BaseModel, name='XNO'):
 
     Other parameters
     ------------------
+    transformation : str
+        The mathematical transformation ("X..") option as the convolution kernel. 
+        This is what X stands on XNO. 
+    transformation_kwargs : dict
+        For extra keyword prompting where the spectral convolution kernel needs more tailored configuration. 
     lifting_channel_ratio : int, optional
         ratio of lifting channels to hidden_channels, by default 2
         The number of liting channels in the lifting block of the XNO is
@@ -164,6 +169,7 @@ class XNO(BaseModel, name='XNO'):
         out_channels: int,
         hidden_channels: int,
         transformation: str="FNO",
+        transformation_kwargs: dict=None,
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
@@ -206,6 +212,7 @@ class XNO(BaseModel, name='XNO'):
 
         # Define the kernel transformaiton 
         self.transformation = transformation
+        self.transformation_kwargs = transformation_kwargs
 
         # init lifting and projection channels using ratios w.r.t hidden channels
         self.lifting_channel_ratio = lifting_channel_ratio
@@ -270,6 +277,7 @@ class XNO(BaseModel, name='XNO'):
             out_channels=hidden_channels,
             n_modes=self.n_modes,
             transformation=transformation,
+            transformation_kwargs=transformation_kwargs,
             resolution_scaling_factor=resolution_scaling_factor,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
@@ -418,6 +426,7 @@ class XNO1d(XNO):
         n_modes_height,
         hidden_channels,
         transformation="FNO",
+        transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -450,6 +459,7 @@ class XNO1d(XNO):
             in_channels=in_channels,
             out_channels=out_channels,
             transformation=transformation,
+            transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
@@ -495,6 +505,7 @@ class XNO2d(XNO):
         n_modes_width,
         hidden_channels,
         transformation="FNO",
+        transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -527,6 +538,7 @@ class XNO2d(XNO):
             in_channels=in_channels,
             out_channels=out_channels,
             transformation=transformation,
+            transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
@@ -576,6 +588,7 @@ class XNO3d(XNO):
         n_modes_depth,
         hidden_channels,
         transformation="FNO",
+        transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
         lifting_channels=256,
@@ -608,6 +621,7 @@ class XNO3d(XNO):
             in_channels=in_channels,
             out_channels=out_channels,
             transformation=transformation,
+            transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
             n_layers=n_layers,
