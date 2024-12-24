@@ -183,7 +183,11 @@ class SpectralConvWavelet1D(nn.Module):
             
         else:
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(
+                wave=self.wavelet_filter, 
+                J=self.wavelet_level, 
+                mode=self.wavelet_mode
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         # Instantiate higher level coefficients as zeros
@@ -286,7 +290,11 @@ class SpectralConvWavelet2D(nn.Module):
         self.resolution_scaling_factor = resolution_scaling_factor
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
-        dwt_ = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet_filter)
+        dwt_ = DWT(
+            J=self.wavelet_level, 
+            mode=self.wavelet_mode, 
+            wave=self.wavelet_filter
+        )
         mode_data, mode_coef = dwt_(dummy_data)
         self.modes1 = mode_data.shape[-2]
         self.modes2 = mode_data.shape[-1]
@@ -310,7 +318,7 @@ class SpectralConvWavelet2D(nn.Module):
         self, 
         x, 
         output_shape=None
-        ):
+    ):
         
         in_shape = list(x.shape[2:])
 
@@ -367,19 +375,31 @@ class SpectralConvWavelet2D(nn.Module):
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
             
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level+factor, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
+            dwt = DWT(
+                J=self.wavelet_level+factor, 
+                mode=self.wavelet_mode, 
+                wave=self.wavelet_filter
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         elif x.shape[-1] < self.wavelet_size[-1]:
             factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
             
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level-factor, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
+            dwt = DWT(
+                J=self.wavelet_level-factor, 
+                mode=self.wavelet_mode, 
+                wave=self.wavelet_filter
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
         
         else:
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
+            dwt = DWT(
+                J=self.wavelet_level, 
+                mode=self.wavelet_mode, 
+                wave=self.wavelet_filter
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
 
         # Instantiate higher level coefficients as zeros
@@ -418,7 +438,10 @@ class SpectralConvWavelet2D(nn.Module):
         )
         
         # Return to physical space        
-        idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
+        idwt = IDWT(
+            mode=self.wavelet_mode, 
+            wave=self.wavelet_filter
+        ).to(x.device)
         x = idwt((out_ft, out_coeff))
         return x
 
@@ -490,7 +513,11 @@ class SpectralConvWavelet2DCwt(nn.Module):
         self.resolution_scaling_factor = resolution_scaling_factor
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size ) 
-        dwt_ = DTCWTForward(J=self.wavelet_level, biort=self.wavelet_level1, qshift=self.wavelet_level2)
+        dwt_ = DTCWTForward(
+            J=self.wavelet_level, 
+            biort=self.wavelet_level1, 
+            qshift=self.wavelet_level2
+        )
         mode_data, mode_coef = dwt_(dummy_data)
         self.modes1 = mode_data.shape[-2]
         self.modes2 = mode_data.shape[-1]
@@ -574,18 +601,30 @@ class SpectralConvWavelet2DCwt(nn.Module):
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
             
             # Compute dual tree continuous Wavelet coefficients
-            cwt = DTCWTForward(J=self.wavelet_level+factor, biort=self.wavelet_level1, qshift=self.wavelet_level2).to(x.device)
+            cwt = DTCWTForward(
+                J=self.wavelet_level+factor, 
+                biort=self.wavelet_level1, 
+                qshift=self.wavelet_level2
+            ).to(x.device)
             x_ft, x_coeff = cwt(x)
             
         elif x.shape[-1] < self.wavelet_size[-1]:
             factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
             
             # Compute dual tree continuous Wavelet coefficients
-            cwt = DTCWTForward(J=self.wavelet_level-factor, biort=self.wavelet_level1, qshift=self.wavelet_level2).to(x.device)
+            cwt = DTCWTForward(
+                J=self.wavelet_level-factor, 
+                biort=self.wavelet_level1, 
+                qshift=self.wavelet_level2
+            ).to(x.device)
             x_ft, x_coeff = cwt(x)            
         else:
             # Compute dual tree continuous Wavelet coefficients 
-            cwt = DTCWTForward(J=self.wavelet_level, biort=self.wavelet_level1, qshift=self.wavelet_level2).to(x.device)
+            cwt = DTCWTForward(
+                J=self.wavelet_level, 
+                biort=self.wavelet_level1, 
+                qshift=self.wavelet_level2
+            ).to(x.device)
             x_ft, x_coeff = cwt(x)
         
         # Instantiate higher level coefficients as zeros
@@ -806,16 +845,31 @@ class SpectralConvWavelet3D(nn.Module):
                 factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
                 
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level+factor, mode=self.wavelet_mode)
+                x_coeff = wavedec3(
+                    x[i, ...], 
+                    pywt.Wavelet(self.wavelet_filter), 
+                    level=self.wavelet_level+factor, 
+                    mode=self.wavelet_mode
+                )
             
             elif x.shape[-1] < self.wavelet_size[-1]:
                 factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
                 
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level-factor, mode=self.wavelet_mode)        
+                x_coeff = wavedec3(
+                    x[i, ...], 
+                    pywt.Wavelet(self.wavelet_filter), 
+                    level=self.wavelet_level-factor, 
+                    mode=self.wavelet_mode
+                )        
             else:
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
-                x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level, mode=self.wavelet_mode)
+                x_coeff = wavedec3(
+                    x[i, ...], 
+                    pywt.Wavelet(self.wavelet_filter), 
+                    level=self.wavelet_level, 
+                    mode=self.wavelet_mode
+                )
                 
             D_COE0, H_COE0, W_COE0 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
             D_COE1, H_COE1, W_COE1 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
