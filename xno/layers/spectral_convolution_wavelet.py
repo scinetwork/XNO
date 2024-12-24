@@ -171,10 +171,12 @@ class SpectralConvWavelet2D(nn.Module):
         self, 
         in_channels, 
         out_channels, 
+        # n_modes,
         wavelet_level, 
         wavelet_size, 
         wavelet,
-        wavelet_mode='symmetric', 
+        wavelet_mode='symmetric',
+        max_n_modes = None, 
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
     ):
         super(SpectralConvWavelet2D, self).__init__()
@@ -224,6 +226,8 @@ class SpectralConvWavelet2D(nn.Module):
         self.modes2 = mode_data.shape[-1]
         
         self.n_modes = (self.modes1, self.modes2)
+        if max_n_modes is None:
+            self.max_n_modes = self.n_modes
                 
         # Parameter initilization
         self.scale = (1 / (in_channels * out_channels))
@@ -330,14 +334,22 @@ class SpectralConvWavelet2D(nn.Module):
         # out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weights4)
 
         # if x.shape[-1] != 16: import pdb; pdb.set_trace()
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         
         # Multiply the final approximate Wavelet modes
-        out_ft = self.mul2d(x_ft, self.weight[0])
+        # out_ft = self.mul2d(x_ft, self.weight[0])
+        # # Multiply the final detailed wavelet coefficients
+        # out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weight[1])
+        # out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weight[2])
+        # out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weight[3])
+        
+        # Multiply the final approximate Wavelet modes
+        out_ft[:,:, :self.modes1, :self.modes2]  = self.mul2d(x_ft[:,:, :self.modes1, :self.modes2], self.weight[0])
         # Multiply the final detailed wavelet coefficients
-        out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weight[1])
-        out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weight[2])
-        out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weight[3])
+        out_coeff[-1][:,:,0, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,0,:self.modes1, :self.modes2].clone(), self.weight[1])
+        out_coeff[-1][:,:,1, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,1,:self.modes1, :self.modes2].clone(), self.weight[2])
+        out_coeff[-1][:,:,2, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,2,:self.modes1, :self.modes2].clone(), self.weight[3])
+        
         
         # Return to physical space        
         idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
