@@ -27,10 +27,22 @@ class SpectralConvWavelet1D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet=['db4'],
+        wavelet_filter=['db4'],
         wavelet_mode='symmetric',
+        n_modes=None,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
-    ):
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        device=None,    ):
         super(SpectralConvWavelet1D, self).__init__()
 
         """
@@ -43,7 +55,7 @@ class SpectralConvWavelet1D(nn.Module):
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
         wavelet_size         : scalar, length of input 1D signal
-        wavelet      : string, wavelet filter
+        wavelet_filter      : string, wavelet filter
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -61,19 +73,29 @@ class SpectralConvWavelet1D(nn.Module):
             self.wavelet_size = wavelet_size
         else:
             raise Exception("wavelet_size: WaveConv1d accepts signal length in scalar only") 
-        self.wavelet = wavelet[0]
+        self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        self.dwt_ = DWT1D(wave=self.wavelet, J=self.wavelet_level, mode=self.wavelet_mode)
+        self.dwt_ = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level, mode=self.wavelet_mode)
         dummy_data = torch.randn( 1,1,self.wavelet_size ) 
         mode_data, _ = self.dwt_(dummy_data)
         self.modes1 = mode_data.shape[-1]
         
+        self.n_modes = (self.modes1)
+        self.max_n_modes = self.n_modes
+
         # Parameter initilization
         self.scale = (1 / (in_channels*out_channels))
-        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1))
+        self.weight = nn.Parameter(
+            self.scale * torch.randn(
+                2, 
+                in_channels,
+                out_channels, 
+                self.modes1, 
+            )
+        )
+        
     
     def transform(
         self, 
@@ -136,18 +158,18 @@ class SpectralConvWavelet1D(nn.Module):
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet, J=self.wavelet_level+factor, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level+factor, mode=self.wavelet_mode).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         elif x.shape[-1] < self.wavelet_size:
             factor = int(np.log2(self.wavelet_size // x.shape[-1]))
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet, J=self.wavelet_level-factor, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level-factor, mode=self.wavelet_mode).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         else:
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet, J=self.wavelet_level, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level, mode=self.wavelet_mode).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         # Instantiate higher level coefficients as zeros
@@ -155,12 +177,12 @@ class SpectralConvWavelet1D(nn.Module):
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
         # Multiply the final low pass wavelet coefficients
-        out_ft = self.mul1d(x_ft, self.weights1)
+        out_ft[:,:, :self.modes1] = self.mul1d(x_ft[:,:, :self.modes1], self.weight[0])
         # Multiply the final high pass wavelet coefficients
-        out_coeff[-1] = self.mul1d(x_coeff[-1].clone(), self.weights2)
+        out_coeff[-1][:,:, :self.modes1] = self.mul1d(x_coeff[-1][:,:, :self.modes1].clone(), self.weight[1])
     
         # Reconstruct the signal
-        idwt = IDWT1D(wave=self.wavelet, mode=self.wavelet_mode).to(x.device)
+        idwt = IDWT1D(wave=self.wavelet_filter, mode=self.wavelet_mode).to(x.device)
         x = idwt((out_ft, out_coeff)) 
         return x
 
@@ -171,13 +193,24 @@ class SpectralConvWavelet2D(nn.Module):
         self, 
         in_channels, 
         out_channels, 
-        # n_modes,
         wavelet_level, 
         wavelet_size, 
         wavelet,
-        wavelet_mode='symmetric',
-        max_n_modes = None, 
+        wavelet_mode ='symmetric',
+        n_modes=None,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        device=None,
     ):
         super(SpectralConvWavelet2D, self).__init__()
 
@@ -226,8 +259,7 @@ class SpectralConvWavelet2D(nn.Module):
         self.modes2 = mode_data.shape[-1]
         
         self.n_modes = (self.modes1, self.modes2)
-        if max_n_modes is None:
-            self.max_n_modes = self.n_modes
+        self.max_n_modes = self.n_modes
                 
         # Parameter initilization
         self.scale = (1 / (in_channels * out_channels))
