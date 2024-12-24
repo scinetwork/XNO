@@ -357,23 +357,6 @@ class SpectralConvWavelet2D(nn.Module):
         # Instantiate higher level coefficients as zeros
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
-                
-        # # Multiply the final approximate Wavelet modes
-        # out_ft = self.mul2d(x_ft, self.weights1)
-        # # Multiply the final detailed wavelet coefficients
-        # out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weights2)
-        # out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weights3)
-        # out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weights4)
-
-        # if x.shape[-1] != 16: import pdb; pdb.set_trace()
-        # import pdb; pdb.set_trace()
-        
-        # Multiply the final approximate Wavelet modes
-        # out_ft = self.mul2d(x_ft, self.weight[0])
-        # # Multiply the final detailed wavelet coefficients
-        # out_coeff[-1][:,:,0,:,:] = self.mul2d(x_coeff[-1][:,:,0,:,:].clone(), self.weight[1])
-        # out_coeff[-1][:,:,1,:,:] = self.mul2d(x_coeff[-1][:,:,1,:,:].clone(), self.weight[2])
-        # out_coeff[-1][:,:,2,:,:] = self.mul2d(x_coeff[-1][:,:,2,:,:].clone(), self.weight[3])
         
         # Multiply the final approximate Wavelet modes
         out_ft[:,:, :self.modes1, :self.modes2]  = self.mul2d(x_ft[:,:, :self.modes1, :self.modes2], self.weight[0])
@@ -381,7 +364,6 @@ class SpectralConvWavelet2D(nn.Module):
         out_coeff[-1][:,:,0, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,0,:self.modes1, :self.modes2].clone(), self.weight[1])
         out_coeff[-1][:,:,1, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,1,:self.modes1, :self.modes2].clone(), self.weight[2])
         out_coeff[-1][:,:,2, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,2,:self.modes1, :self.modes2].clone(), self.weight[3])
-        
         
         # Return to physical space        
         idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
@@ -576,7 +558,20 @@ class SpectralConvWavelet3D(nn.Module):
         wavelet_size, 
         wavelet=['db4'], 
         wavelet_mode='periodic',
+        n_modes=None,
+        complex_data=False,
+        max_n_modes=None,
+        bias=True,
+        separable=False,
         resolution_scaling_factor: Optional[Union[Number, List[Number]]] = None,
+        xno_block_precision="full",
+        rank=0.5,
+        factorization=None,
+        implementation="reconstructed",
+        fixed_rank_modes=False,
+        decomposition_kwargs: Optional[dict] = None,
+        init_std="auto",
+        device=None,    
     ):
         super(SpectralConvWavelet3D, self).__init__()
 
@@ -619,15 +614,21 @@ class SpectralConvWavelet3D(nn.Module):
         self.modes3 = mode_data[0].shape[-1]
         self.resolution_scaling_factor = resolution_scaling_factor
         
+        self.n_modes = (self.modes1, self.modes2, self.modes3)
+        self.max_n_modes = self.n_modes
+        
         self.scale = (1 / (in_channels * out_channels))
-        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights4 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights5 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights6 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights7 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
-        self.weights8 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, self.modes3))
+        self.weight = nn.Parameter(
+            self.scale * torch.randn(
+                8, 
+                in_channels,
+                out_channels, 
+                self.modes1, 
+                self.modes2, 
+                self.modes3
+            )
+        )
+    
         
     def transform(
         self, 
@@ -697,14 +698,29 @@ class SpectralConvWavelet3D(nn.Module):
                 x_coeff = wavedec3(x[i, ...], pywt.Wavelet(self.wavelet), level=self.wavelet_level, mode=self.wavelet_mode)
             
             # Multiply relevant Wavelet modes
-            x_coeff[0] = self.mul3d(x_coeff[0].clone(), self.weights1)
-            x_coeff[1]['aad'] = self.mul3d(x_coeff[1]['aad'].clone(), self.weights2)
-            x_coeff[1]['ada'] = self.mul3d(x_coeff[1]['ada'].clone(), self.weights3)
-            x_coeff[1]['add'] = self.mul3d(x_coeff[1]['add'].clone(), self.weights4)
-            x_coeff[1]['daa'] = self.mul3d(x_coeff[1]['daa'].clone(), self.weights5)
-            x_coeff[1]['dad'] = self.mul3d(x_coeff[1]['dad'].clone(), self.weights6)
-            x_coeff[1]['dda'] = self.mul3d(x_coeff[1]['dda'].clone(), self.weights7)
-            x_coeff[1]['ddd'] = self.mul3d(x_coeff[1]['ddd'].clone(), self.weights8)
+            tmp_aaa = x_coeff[0].clone()
+            x_coeff[0][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_aaa[..., :self.modes1, :self.modes2, :self.modes3], self.weight[0])
+            
+            tmp_aad = x_coeff[1]['aad'].clone()
+            x_coeff[1]['aad'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_aad[..., :self.modes1, :self.modes2, :self.modes3], self.weight[1])
+            
+            tmp_ada = x_coeff[1]['ada'].clone()
+            x_coeff[1]['ada'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_ada[..., :self.modes1, :self.modes2, :self.modes3], self.weight[2])
+            
+            tmp_add = x_coeff[1]['add'].clone()
+            x_coeff[1]['add'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_add[..., :self.modes1, :self.modes2, :self.modes3], self.weight[3])
+            
+            tmp_daa = x_coeff[1]['daa'].clone()
+            x_coeff[1]['daa'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_daa[..., :self.modes1, :self.modes2, :self.modes3], self.weight[4])
+            
+            tmp_dad = x_coeff[1]['dad'].clone()
+            x_coeff[1]['dad'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_dad[..., :self.modes1, :self.modes2, :self.modes3], self.weight[5])
+            
+            tmp_dda = x_coeff[1]['dda'].clone()
+            x_coeff[1]['dda'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_dda[..., :self.modes1, :self.modes2, :self.modes3], self.weight[6])
+            
+            tmp_ddd = x_coeff[1]['ddd'].clone()
+            x_coeff[1]['ddd'][..., :self.modes1, :self.modes2, :self.modes3] = self.mul3d(tmp_ddd[..., :self.modes1, :self.modes2, :self.modes3], self.weight[7])
             
             # Instantiate higher wavelet_level coefficients as zeros
             for jj in range(2, self.wavelet_level + 1):
