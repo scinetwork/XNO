@@ -79,7 +79,11 @@ class SpectralConvWavelet1D(nn.Module):
         self.wavelet_mode = wavelet_mode
         self.resolution_scaling_factor = resolution_scaling_factor
         
-        self.dwt_ = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level, mode=self.wavelet_mode)
+        self.dwt_ = DWT1D(
+            wave=self.wavelet_filter, 
+            J=self.wavelet_level, 
+            mode=self.wavelet_mode
+        )
         dummy_data = torch.randn( 1,1,self.wavelet_size ) 
         mode_data, _ = self.dwt_(dummy_data)
         self.modes1 = mode_data.shape[-1]
@@ -160,13 +164,21 @@ class SpectralConvWavelet1D(nn.Module):
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level+factor, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(
+                wave=self.wavelet_filter, 
+                J=self.wavelet_level+factor, 
+                mode=self.wavelet_mode
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         elif x.shape[-1] < self.wavelet_size:
             factor = int(np.log2(self.wavelet_size // x.shape[-1]))
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
-            dwt = DWT1D(wave=self.wavelet_filter, J=self.wavelet_level-factor, mode=self.wavelet_mode).to(x.device)
+            dwt = DWT1D(
+                wave=self.wavelet_filter, 
+                J=self.wavelet_level-factor, 
+                mode=self.wavelet_mode
+            ).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         else:
@@ -178,13 +190,31 @@ class SpectralConvWavelet1D(nn.Module):
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
+        # Dynamic modes handeling for different input x shpaes
+        L_FT = x_ft.shape[-1]
+        L_COE = x_coeff[-1].shape[-1]
+        
+        modes1_ft = min(self.modes1, L_FT)
+        modes1_coe = min(self.modes1, L_COE)
+        
         # Multiply the final low pass wavelet coefficients
-        out_ft[:,:, :self.modes1] = self.mul1d(x_ft[:,:, :self.modes1], self.weight[0])
+        out_ft[:,:, :modes1_ft] = self.mul1d(
+            x_ft[:,:, :modes1_ft], 
+            self.weight[0][:,:, :modes1_ft]
+        )
+        
         # Multiply the final high pass wavelet coefficients
-        out_coeff[-1][:,:, :self.modes1] = self.mul1d(x_coeff[-1][:,:, :self.modes1].clone(), self.weight[1])
+        out_coeff[-1][:,:, :modes1_coe] = self.mul1d(
+            x_coeff[-1][:,:, :modes1_coe].clone(), 
+            self.weight[1][:,:, :modes1_coe]
+        )
     
         # Reconstruct the signal
-        idwt = IDWT1D(wave=self.wavelet_filter, mode=self.wavelet_mode).to(x.device)
+        idwt = IDWT1D(
+            wave=self.wavelet_filter, 
+            mode=self.wavelet_mode
+        ).to(x.device)
+        
         x = idwt((out_ft, out_coeff)) 
         return x
 
@@ -356,9 +386,7 @@ class SpectralConvWavelet2D(nn.Module):
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
-        
-        # import pdb; pdb.set_trace()
-        
+                
         # Dynamic modes handeling for different input x shpaes
         H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
         H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
