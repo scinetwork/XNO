@@ -356,12 +356,38 @@ class SpectralConvWavelet2D(nn.Module):
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
+        
+        # import pdb; pdb.set_trace()
+        
+        # Dynamic modes handeling for different input x shpaes
+        H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
+        H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
+        
+        modes1_ft = min(self.modes1, H_FT)
+        modes2_ft = min(self.modes2, W_FT)
+        modes1_coe = min(self.modes1, H_COE)
+        modes2_coe = min(self.modes2, W_COE)
+        
         # Multiply the final approximate Wavelet modes
-        out_ft[:,:, :self.modes1, :self.modes2]  = self.mul2d(x_ft[:,:, :self.modes1, :self.modes2], self.weight[0])
+        out_ft[:,:, :modes1_ft, :modes2_ft]  = self.mul2d(
+            x_ft[:,:, :modes1_ft, :modes2_ft], 
+            self.weight[0][:,:, :modes1_ft, :modes2_ft]
+        )
         # Multiply the final detailed wavelet coefficients
-        out_coeff[-1][:,:,0, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,0,:self.modes1, :self.modes2].clone(), self.weight[1])
-        out_coeff[-1][:,:,1, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,1,:self.modes1, :self.modes2].clone(), self.weight[2])
-        out_coeff[-1][:,:,2, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,2,:self.modes1, :self.modes2].clone(), self.weight[3])
+        out_coeff[-1][:,:,0, :modes1_coe, :modes2_coe] = self.mul2d(
+            x_coeff[-1][:,:,0, :modes1_coe, :modes2_coe].clone(), 
+            self.weight[1][:,:, :modes1_coe, :modes2_coe]
+        )
+        
+        out_coeff[-1][:,:,1, :modes1_coe, :modes2_coe] = self.mul2d(
+            x_coeff[-1][:,:,1, :modes1_coe, :modes2_coe].clone(), 
+            self.weight[2][:,:, :modes1_coe, :modes2_coe]
+        )
+        
+        out_coeff[-1][:,:,2, :modes1_coe, :modes2_coe] = self.mul2d(
+            x_coeff[-1][:,:,2, :modes1_coe, :modes2_coe].clone(), 
+            self.weight[3][:,:, :modes1_coe, :modes2_coe]
+        )
         
         # Return to physical space        
         idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
