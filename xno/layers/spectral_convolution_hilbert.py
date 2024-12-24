@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2024 Saman Pordanesh
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software...
+
 from typing import List, Optional, Tuple, Union
 
 from ..utils import validate_scaling_factor

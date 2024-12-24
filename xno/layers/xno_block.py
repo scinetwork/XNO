@@ -261,7 +261,7 @@ class XNOBlocks(nn.Module):
             norm = sub_factory.update_norm_if_needed()
         else:
             # user manually gave a conv, so no special logic
-            conv_module_class = conv_module
+            conv_module = conv_module
             extra_args = {}
 
 

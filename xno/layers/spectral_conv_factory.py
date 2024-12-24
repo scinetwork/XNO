@@ -135,25 +135,98 @@ class SpectralConvFactory:
         transformation: str,
         n_modes: List[int],
         norm: str,
-        transformation_kwargs: Dict
+        transformation_kwargs: Dict,
+        verbose=True,
     ):
         self.transformation = transformation.lower()
         self.n_modes = n_modes
         self.norm = norm
+        self.dim = len(self.n_modes)
         self.transformation_kwargs = transformation_kwargs or {}
+        self.verbose = verbose
 
     def create_factory(self) -> BaseConvFactory:
         """Return an instance of the correct sub-factory."""
+        factory = None
         if self.transformation == "fno":
-            return FNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = FNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "hno":
-            return HNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = HNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "lno":
-            return LNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = LNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "wno":
-            return WNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = WNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
         else:
             raise ValueError(
                 f"Unknown transform type '{self.transformation}'. "
                 "Supported transformations: FNO, HNO, LNO, WNO."
             )
+            
+        if self.verbose:
+            print("====Selected Kernel Description====")
+            print(f"Dimentionality: {self.dim}D")
+            print(self.describe())
+        return factory
+
+    def describe(self) -> str:
+        """
+        Return a description of the selected spectral convolution kernel.
+        """
+        description = CONV_DESCRIPTIONS.get(self.transformation, "Unknown transformation type.")
+        return description
+
+# descriptions.py (new module or within spectral_conv_factory.py)
+CONV_DESCRIPTIONS = {
+    "fno": (
+        "Transformation: [ Fourier Neural Operator (FNO) Kernel ]\n"
+        ">>> Overview:\n"
+        "The FNO leverages Fourier Transform to map input data into the spectral domain, where\n"
+        "convolutional operations are performed by truncating high-frequency modes.\n\n"
+        ">>> Key Features:\n"
+        "- Effective for parameterized Partial Differential Equations (PDEs).\n"
+        "- Reduces computational complexity by retaining only significant modes.\n\n"
+        ">>> Reference:\n"
+        "Li, Z. et al. 'Fourier Neural Operator for Parametric Partial Differential Equations' (ICLR 2021).\n"
+        "Link: https://arxiv.org/pdf/2010.08895\n"
+        "==============================================\n"
+    ),
+    "hno": (
+        "Transformation: [ Hilbert Neural Operator (HNO) Kernel ]\n"
+        ">>> Overview:\n"
+        "The HNO applies Hilbert Transform, emphasizing the phase-shifted features of the input\n"
+        "signal for enhanced data representation.\n\n"
+        ">>> Key Features:\n"
+        "- Focuses on phase information, useful in signal processing.\n"
+        "- Suitable for scenarios requiring advanced spectral analysis.\n\n"
+        ">>> Reference:\n"
+        "This is an experimental implementation. Currently no formal reference.\n"
+        "==============================================\n"
+    ),
+    "lno": (
+        "Transformation: [ Laplace Neural Operator (LNO) Kernel ]\n"
+        ">>> Overview:\n"
+        "The LNO uses a pole-residue formulation to compute solutions to PDEs in the Laplace domain.\n"
+        "This kernel is highly effective for problems requiring stability and steady-state solutions.\n\n"
+        ">>> Key Features:\n"
+        "- Specially designed for systems dominated by Laplacian dynamics.\n"
+        "- Balances transient and steady-state components.\n\n"
+        ">>> Reference:\n"
+        "Cao, Q. et al. 'LNO: Laplace Neural Operator for Solving Differential Equations'.\n"
+        "Link: https://arxiv.org/pdf/2303.10528\n"
+        "==============================================\n"
+    ),
+    "wno": (
+        "Transformation: [ Wavelet Neural Operator (WNO) Kernel ]\n"
+        ">>> Overview:\n"
+        "The WNO uses wavelet transformations to extract multi-resolution features from input signals.\n"
+        "Wavelet decomposition offers a unique advantage in capturing localized features in both spatial\n"
+        "and frequency domains.\n\n"
+        ">>> Key Features:\n"
+        "- Multi-resolution analysis via wavelet decomposition.\n"
+        "- Supports both compressive sensing and hierarchical learning.\n\n"
+        ">>> Reference:\n"
+        "Tripura, T. et al. 'Wavelet neural operator: a neural operator for parametric partial differential equations'.\n"
+        "Link: https://arxiv.org/pdf/2205.02191\n"
+        "==============================================\n"
+    ),
+}
