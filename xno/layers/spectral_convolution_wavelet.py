@@ -195,7 +195,7 @@ class SpectralConvWavelet2D(nn.Module):
         out_channels, 
         wavelet_level, 
         wavelet_size, 
-        wavelet,
+        wavelet_filter,
         wavelet_mode ='symmetric',
         n_modes=None,
         complex_data=False,
@@ -223,7 +223,7 @@ class SpectralConvWavelet2D(nn.Module):
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
         wavelet_size         : scalar, length of input 1D signal
-        wavelet      : string, wavelet filters
+        wavelet_filter      : string, wavelet filters
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -248,12 +248,12 @@ class SpectralConvWavelet2D(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
-        self.wavelet = wavelet[0]       
+        self.wavelet_filter = wavelet_filter[0]       
         self.wavelet_mode = wavelet_mode
         self.resolution_scaling_factor = resolution_scaling_factor
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
-        dwt_ = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet)
+        dwt_ = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet_filter)
         mode_data, mode_coef = dwt_(dummy_data)
         self.modes1 = mode_data.shape[-2]
         self.modes2 = mode_data.shape[-1]
@@ -334,19 +334,19 @@ class SpectralConvWavelet2D(nn.Module):
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
             
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level+factor, mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
+            dwt = DWT(J=self.wavelet_level+factor, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
             x_ft, x_coeff = dwt(x)
             
         elif x.shape[-1] < self.wavelet_size[-1]:
             factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
             
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level-factor, mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
+            dwt = DWT(J=self.wavelet_level-factor, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
             x_ft, x_coeff = dwt(x)
         
         else:
             # Compute single tree Discrete Wavelet coefficients using some wavelet
-            dwt = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
+            dwt = DWT(J=self.wavelet_level, mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
             x_ft, x_coeff = dwt(x)
 
         # Instantiate higher level coefficients as zeros
@@ -361,7 +361,7 @@ class SpectralConvWavelet2D(nn.Module):
         out_coeff[-1][:,:,2, :self.modes1, :self.modes2] = self.mul2d(x_coeff[-1][:,:,2,:self.modes1, :self.modes2].clone(), self.weight[3])
         
         # Return to physical space        
-        idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet).to(x.device)
+        idwt = IDWT(mode=self.wavelet_mode, wave=self.wavelet_filter).to(x.device)
         x = idwt((out_ft, out_coeff))
         return x
 
@@ -426,21 +426,21 @@ class SpectralConvWavelet2DCwt(nn.Module):
         self.modes21 = mode_coef[-1].shape[-3]
         self.modes22 = mode_coef[-1].shape[-2]
         
+        self.n_modes = (self.modes1, self.modes2)
+        self.max_n_modes = self.n_modes
+        
         # Parameter initilization
+        n_subbands = 13  # 1 approximate + 12 detail (6 angles × 2)
         self.scale = (1 / (in_channels * out_channels))
-        self.weights0 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        self.weights15r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights15c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights45r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights45c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights75r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights75c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights105r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights105c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights135r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights135c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights165r = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
-        self.weights165c = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes21, self.modes22))
+        self.weight = nn.Parameter(
+            self.scale * torch.randn(
+                n_subbands,
+                in_channels,
+                out_channels,
+                max(self.modes1, self.modes21),  # height
+                max(self.modes2, self.modes22)   # width
+            )
+        )
         
     def transform(
         self, 
@@ -521,21 +521,66 @@ class SpectralConvWavelet2DCwt(nn.Module):
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
-        # Multiply the final approximate Wavelet modes
-        out_ft = self.mul2d(x_ft[:, :, :self.modes1, :self.modes2], self.weights0)
-        # Multiply the final detailed wavelet coefficients        
-        out_coeff[-1][:,:,0,:,:,0] = self.mul2d(x_coeff[-1][:,:,0,:,:,0].clone(), self.weights15r)
-        out_coeff[-1][:,:,0,:,:,1] = self.mul2d(x_coeff[-1][:,:,0,:,:,1].clone(), self.weights15c)
-        out_coeff[-1][:,:,1,:,:,0] = self.mul2d(x_coeff[-1][:,:,1,:,:,0].clone(), self.weights45r)
-        out_coeff[-1][:,:,1,:,:,1] = self.mul2d(x_coeff[-1][:,:,1,:,:,1].clone(), self.weights45c)
-        out_coeff[-1][:,:,2,:,:,0] = self.mul2d(x_coeff[-1][:,:,2,:,:,0].clone(), self.weights75r)
-        out_coeff[-1][:,:,2,:,:,1] = self.mul2d(x_coeff[-1][:,:,2,:,:,1].clone(), self.weights75c)
-        out_coeff[-1][:,:,3,:,:,0] = self.mul2d(x_coeff[-1][:,:,3,:,:,0].clone(), self.weights105r)
-        out_coeff[-1][:,:,3,:,:,1] = self.mul2d(x_coeff[-1][:,:,3,:,:,1].clone(), self.weights105c)
-        out_coeff[-1][:,:,4,:,:,0] = self.mul2d(x_coeff[-1][:,:,4,:,:,0].clone(), self.weights135r)
-        out_coeff[-1][:,:,4,:,:,1] = self.mul2d(x_coeff[-1][:,:,4,:,:,1].clone(), self.weights135c)
-        out_coeff[-1][:,:,5,:,:,0] = self.mul2d(x_coeff[-1][:,:,5,:,:,0].clone(), self.weights165r)
-        out_coeff[-1][:,:,5,:,:,1] = self.mul2d(x_coeff[-1][:,:,5,:,:,1].clone(), self.weights165c)        
+        # Multiply the final approximate Wavelet modes        
+        out_ft[..., :self.modes1, :self.modes2] = self.mul2d(
+        x_ft[..., :self.modes1, :self.modes2],
+        self.weight[0, :, :, :self.modes1, :self.modes2])
+                
+        # Detail subbands (indices 1 to 12 in self.weight)
+        out_coeff[-1][:,:,0, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,0, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[1, :, :, :self.modes21, :self.modes22]  # 15r
+        )
+        out_coeff[-1][:,:,0, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,0, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[2, :, :, :self.modes21, :self.modes22]  # 15c
+        )
+
+        out_coeff[-1][:,:,1, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,1, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[3, :, :, :self.modes21, :self.modes22]  # 45r
+        )
+        out_coeff[-1][:,:,1, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,1, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[4, :, :, :self.modes21, :self.modes22]  # 45c
+        )
+
+        out_coeff[-1][:,:,2, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,2, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[5, :, :, :self.modes21, :self.modes22]  # 75r
+        )
+        out_coeff[-1][:,:,2, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,2, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[6, :, :, :self.modes21, :self.modes22]  # 75c
+        )
+
+        out_coeff[-1][:,:,3, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,3, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[7, :, :, :self.modes21, :self.modes22]  # 105r
+        )
+        out_coeff[-1][:,:,3, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,3, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[8, :, :, :self.modes21, :self.modes22]  # 105c
+        )
+
+        out_coeff[-1][:,:,4, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,4, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[9, :, :, :self.modes21, :self.modes22]  # 135r
+        )
+        out_coeff[-1][:,:,4, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,4, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[10, :, :, :self.modes21, :self.modes22]  # 135c
+        )
+
+        out_coeff[-1][:,:,5, :self.modes21, :self.modes22, 0] = self.mul2d(
+            x_coeff[-1][:,:,5, :self.modes21, :self.modes22, 0].clone(),
+            self.weight[11, :, :, :self.modes21, :self.modes22]  # 165r
+        )
+        out_coeff[-1][:,:,5, :self.modes21, :self.modes22, 1] = self.mul2d(
+            x_coeff[-1][:,:,5, :self.modes21, :self.modes22, 1].clone(),
+            self.weight[12, :, :, :self.modes21, :self.modes22]  # 165c
+        )
+            
         
         # Reconstruct the signal
         icwt = DTCWTInverse(biort=self.wavelet_level1, qshift=self.wavelet_level2).to(x.device)
@@ -601,7 +646,7 @@ class SpectralConvWavelet3D(nn.Module):
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 3D signal is list')
         self.wavelet = wavelet[0]
-        self.mwavelet_modeode = wavelet_mode
+        self.wavelet_mode = wavelet_mode
         dummy_data = torch.randn( [*self.wavelet_size] ).unsqueeze(0)
         mode_data = wavedec3(dummy_data, pywt.Wavelet(self.wavelet), level=self.wavelet_level, mode=self.wavelet_mode)
         self.modes1 = mode_data[0].shape[-3]
