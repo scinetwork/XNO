@@ -592,64 +592,73 @@ class SpectralConvWavelet2DCwt(nn.Module):
         out_ft = torch.zeros_like(x_ft, device= x.device)
         out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
         
+        H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
+        H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
+        
+        modes1_ft = min(self.modes1, H_FT)
+        modes2_ft = min(self.modes2, W_FT)
+        modes21_coe = min(self.modes21, H_COE)
+        modes22_coe = min(self.modes21, W_COE)
+        
         # Multiply the final approximate Wavelet modes        
-        out_ft[..., :self.modes1, :self.modes2] = self.mul2d(
-        x_ft[..., :self.modes1, :self.modes2],
-        self.weight[0, :, :, :self.modes1, :self.modes2])
+        out_ft[..., :modes1_ft, :modes2_ft] = self.mul2d(
+            x_ft[..., :modes1_ft, :modes2_ft],
+            self.weight[0, :, :, :modes1_ft, :modes2_ft]
+        )
                 
         # Detail subbands (indices 1 to 12 in self.weight)
-        out_coeff[-1][:,:,0, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,0, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[1, :, :, :self.modes21, :self.modes22]  # 15r
+        out_coeff[-1][:,:,0, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,0, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[1, :, :, :modes21_coe, :modes22_coe]  # 15r
         )
-        out_coeff[-1][:,:,0, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,0, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[2, :, :, :self.modes21, :self.modes22]  # 15c
-        )
-
-        out_coeff[-1][:,:,1, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,1, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[3, :, :, :self.modes21, :self.modes22]  # 45r
-        )
-        out_coeff[-1][:,:,1, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,1, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[4, :, :, :self.modes21, :self.modes22]  # 45c
+        out_coeff[-1][:,:,0, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,0, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[2, :, :, :modes21_coe, :modes22_coe]  # 15c
         )
 
-        out_coeff[-1][:,:,2, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,2, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[5, :, :, :self.modes21, :self.modes22]  # 75r
+        out_coeff[-1][:,:,1, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,1, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[3, :, :, :modes21_coe, :modes22_coe]  # 45r
         )
-        out_coeff[-1][:,:,2, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,2, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[6, :, :, :self.modes21, :self.modes22]  # 75c
-        )
-
-        out_coeff[-1][:,:,3, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,3, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[7, :, :, :self.modes21, :self.modes22]  # 105r
-        )
-        out_coeff[-1][:,:,3, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,3, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[8, :, :, :self.modes21, :self.modes22]  # 105c
+        out_coeff[-1][:,:,1, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,1, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[4, :, :, :modes21_coe, :modes22_coe]  # 45c
         )
 
-        out_coeff[-1][:,:,4, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,4, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[9, :, :, :self.modes21, :self.modes22]  # 135r
+        out_coeff[-1][:,:,2, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,2, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[5, :, :, :modes21_coe, :modes22_coe]  # 75r
         )
-        out_coeff[-1][:,:,4, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,4, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[10, :, :, :self.modes21, :self.modes22]  # 135c
+        out_coeff[-1][:,:,2, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,2, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[6, :, :, :modes21_coe, :modes22_coe]  # 75c
         )
 
-        out_coeff[-1][:,:,5, :self.modes21, :self.modes22, 0] = self.mul2d(
-            x_coeff[-1][:,:,5, :self.modes21, :self.modes22, 0].clone(),
-            self.weight[11, :, :, :self.modes21, :self.modes22]  # 165r
+        out_coeff[-1][:,:,3, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,3, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[7, :, :, :modes21_coe, :modes22_coe]  # 105r
         )
-        out_coeff[-1][:,:,5, :self.modes21, :self.modes22, 1] = self.mul2d(
-            x_coeff[-1][:,:,5, :self.modes21, :self.modes22, 1].clone(),
-            self.weight[12, :, :, :self.modes21, :self.modes22]  # 165c
+        out_coeff[-1][:,:,3, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,3, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[8, :, :, :modes21_coe, :modes22_coe]  # 105c
+        )
+
+        out_coeff[-1][:,:,4, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,4, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[9, :, :, :modes21_coe, :modes22_coe]  # 135r
+        )
+        out_coeff[-1][:,:,4, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,4, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[10, :, :, :modes21_coe, :modes22_coe]  # 135c
+        )
+
+        out_coeff[-1][:,:,5, :modes21_coe, :modes22_coe, 0] = self.mul2d(
+            x_coeff[-1][:,:,5, :modes21_coe, :modes22_coe, 0].clone(),
+            self.weight[11, :, :, :modes21_coe, :modes22_coe]  # 165r
+        )
+        out_coeff[-1][:,:,5, :modes21_coe, :modes22_coe, 1] = self.mul2d(
+            x_coeff[-1][:,:,5, :modes21_coe, :modes22_coe, 1].clone(),
+            self.weight[12, :, :, :modes21_coe, :modes22_coe]  # 165c
         )
             
         
