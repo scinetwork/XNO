@@ -263,11 +263,6 @@ class SpectralConvWavelet2D(nn.Module):
                 
         # Parameter initilization
         self.scale = (1 / (in_channels * out_channels))
-        # self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        # self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        # self.weights3 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        # self.weights4 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2))
-        
         self.weight = nn.Parameter(
             self.scale * torch.randn(
                 4, 
@@ -629,7 +624,6 @@ class SpectralConvWavelet3D(nn.Module):
             )
         )
     
-        
     def transform(
         self, 
         x, 
