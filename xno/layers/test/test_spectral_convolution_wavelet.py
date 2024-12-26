@@ -473,7 +473,7 @@ def test_wavelet2d_mul2d():
     assert result.shape == (2, 2, 5, 4), f"Got shape {result.shape}."
 
 
-@pytest.mark.parametrize("wavelet_level", [0, 5])
+@pytest.mark.parametrize("wavelet_level", [1, 5])
 def test_wavelet2d_edge_wavelet_levels(wavelet_level):
     """
     Check extremes for wavelet_level in 2D: 0 or large relative to wavelet_size.
@@ -655,7 +655,7 @@ def test_wavelet2dcwt_mul2d():
     assert result.shape == (2, 2, 4, 5)
 
 
-@pytest.mark.parametrize("wavelet_level", [0, 4])
+@pytest.mark.parametrize("wavelet_level", [1, 4])
 def test_wavelet2dcwt_edge_levels(wavelet_level):
     """
     Test extremes for wavelet_level in 2D CWT. 

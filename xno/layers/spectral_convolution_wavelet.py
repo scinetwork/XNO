@@ -314,6 +314,9 @@ class SpectralConvWavelet2D(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2d accepts wavelet_size of 2D signal is list')
+        
+        if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
+        
         self.wavelet_filter = wavelet_filter[0]       
         self.wavelet_mode = wavelet_mode
         
@@ -455,9 +458,7 @@ class SpectralConvWavelet2D(nn.Module):
                 device= x.device
             ) for coeffs in x_coeff
         ]
-        
-        # import pdb; pdb.set_trace()
-           
+                   
         # Dynamic modes handeling for different input x shpaes
         H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
         H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
@@ -558,6 +559,9 @@ class SpectralConvWavelet2DCwt(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
+        
+        if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
+        
         self.wavelet_level1 = wavelet_filter[0]
         self.wavelet_level2 = wavelet_filter[1]    
         
@@ -651,6 +655,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x * y]
         """      
+        batchsize = x.shape[0]
+        
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
             
@@ -682,9 +688,25 @@ class SpectralConvWavelet2DCwt(nn.Module):
             x_ft, x_coeff = cwt(x)
         
         # Instantiate higher level coefficients as zeros
-        out_ft = torch.zeros_like(x_ft, device= x.device)
-        out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
-        
+        out_ft = torch.zeros(
+            batchsize, 
+            self.out_channels, 
+            x_ft.shape[-2], 
+            x_ft.shape[-1], 
+            device=x.device
+        )
+        out_coeff = [
+            torch.zeros(
+                batchsize,
+                self.out_channels,
+                coeffs.shape[-4],
+                coeffs.shape[-3],
+                coeffs.shape[-2],
+                coeffs.shape[-1], 
+                device= x.device
+            ) for coeffs in x_coeff
+        ]
+                
         H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
         H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
         
