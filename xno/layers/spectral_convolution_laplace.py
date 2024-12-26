@@ -15,8 +15,8 @@ Number = Union[int, float]
 
 def _compute_dt(
     shape, 
-    start_points=None, 
-    end_points=None
+    start_points: List=None, 
+    end_points: List=None
     ):
     """
     Compute uniform spacing (dt) for each dimension based on domain lengths, step sizes,
@@ -33,7 +33,6 @@ def _compute_dt(
     grid (List[torch.Tensor]): A list of grid points for each dimension based on the spacing and domain.
     """
     dim = len(shape)
-
     # Set default start and end points if not provided
     if start_points is None:
         start_points = torch.zeros(dim).tolist()
@@ -178,9 +177,7 @@ class SpectralConvLaplace1D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
-        
-        # import pdb; pdb.set_trace()
-        
+                
         modes1, = self.n_modes
         L = x.shape[-1]
         
@@ -190,7 +187,7 @@ class SpectralConvLaplace1D(nn.Module):
         # if self.linspace_steps is None:
         #     self.linspace_steps = x.shape[2:]
         self.linspace_steps = x.shape[2:]
-        
+            
         dt_list, shape = _compute_dt(shape=self.linspace_steps, 
                                      start_points=self.linspace_startpoints, 
                                      end_points=self.linspace_endpoints
@@ -294,7 +291,12 @@ class SpectralConvLaplace2D(nn.Module):
         # Shape: (in_channels, out_channels, modes1 + modes2 + modes1 * modes2)
         total_modes = max_modes1 + max_modes2 + (max_modes1 * max_modes2)
         self.weight = nn.Parameter(
-            self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+            self.scale * torch.rand(
+                in_channels, 
+                out_channels, 
+                total_modes, 
+                dtype=torch.cfloat
+            )
         )
         
     def transform(
@@ -353,7 +355,6 @@ class SpectralConvLaplace2D(nn.Module):
         output_residue2=torch.einsum("biox,oxikpq->bkpq",
                                      alpha, 
                                      Pk) 
-        
         return output_residue1,output_residue2
 
     def forward(
@@ -390,8 +391,8 @@ class SpectralConvLaplace2D(nn.Module):
         omega2 = torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j
 
         # Slice frequencies to match the chosen modes
-        omega1 = omega1[:modes1]
-        omega2 = omega2[:modes2]
+        # omega1 = omega1[:modes1]
+        # omega2 = omega2[:modes2]
 
         omega1 = omega1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         omega2 = omega2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
@@ -399,13 +400,12 @@ class SpectralConvLaplace2D(nn.Module):
         lambda2 = omega2
 
         # Slice alpha to only consider the selected modes
-        alpha = alpha[:, :, :modes1, :modes2]
+        # alpha = alpha[:, :, :modes1, :modes2]
 
         # Slice weights to match the truncated modes
         weights_pole1 = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
         weights_pole2 = self.weight[:, :, modes1:(modes1+modes2)].view(self.weight.size(0), self.weight.size(1), modes2)
         weights_residue = self.weight[:, :, (modes1+modes2):(modes1+modes2+modes1*modes2)].view(self.weight.size(0), self.weight.size(1), modes1, modes2)
-
         # Proceed with the existing logic
         output_residue1, output_residue2 = self.output_PR(lambda1, 
                                                           lambda2, 
@@ -580,12 +580,12 @@ class SpectralConvLaplace3D(nn.Module):
                                      end_points=self.linspace_endpoints
                                      )
         tz = shape[0]
-        ty = shape[1]
-        tx = shape[2]
+        tx = shape[1]
+        ty = shape[2]
         # #Compute input poles and resudes by FFT
         dtz = dt_list[0] # this can be time dimension, instead of Z dimension
-        dty = dt_list[1]
-        dtx = dt_list[2] 
+        dtx = dt_list[1]
+        dty = dt_list[2] 
         
         alpha = torch.fft.fftn(x, dim=[-3,-2,-1])
         
@@ -656,5 +656,5 @@ class SpectralConvLaplace3D(nn.Module):
                         term4)
         x2=torch.real(x2)
         x2=x2/x.size(-1)/x.size(-2)/x.size(-3)
-        
+        # import pdb; pdb.set_trace()
         return x1+x2
