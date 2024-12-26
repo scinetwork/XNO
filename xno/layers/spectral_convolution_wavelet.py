@@ -404,6 +404,8 @@ class SpectralConvWavelet2D(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x * y]
         """
+        batchsize = x.shape[0]
+        
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
             
@@ -436,10 +438,26 @@ class SpectralConvWavelet2D(nn.Module):
             x_ft, x_coeff = dwt(x)
 
         # Instantiate higher level coefficients as zeros
-        out_ft = torch.zeros_like(x_ft, device= x.device)
-        out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
+        out_ft = torch.zeros(
+            batchsize, 
+            self.out_channels, 
+            x_ft.shape[-2], 
+            x_ft.shape[-1], 
+            device=x.device
+        )        
+        out_coeff = [
+            torch.zeros(
+                batchsize,
+                self.out_channels,
+                coeffs.shape[-3],
+                coeffs.shape[-2],
+                coeffs.shape[-1], 
+                device= x.device
+            ) for coeffs in x_coeff
+        ]
         
-                
+        # import pdb; pdb.set_trace()
+           
         # Dynamic modes handeling for different input x shpaes
         H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
         H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
