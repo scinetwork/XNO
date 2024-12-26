@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from typing import List, Optional, Tuple, Union
 from .resample import resample
+from ..utils import validate_scaling_factor
 
 
 Number = Union[int, float]
@@ -83,9 +84,10 @@ class SpectralConvWavelet1D(nn.Module):
         else:
             raise Exception('wavelet_size: WaveConv1d accepts wavelet_size of 1D signal is list') 
         
+        if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
+
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
-        self.resolution_scaling_factor = resolution_scaling_factor
         
         self.dwt_ = DWT1D(
             wave=self.wavelet_filter, 
@@ -98,6 +100,11 @@ class SpectralConvWavelet1D(nn.Module):
         
         self.n_modes = (self.modes1)
         self.max_n_modes = self.n_modes
+        
+        self.order = self.n_modes
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
 
         # Initializing the class wise global weights tensor
         self.scale = (1 / (in_channels*out_channels))
@@ -168,6 +175,9 @@ class SpectralConvWavelet1D(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x]
         """
+        
+        batchsize = x.shape[0]
+        
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
             # Compute single tree Discrete Wavelet coefficients using some wavelet  
@@ -196,11 +206,23 @@ class SpectralConvWavelet1D(nn.Module):
                 mode=self.wavelet_mode
             ).to(x.device)
             x_ft, x_coeff = dwt(x)
-            
+                        
         # Instantiate higher level coefficients as zeros
-        out_ft = torch.zeros_like(x_ft, device= x.device)
-        out_coeff = [torch.zeros_like(coeffs, device= x.device) for coeffs in x_coeff]
-        
+        out_ft = torch.zeros(
+            batchsize,
+            self.out_channels, 
+            x_ft.shape[-1],
+            device= x.device
+        )
+        out_coeff = [
+            torch.zeros(
+                batchsize, 
+                self.out_channels,
+                coeffs.shape[-1], 
+                device= x.device
+            ) for coeffs in x_coeff
+        ]
+
         # Dynamic modes handeling for different input x shpaes
         L_FT = x_ft.shape[-1]
         L_COE = x_coeff[-1].shape[-1]
@@ -294,7 +316,6 @@ class SpectralConvWavelet2D(nn.Module):
             raise Exception('wavelet_size: WaveConv2d accepts wavelet_size of 2D signal is list')
         self.wavelet_filter = wavelet_filter[0]       
         self.wavelet_mode = wavelet_mode
-        self.resolution_scaling_factor = resolution_scaling_factor
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
         dwt_ = DWT(
@@ -308,6 +329,11 @@ class SpectralConvWavelet2D(nn.Module):
         
         self.n_modes = (self.modes1, self.modes2)
         self.max_n_modes = self.n_modes
+        
+        self.order = len(self.n_modes)
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
                 
         # Initializing the class wise global weights tensor
         self.scale = (1 / (in_channels * out_channels))
@@ -515,8 +541,7 @@ class SpectralConvWavelet2DCwt(nn.Module):
         else:
             raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
         self.wavelet_level1 = wavelet_filter[0]
-        self.wavelet_level2 = wavelet_filter[1]       
-        self.resolution_scaling_factor = resolution_scaling_factor
+        self.wavelet_level2 = wavelet_filter[1]    
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size ) 
         dwt_ = DTCWTForward(
@@ -532,6 +557,11 @@ class SpectralConvWavelet2DCwt(nn.Module):
         
         self.n_modes = (self.modes1, self.modes2)
         self.max_n_modes = self.n_modes
+        
+        self.order = len(self.n_modes)   
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
         # Initializing the class wise global weights tensor
         n_subbands = 13  # 1 approximate + 12 detail (6 angles × 2)
@@ -783,9 +813,13 @@ class SpectralConvWavelet3D(nn.Module):
         self.modes1 = mode_data[0].shape[-3]
         self.modes2 = mode_data[0].shape[-2]
         self.modes3 = mode_data[0].shape[-1]
-        self.resolution_scaling_factor = resolution_scaling_factor
-        
         self.n_modes = (self.modes1, self.modes2, self.modes3)
+        
+        self.order = len(self.n_modes)
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
+        
         self.max_n_modes = self.n_modes
         
         # Initializing the class wise global weights tensor
