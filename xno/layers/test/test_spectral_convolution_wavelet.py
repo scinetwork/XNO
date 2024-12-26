@@ -489,3 +489,184 @@ def test_wavelet2d_edge_wavelet_levels(wavelet_level):
     x = torch.randn(1, 2, 8, 8)
     y = conv(x)
     assert y.shape == (1, 2, 8, 8)
+
+# -------------------------------------------------------------------------
+# TEST SUITE 2: SpectralConvWavelet2DCwt (dual-tree continuous wavelet)
+# -------------------------------------------------------------------------
+@pytest.mark.parametrize("in_channels", [1, 3])
+@pytest.mark.parametrize("out_channels", [1, 2])
+@pytest.mark.parametrize("wavelet_level", [1, 2])
+@pytest.mark.parametrize("wavelet_size", [[8, 8], [12, 10]])
+@pytest.mark.parametrize(
+    "wavelet_filter", [
+        ["near_sym_b", "qshift_b"],  # typical
+        ["antonini", "qshift_06"],   # alternative
+    ]
+)
+def test_wavelet2dcwt_forward(
+    in_channels,
+    out_channels,
+    wavelet_level,
+    wavelet_size,
+    wavelet_filter
+):
+    """
+    Basic forward pass test for SpectralConvWavelet2DCwt (dual-tree).
+      - Ensures no crash
+      - Checks shape consistency
+    """
+    batch_size = 2
+    h, w = wavelet_size
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        wavelet_level=wavelet_level,
+        wavelet_size=wavelet_size,
+        wavelet_filter=wavelet_filter,
+    )
+    x = torch.randn(batch_size, in_channels, h, w)
+    y = conv(x)
+    assert y.shape == (batch_size, out_channels, h, w), (
+        f"Expected {batch_size,out_channels,h,w}, got {y.shape}"
+    )
+    assert torch.is_floating_point(y)
+
+
+@pytest.mark.parametrize("resolution_scaling_factor", [0.5, 2.0, [0.75, 1.25]])
+def test_wavelet2dcwt_transform(resolution_scaling_factor):
+    """
+    Test transform method in 2D dual-tree wavelet, checking up/down sampling.
+    """
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=1,
+        out_channels=1,
+        wavelet_level=1,
+        wavelet_size=[10, 10],
+        wavelet_filter=["near_sym_b", "qshift_b"],
+        resolution_scaling_factor=resolution_scaling_factor,
+    )
+    x = torch.randn(1, 1, 10, 10)
+    x_t = conv.transform(x)
+
+    if isinstance(resolution_scaling_factor, (float, int)):
+        expected_h = round(10 * resolution_scaling_factor)
+        expected_w = round(10 * resolution_scaling_factor)
+    else:  # list or tuple of length 2
+        expected_h = round(10 * resolution_scaling_factor[0])
+        expected_w = round(10 * resolution_scaling_factor[1])
+
+    assert x_t.shape[-2:] == (expected_h, expected_w), "transform shape mismatch."
+
+
+@pytest.mark.parametrize("in_shape,wave_shape", [
+    ((2, 3, 12, 20), [12, 12]),  # input width bigger
+    ((2, 3, 12, 8), [12, 12])    # input width smaller
+])
+def test_wavelet2dcwt_size_mismatch(in_shape, wave_shape):
+    """
+    If input width is bigger/smaller than wavelet_size[-1], 
+    wavelet_level is adjusted. No crash, output shape == input shape.
+    """
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=in_shape[1],
+        out_channels=2,
+        wavelet_level=2,
+        wavelet_size=wave_shape,
+        wavelet_filter=["near_sym_b", "qshift_b"],
+    )
+    x = torch.randn(*in_shape)
+    y = conv(x)
+    assert y.shape == (in_shape[0], 2, in_shape[2], in_shape[3])
+
+
+def test_wavelet2dcwt_invalid_wavelet_size():
+    """
+    wavelet_size must be a list of exactly 2 elements.
+    """
+    with pytest.raises(Exception):
+        _ = SpectralConvWavelet2DCwt(
+            in_channels=1,
+            out_channels=1,
+            wavelet_level=1,
+            wavelet_size=[16],  # Only one dimension
+            wavelet_filter=["near_sym_b", "qshift_b"],
+        )
+
+
+@pytest.mark.parametrize(
+    "wavelet_filter", [
+        ["nonexistent_filter", "qshift_b"],  # invalid filter
+        ["near_sym_b", "nonexistent_qshift"] # invalid shift
+    ]
+)
+def test_wavelet2dcwt_invalid_filters(wavelet_filter):
+    """
+    If wavelet_filter is unrecognized, the underlying DTCWT library 
+    typically raises an error.
+    """
+    with pytest.raises(Exception):
+        _ = SpectralConvWavelet2DCwt(
+            in_channels=1,
+            out_channels=1,
+            wavelet_level=1,
+            wavelet_size=[8, 8],
+            wavelet_filter=wavelet_filter,
+        )
+
+
+def test_wavelet2dcwt_weight_shape():
+    """
+    Check shape of self.weight in dual-tree wavelet 2D:
+      shape = (13, in_channels, out_channels, H, W)
+    where 13 subbands = 1 approximate + 12 details (6 angles × 2).
+    """
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=2,
+        out_channels=3,
+        wavelet_level=1,
+        wavelet_size=[8, 8],
+        wavelet_filter=["near_sym_b", "qshift_b"]
+    )
+    W = conv.weight
+    assert W.dim() == 5, f"Expected 5D weight, got {W.shape}."
+    assert W.shape[0] == 13, "Expected 13 subband dimension."
+    assert W.shape[1] == 2, "Mismatch in in_channels."
+    assert W.shape[2] == 3, "Mismatch in out_channels."
+    assert W.shape[3] >= 8 and W.shape[4] >= 8, (
+        "The weight's spatial dims should be at least the size of approximate or detail modes."
+    )
+
+
+def test_wavelet2dcwt_mul2d():
+    """
+    Test the mul2d method in the CWT class:
+       mul2d(input, weights) => "bixy, ioxy -> boxy"
+    """
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=2,
+        out_channels=2,
+        wavelet_level=1,
+        wavelet_size=[8, 8],
+        wavelet_filter=["near_sym_b", "qshift_b"]
+    )
+    input_tensor = torch.randn(2, 2, 4, 5)    # (batch=2, in_chan=2, H=4, W=5)
+    weight_tensor = torch.randn(2, 2, 4, 5)   # (in_chan=2, out_chan=2, H=4, W=5)
+    result = conv.mul2d(input_tensor, weight_tensor)
+    assert result.shape == (2, 2, 4, 5)
+
+
+@pytest.mark.parametrize("wavelet_level", [0, 4])
+def test_wavelet2dcwt_edge_levels(wavelet_level):
+    """
+    Test extremes for wavelet_level in 2D CWT. 
+    """
+    conv = SpectralConvWavelet2DCwt(
+        in_channels=1,
+        out_channels=2,
+        wavelet_level=wavelet_level,
+        wavelet_size=[8, 8],
+        wavelet_filter=["near_sym_b", "qshift_b"]
+    )
+    x = torch.randn(1, 1, 8, 8)
+    y = conv(x)
+    assert y.shape == (1, 2, 8, 8), f"Got {y.shape} for wavelet_level={wavelet_level}"
