@@ -110,9 +110,14 @@ class SpectralConvLaplace1D(nn.Module):
         else:
             max_n_modes, = self.max_n_modes
         
-        total_modes = max_n_modes
+        total_modes = max_n_modes + 1 * max_n_modes
         self.weight = nn.Parameter(
-            self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
+            self.scale * torch.rand(
+                in_channels, 
+                out_channels, 
+                total_modes, 
+                dtype=torch.cfloat
+                )
         )
        
     
@@ -147,18 +152,22 @@ class SpectralConvLaplace1D(nn.Module):
         ):   
         
         Hw=torch.zeros(
-            weights_residue.shape[0],weights_residue.shape[0],weights_residue.shape[2],
+            weights_residue.shape[0],
+            weights_residue.shape[0],
+            weights_residue.shape[2],
             lambda1.shape[0], 
             device=alpha.device, 
             dtype=torch.cfloat
         )
         
         term1=torch.div(1,
-                        torch.sub(lambda1,weights_pole)
+                        torch.sub(lambda1,
+                                  weights_pole
+                                  )
                         )
 
         Hw=weights_residue*term1
-        
+
         output_residue1=torch.einsum("bix,xiok->box", 
                                      alpha, 
                                      Hw
@@ -175,6 +184,8 @@ class SpectralConvLaplace1D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
+        
+        # import pdb; pdb.set_trace()
         
         modes1, = self.n_modes
         L = x.shape[-1]
@@ -196,10 +207,12 @@ class SpectralConvLaplace1D(nn.Module):
         
         alpha = torch.fft.fft(x, dim=-1)
         lambda0=torch.fft.fftfreq(t.shape[0], dt)*2*np.pi*1j
-        lambda1=lambda0[:modes1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        # lambda1=lambda0[:modes1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        lambda1=lambda0.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         
         # Slice alpha and weights to match the truncated modes
-        alpha = alpha[:, :, :modes1]
+        # alpha = alpha[:, :, :modes1]
+        
         
         weights_pole = self.weight[:, :, :modes1].view(self.weight.size(0), self.weight.size(1), modes1)
         weights_residue = self.weight[:, :, modes1:(modes1 * 2)].view(self.weight.size(0), self.weight.size(1), modes1)
@@ -220,11 +233,18 @@ class SpectralConvLaplace1D(nn.Module):
                        t.shape[0],
                        device=alpha.device,
                        dtype=torch.cfloat)    
-        term1=torch.einsum("bix,kz->bixz", 
+        # term1=torch.einsum("bix,kz->bixz", 
+        #                    weights_pole, 
+        #                    t.type(torch.complex64).reshape(1,-1))
+        term1=torch.einsum("iok,az->iokz", 
                            weights_pole, 
                            t.type(torch.complex64).reshape(1,-1))
         term2=torch.exp(term1) 
-        x2=torch.einsum("bix,ioxz->boz",
+        
+        # x2=torch.einsum("bix,ioxz->boz",
+        #                 output_residue2,
+        #                 term2)
+        x2=torch.einsum("bok,iokz->boz",
                         output_residue2,
                         term2)
         x2=torch.real(x2)
