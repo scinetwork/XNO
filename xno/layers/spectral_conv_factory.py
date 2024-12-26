@@ -1,6 +1,5 @@
 # MIT License
 # Copyright (c) 2024 Saman Pordanesh
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software...
 
 import abc
 import inspect
