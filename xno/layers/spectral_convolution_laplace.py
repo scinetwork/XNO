@@ -8,7 +8,7 @@ import numpy as np
 from typing import Optional, Union, Sequence
 from typing import List, Optional, Tuple, Union
 from .resample import resample
-
+from ..utils import validate_scaling_factor
 
 Number = Union[int, float]
 
@@ -91,11 +91,14 @@ class SpectralConvLaplace1D(nn.Module):
         self.linspace_steps = linspace_steps
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
+        self.n_modes = n_modes
         
-        self.resolution_scaling_factor = resolution_scaling_factor
+        self.order = len(self.n_modes)
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
         # Handle n_modes and max_n_modes
-        self.n_modes = n_modes
         if max_n_modes is None:
             self.max_n_modes = self.n_modes
         else:
@@ -233,17 +236,12 @@ class SpectralConvLaplace1D(nn.Module):
                        t.shape[0],
                        device=alpha.device,
                        dtype=torch.cfloat)    
-        # term1=torch.einsum("bix,kz->bixz", 
-        #                    weights_pole, 
-        #                    t.type(torch.complex64).reshape(1,-1))
+        
         term1=torch.einsum("iok,az->iokz", 
                            weights_pole, 
                            t.type(torch.complex64).reshape(1,-1))
         term2=torch.exp(term1) 
         
-        # x2=torch.einsum("bix,ioxz->boz",
-        #                 output_residue2,
-        #                 term2)
         x2=torch.einsum("bok,iokz->boz",
                         output_residue2,
                         term2)
@@ -283,13 +281,17 @@ class SpectralConvLaplace2D(nn.Module):
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
         
-        self.resolution_scaling_factor = resolution_scaling_factor
+        self.n_modes = n_modes
+
+        self.order = len(self.n_modes)
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
         """
             Commulating all weights into a single weight attribute on the class, and break it down for different applications like weights_pole1, etc. in convolution process. 
         """
         # Handle n_modes and max_n_modes
-        self.n_modes = n_modes  # Uses the setter
         if max_n_modes is None:
             self.max_n_modes = self.n_modes
         else:
@@ -483,10 +485,12 @@ class SpectralConvLaplace3D(nn.Module):
         self.linspace_steps = linspace_steps
         self.linspace_startpoints = linspace_startpoints
         self.linspace_endpoints = linspace_endpoints
-        
-        self.resolution_scaling_factor = resolution_scaling_factor
-        
         self.n_modes = n_modes
+        
+        self.order = len(self.n_modes)
+        self.resolution_scaling_factor: Union[
+            None, List[List[float]]
+        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
         self.modes1, self.modes2, self.modes3 = self.n_modes
          
