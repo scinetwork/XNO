@@ -279,7 +279,7 @@ def test_wavelet1d_negative_test_wavelet_size_type():
         )
 
 # -------------------------------------------------------------------------
-# TEST SUITE 1: SpectralConvWavelet2D
+# TEST SUITE 2: SpectralConvWavelet2D
 # -------------------------------------------------------------------------
 @pytest.mark.parametrize("in_channels", [1, 2])
 @pytest.mark.parametrize("out_channels", [1, 3])
@@ -491,7 +491,7 @@ def test_wavelet2d_edge_wavelet_levels(wavelet_level):
     assert y.shape == (1, 2, 8, 8)
 
 # -------------------------------------------------------------------------
-# TEST SUITE 2: SpectralConvWavelet2DCwt (dual-tree continuous wavelet)
+# TEST SUITE 3: SpectralConvWavelet2DCwt (dual-tree continuous wavelet)
 # -------------------------------------------------------------------------
 @pytest.mark.parametrize("in_channels", [1, 3])
 @pytest.mark.parametrize("out_channels", [1, 2])
@@ -670,3 +670,214 @@ def test_wavelet2dcwt_edge_levels(wavelet_level):
     x = torch.randn(1, 1, 8, 8)
     y = conv(x)
     assert y.shape == (1, 2, 8, 8), f"Got {y.shape} for wavelet_level={wavelet_level}"
+    
+# -------------------------------------------------------------------------
+# TEST SUITE 4: SpectralConvWavelet2DCwt (dual-tree continuous wavelet)
+# -------------------------------------------------------------------------
+    
+@pytest.mark.parametrize("in_channels", [1, 2])
+@pytest.mark.parametrize("out_channels", [1, 3])
+@pytest.mark.parametrize("wavelet_level", [0, 1, 2, 3])
+@pytest.mark.parametrize("wavelet_size", [[8, 8, 8], [16, 8, 12]])
+@pytest.mark.parametrize("wavelet_filter", [["db4"], ["haar"]])
+@pytest.mark.parametrize("wavelet_mode", ["symmetric", "periodic"])
+def test_wavelet3d_forward(
+    in_channels,
+    out_channels,
+    wavelet_level,
+    wavelet_size,
+    wavelet_filter,
+    wavelet_mode
+):
+    """
+    Basic forward test for SpectralConvWavelet3D with various parameters.
+    Ensures:
+      - No runtime error
+      - Output shape matches input shape
+      - Output is real-valued if input is real
+    """
+    batch_size = 2
+    D, H, W = wavelet_size
+    conv = SpectralConvWavelet3D(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        wavelet_level=wavelet_level,
+        wavelet_size=wavelet_size,
+        wavelet_filter=wavelet_filter,  # e.g. ['db4']
+        wavelet_mode=wavelet_mode,
+    )
+
+    x = torch.randn(batch_size, in_channels, D, H, W)
+    y = conv(x)
+    assert y.shape == (batch_size, out_channels, D, H, W), (
+        f"Expected shape {(batch_size, out_channels, D, H, W)}, got {y.shape}"
+    )
+    assert torch.is_floating_point(y), "Output is expected to be real-valued float Tensor."
+
+
+@pytest.mark.parametrize("resolution_scaling_factor", [0.5, 2.0, [1.25, 0.5, 2.0]])
+def test_wavelet3d_transform(resolution_scaling_factor):
+    """
+    Test the transform() method in 3D wavelet to ensure up-/down-sampling is correct.
+    If resolution_scaling_factor is either a scalar or a list of three, 
+    the shape should scale accordingly.
+    """
+    in_channels, out_channels = 1, 1
+    wavelet_size = [8, 8, 8]
+    conv = SpectralConvWavelet3D(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        wavelet_level=1,
+        wavelet_size=wavelet_size,
+        wavelet_filter=["db4"],
+        wavelet_mode="periodic",
+        resolution_scaling_factor=resolution_scaling_factor
+    )
+    x = torch.randn(1, in_channels, *wavelet_size)
+    x_t = conv.transform(x)
+
+    if isinstance(resolution_scaling_factor, (float, int)):
+        expected_shape = tuple(int(s * resolution_scaling_factor) for s in wavelet_size)
+    elif isinstance(resolution_scaling_factor, (list, tuple)) and len(resolution_scaling_factor) == 3:
+        expected_shape = tuple(int(s * r) for s, r in zip(wavelet_size, resolution_scaling_factor))
+    else:
+        raise ValueError("Unsupported resolution_scaling_factor format in test.")
+
+    assert x_t.shape[-3:] == expected_shape, (
+        f"Expected transform to produce shape {expected_shape}, got {x_t.shape[-3:]}"
+    )
+
+
+@pytest.mark.parametrize("in_shape,wavelet_size", [
+    # Input's last dimension bigger than wavelet_size's last dimension
+    ((2, 1, 8, 8, 16), [8, 8, 8]),
+    # Input's last dimension smaller than wavelet_size's last dimension
+    ((2, 1, 8, 8, 4), [8, 8, 8]),
+])
+def test_wavelet3d_size_mismatch(in_shape, wavelet_size):
+    """
+    If the input last dimension differs from wavelet_size[-1],
+    the code modifies wavelet_level internally. 
+    Ensure no crash & the final output shape = input shape.
+    """
+    batch_size, in_ch, D, H, W = in_shape
+    conv = SpectralConvWavelet3D(
+        in_channels=in_ch,
+        out_channels=2,
+        wavelet_level=2,
+        wavelet_size=wavelet_size,
+        wavelet_filter=["db4"],
+        wavelet_mode="periodic",
+    )
+    x = torch.randn(*in_shape)
+    y = conv(x)
+    assert y.shape == (batch_size, 2, D, H, W), (
+        f"Output shape mismatch. Expected {(batch_size,2,D,H,W)}, got {y.shape}."
+    )
+
+
+def test_wavelet3d_invalid_wavelet_size():
+    """
+    wavelet_size must be a list of exactly 3 elements for 3D wavelet,
+    or the constructor raises an Exception.
+    """
+    with pytest.raises(Exception, match="WaveConv3d accepts the wavelet_size of 3D signal"):
+        _ = SpectralConvWavelet3D(
+            in_channels=1,
+            out_channels=1,
+            wavelet_level=1,
+            wavelet_size=[8, 8],  # Only 2 dims
+            wavelet_filter=["db4"],
+            wavelet_mode="periodic",
+        )
+
+    with pytest.raises(Exception):
+        _ = SpectralConvWavelet3D(
+            in_channels=1,
+            out_channels=1,
+            wavelet_level=1,
+            wavelet_size=(8, 8, 8),  # tuple not a list
+            wavelet_filter=["db4"],
+            wavelet_mode="periodic",
+        )
+
+
+def test_wavelet3d_weight_shape():
+    """
+    Check that the internal weight shape matches the expected:
+      shape = (8, in_channels, out_channels, modes1, modes2, modes3)
+    """
+    in_channels, out_channels = 1, 2
+    wavelet_size = [8, 8, 8]
+    conv = SpectralConvWavelet3D(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        wavelet_level=2,
+        wavelet_size=wavelet_size,
+        wavelet_filter=["db4"],
+        wavelet_mode="periodic"
+    )
+    W = conv.weight
+    assert W.dim() == 6, f"Expected 6D weight, got shape {W.shape}."
+    # 8 => approximate (aaa) + 7 detail subbands in 3D (aad, ada, add, daa, dad, dda, ddd)
+    assert W.shape[0] == 8, "First dim=8 wavelet subbands for 3D."
+    assert W.shape[1] == in_channels, f"Expected in_channels={in_channels}, got {W.shape[1]}"
+    assert W.shape[2] == out_channels, f"Expected out_channels={out_channels}, got {W.shape[2]}"
+    # modes1, modes2, modes3
+    assert W.shape[3] > 0 and W.shape[4] > 0 and W.shape[5] > 0, "Zero dimension in wavelet modes."
+
+
+def test_wavelet3d_mul3d():
+    """
+    Direct test of the internal mul3d method:
+      mul3d(input, weights) => "ixyz, ioxyz -> oxyz"
+      Confirms shape logic is correct.
+    """
+    conv = SpectralConvWavelet3D(
+        in_channels=2,
+        out_channels=3,
+        wavelet_level=1,
+        wavelet_size=[8, 8, 8],
+        wavelet_filter=["db4"],
+        wavelet_mode="periodic"
+    )
+    # input: shape (in_channels=2, D=4, H=5, W=6)
+    inp = torch.randn(2, 4, 5, 6)
+    # weights: shape (in_channels=2, out_channels=3, D=4, H=5, W=6)
+    wts = torch.randn(2, 3, 4, 5, 6)
+    out = conv.mul3d(inp, wts)
+    assert out.shape == (3, 4, 5, 6), f"Got shape {out.shape}."
+
+
+@pytest.mark.parametrize("wavelet_filter", [["db2"], ["haar"], ["coif1"]])
+def test_wavelet3d_forward_different_filters(wavelet_filter):
+    """
+    Check that recognized wavelet filters in pywt do not crash in 3D usage.
+    """
+    conv = SpectralConvWavelet3D(
+        in_channels=1,
+        out_channels=1,
+        wavelet_level=2,
+        wavelet_size=[8, 8, 8],
+        wavelet_filter=wavelet_filter,
+        wavelet_mode="periodic"
+    )
+    x = torch.randn(1, 1, 8, 8, 8)
+    y = conv(x)
+    assert y.shape == (1, 1, 8, 8, 8)
+
+
+def test_wavelet3d_unrecognized_filter():
+    """
+    If user specifies an unknown wavelet_filter, 
+    we expect pywt or wavedec3 to raise an error.
+    """
+    with pytest.raises(Exception):
+        _ = SpectralConvWavelet3D(
+            in_channels=1,
+            out_channels=1,
+            wavelet_level=1,
+            wavelet_size=[8, 8, 8],
+            wavelet_filter=["nonexistent_wavelet"],
+            wavelet_mode="periodic",
+        )
