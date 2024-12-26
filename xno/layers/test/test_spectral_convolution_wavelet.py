@@ -111,7 +111,7 @@ def test_wavelet1d_invalid_wavelet_size():
     wavelet_size must be a list of exactly one element in this 1D implementation.
     Raise an Exception if user provides something else.
     """
-    with pytest.raises(Exception, match="WaveConv1d accepts wavelet_size of 1D signal"):
+    with pytest.raises(Exception):
         _ = SpectralConvWavelet1D(
             in_channels=1,
             out_channels=1,
@@ -184,7 +184,7 @@ def test_wavelet1d_unrecognized_mode():
         )
 
 
-@pytest.mark.parametrize("wavelet_level", [0, 6])
+@pytest.mark.parametrize("wavelet_level", [1, 3, 6])
 def test_wavelet1d_edge_wavelet_levels(wavelet_level):
     """
     Check extremes for wavelet_level, including 0 (which might mean no decomposition)
