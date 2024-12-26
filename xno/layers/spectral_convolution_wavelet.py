@@ -29,10 +29,10 @@ class SpectralConvWavelet1D(nn.Module):
         self, 
         in_channels, 
         out_channels, 
-        wavelet_level, 
-        wavelet_size, 
-        wavelet_filter=['db4'],
-        wavelet_mode='symmetric',
+        wavelet_level: int, 
+        wavelet_size: List[int], 
+        wavelet_filter: List[str]=['db4'],
+        wavelet_mode: str='symmetric',
         n_modes=None,
         complex_data=False,
         max_n_modes=None,
@@ -60,8 +60,8 @@ class SpectralConvWavelet1D(nn.Module):
         in_channels  : scalar, input kernel dimension
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
-        wavelet_size         : scalar, length of input 1D signal
-        wavelet_filter      : string, wavelet filter
+        wavelet_size         : list[int], length of input 1D signal
+        wavelet_filter      : list[string], wavelet filter
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -75,10 +75,14 @@ class SpectralConvWavelet1D(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.wavelet_level = wavelet_level
-        if np.isscalar(wavelet_size):
-            self.wavelet_size = wavelet_size
+        if isinstance(wavelet_size, list):
+            if len(wavelet_size) != 1:
+                raise Exception('wavelet_size: WaveConv1d accepts the wavelet_size of 1D signal in list with 1 element')
+            else:
+                self.wavelet_size = wavelet_size[-1]
         else:
-            raise Exception("wavelet_size: WaveConv1d accepts signal length in scalar only") 
+            raise Exception('wavelet_size: WaveConv1d accepts wavelet_size of 1D signal is list') 
+        
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
         self.resolution_scaling_factor = resolution_scaling_factor
@@ -95,7 +99,7 @@ class SpectralConvWavelet1D(nn.Module):
         self.n_modes = (self.modes1)
         self.max_n_modes = self.n_modes
 
-        # Parameter initilization
+        # Initializing the class wise global weights tensor
         self.scale = (1 / (in_channels*out_channels))
         self.weight = nn.Parameter(
             self.scale * torch.randn(
@@ -105,7 +109,6 @@ class SpectralConvWavelet1D(nn.Module):
                 self.modes1, 
             )
         )
-        
     
     def transform(
         self, 
@@ -233,10 +236,10 @@ class SpectralConvWavelet2D(nn.Module):
         self, 
         in_channels, 
         out_channels, 
-        wavelet_level, 
-        wavelet_size, 
-        wavelet_filter=['db4'],
-        wavelet_mode ='symmetric',
+        wavelet_level: int, 
+        wavelet_size: List[int], 
+        wavelet_filter: List[str]=['db4'],
+        wavelet_mode: str='symmetric',
         n_modes=None,
         complex_data=False,
         max_n_modes=None,
@@ -263,8 +266,8 @@ class SpectralConvWavelet2D(nn.Module):
         in_channels  : scalar, input kernel dimension
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
-        wavelet_size         : scalar, length of input 1D signal
-        wavelet_filter      : string, wavelet filters
+        wavelet_size         : List[int], length of input 1D signal
+        wavelet_filter      : List[str], wavelet filters
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -284,11 +287,11 @@ class SpectralConvWavelet2D(nn.Module):
         self.wavelet_level = wavelet_level
         if isinstance(wavelet_size, list):
             if len(wavelet_size) != 2:
-                raise Exception('wavelet_size: WaveConv2dCwt accepts the wavelet_size of 2D signal in list with 2 elements')
+                raise Exception('wavelet_size: WaveConv2d accepts the wavelet_size of 2D signal in list with 2 elements')
             else:
                 self.wavelet_size = wavelet_size
         else:
-            raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
+            raise Exception('wavelet_size: WaveConv2d accepts wavelet_size of 2D signal is list')
         self.wavelet_filter = wavelet_filter[0]       
         self.wavelet_mode = wavelet_mode
         self.resolution_scaling_factor = resolution_scaling_factor
@@ -306,7 +309,7 @@ class SpectralConvWavelet2D(nn.Module):
         self.n_modes = (self.modes1, self.modes2)
         self.max_n_modes = self.n_modes
                 
-        # Parameter initilization
+        # Initializing the class wise global weights tensor
         self.scale = (1 / (in_channels * out_channels))
         self.weight = nn.Parameter(
             self.scale * torch.randn(
@@ -456,9 +459,9 @@ class SpectralConvWavelet2DCwt(nn.Module):
         self, 
         in_channels, 
         out_channels, 
-        wavelet_level, 
-        wavelet_size,
-        wavelet_filter=['near_sym_b', 'qshift_b'],
+        wavelet_level: int, 
+        wavelet_size: List[int],
+        wavelet_filter: List[str]=['near_sym_b', 'qshift_b'],
         n_modes=None,
         complex_data=False,
         max_n_modes=None,
@@ -487,10 +490,9 @@ class SpectralConvWavelet2DCwt(nn.Module):
         in_channels  : scalar, input kernel dimension
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
-        wavelet_size         : scalar, length of input 1D signal
+        wavelet_size         : List[int], length of input 1D signal
         wavelet_filter[0]     : string, Specifies the first level biorthogonal wavelet filters
         wavelet_filter[1]     : string, Specifies the second level quarter shift filters
-        wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
         -------------------------------------
@@ -531,7 +533,7 @@ class SpectralConvWavelet2DCwt(nn.Module):
         self.n_modes = (self.modes1, self.modes2)
         self.max_n_modes = self.n_modes
         
-        # Parameter initilization
+        # Initializing the class wise global weights tensor
         n_subbands = 13  # 1 approximate + 12 detail (6 angles × 2)
         self.scale = (1 / (in_channels * out_channels))
         self.weight = nn.Parameter(
@@ -717,10 +719,10 @@ class SpectralConvWavelet3D(nn.Module):
         self, 
         in_channels, 
         out_channels, 
-        wavelet_level, 
-        wavelet_size, 
-        wavelet_filter=['db4'], 
-        wavelet_mode='periodic',
+        wavelet_level: int, 
+        wavelet_size: List[int], 
+        wavelet_filter: List[str]=['db4'], 
+        wavelet_mode: str='periodic',
         n_modes=None,
         complex_data=False,
         max_n_modes=None,
@@ -747,8 +749,8 @@ class SpectralConvWavelet3D(nn.Module):
         in_channels  : scalar, input kernel dimension
         out_channels : scalar, output kernel dimension
         wavelet_level        : scalar, levels of wavelet decomposition
-        wavelet_size         : scalar, length of input 1D signal
-        wavelet_filter      : string, Specifies the first level biorthogonal wavelet filters
+        wavelet_size         : List[int], length of input 1D signal
+        wavelet_filter      : List[str], Specifies the first level biorthogonal wavelet filters
         wavelet_mode         : string, padding style for wavelet decomposition
         
         It initializes the kernel parameters: 
@@ -764,15 +766,20 @@ class SpectralConvWavelet3D(nn.Module):
         self.wavelet_level = wavelet_level
         if isinstance(wavelet_size, list):
             if len(wavelet_size) != 3:
-                raise Exception('wavelet_size: WaveConv2dCwt accepts the wavelet_size of 3D signal in list with 3 elements')
+                raise Exception('wavelet_size: WaveConv3d accepts the wavelet_size of 3D signal in list with 3 elements')
             else:
                 self.wavelet_size = wavelet_size
         else:
-            raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 3D signal is list')
+            raise Exception('wavelet_size: WaveConv3d accepts wavelet_size of 3D signal is list')
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
-        dummy_data = torch.randn( [*self.wavelet_size] ).unsqueeze(0)
-        mode_data = wavedec3(dummy_data, pywt.Wavelet(self.wavelet_filter), level=self.wavelet_level, mode=self.wavelet_mode)
+        dummy_data = torch.randn([*self.wavelet_size]).unsqueeze(0)
+        mode_data = wavedec3(
+            dummy_data, 
+            pywt.Wavelet(self.wavelet_filter), 
+            level=self.wavelet_level, 
+            mode=self.wavelet_mode
+        )
         self.modes1 = mode_data[0].shape[-3]
         self.modes2 = mode_data[0].shape[-2]
         self.modes3 = mode_data[0].shape[-1]
@@ -781,6 +788,7 @@ class SpectralConvWavelet3D(nn.Module):
         self.n_modes = (self.modes1, self.modes2, self.modes3)
         self.max_n_modes = self.n_modes
         
+        # Initializing the class wise global weights tensor
         self.scale = (1 / (in_channels * out_channels))
         self.weight = nn.Parameter(
             self.scale * torch.randn(
