@@ -98,20 +98,11 @@ class SpectralConvLaplace1D(nn.Module):
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
-        # Handle n_modes and max_n_modes
-        if max_n_modes is None:
-            self.max_n_modes = self.n_modes
-        else:
-            self.max_n_modes = max_n_modes
+        max_n_modes, = self.n_modes
         
         self.scale = 1 / (in_channels * out_channels)
         
         # Initialize single weight tensor combining poles and residues
-        
-        if isinstance(self.max_n_modes, int):
-            max_n_modes = self.max_n_modes
-        else:
-            max_n_modes, = self.max_n_modes
         
         total_modes = max_n_modes + 1 * max_n_modes
         self.weight = nn.Parameter(
@@ -291,21 +282,16 @@ class SpectralConvLaplace2D(nn.Module):
         """
             Commulating all weights into a single weight attribute on the class, and break it down for different applications like weights_pole1, etc. in convolution process. 
         """
-        # Handle n_modes and max_n_modes
-        if max_n_modes is None:
-            self.max_n_modes = self.n_modes
-        else:
-            self.max_n_modes = max_n_modes
-        
+        max_modes1, max_modes2 = self.n_modes
+        # if max_n_modes is None:
+        #     max_modes1, max_modes2 = self.n_modes
+        # elif isinstance(max_n_modes, int):
+        #     max_modes1, max_modes2 = max_n_modes
+
         self.scale = 1 / (in_channels * out_channels)
         
         # Initialize single weight tensor combining poles and residues
         # Shape: (in_channels, out_channels, modes1 + modes2 + modes1 * modes2)
-        if isinstance(self.max_n_modes, int):
-            max_modes1 = max_modes2 = self.max_n_modes
-        else:
-            max_modes1, max_modes2 = self.max_n_modes
-        
         total_modes = max_modes1 + max_modes2 + (max_modes1 * max_modes2)
         self.weight = nn.Parameter(
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
@@ -494,17 +480,13 @@ class SpectralConvLaplace3D(nn.Module):
         
         self.modes1, self.modes2, self.modes3 = self.n_modes
          
-        if max_n_modes is None:
-            self.max_n_modes = self.n_modes
-        else:
-            self.max_n_modes = max_n_modes
+        max_modes1, max_modes2, max_modes3 = self.n_modes 
+        # if max_n_modes is None:
+        #     max_modes1, max_modes2, max_modes3 = self.n_modes
+        # elif isinstance(max_n_modes, int):
+        #     max_modes1, max_modes2, max_modes3 = max_n_modes
             
         # Compute total number of modes to combine into single weight tensor
-        if isinstance(self.max_n_modes, int):
-            max_modes1 = max_modes2 = max_modes3 = self.max_n_modes
-        else:
-            max_modes1, max_modes2, max_modes3 = self.max_n_modes
-            
         total_modes = max_modes1 + max_modes2 + max_modes3 + (max_modes1 * max_modes2 * max_modes3)
 
         self.scale = (1 / (in_channels * out_channels))
