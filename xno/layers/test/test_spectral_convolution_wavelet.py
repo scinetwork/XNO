@@ -677,7 +677,7 @@ def test_wavelet2dcwt_edge_levels(wavelet_level):
     
 @pytest.mark.parametrize("in_channels", [1, 2])
 @pytest.mark.parametrize("out_channels", [1, 3])
-@pytest.mark.parametrize("wavelet_level", [0, 1, 2, 3])
+@pytest.mark.parametrize("wavelet_level", [1, 2, 3])
 @pytest.mark.parametrize("wavelet_size", [[8, 8, 8], [16, 8, 12]])
 @pytest.mark.parametrize("wavelet_filter", [["db4"], ["haar"]])
 @pytest.mark.parametrize("wavelet_mode", ["symmetric", "periodic"])

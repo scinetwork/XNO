@@ -974,15 +974,19 @@ class SpectralConvWavelet3D(nn.Module):
                     self.out_channels,
                     x_coeff[0].shape[-3],
                     x_coeff[0].shape[-2],
-                    x_coeff[0].shape[-1], 
-                    device=x_coeff[0].device),  # Approximation coefficients
-                {key: torch.zeros(
-                    self.out_channels,
-                    val.shape[-3],
-                    val.shape[-2],
-                    val.shape[-1], 
-                    device=val.device
-                ) for key, val in x_coeff[1].items()}  # Detail coefficients
+                    x_coeff[0].shape[-1],
+                    device=x_coeff[0].device
+                ),
+                *(
+                    {key: torch.zeros(
+                        self.out_channels,
+                        val.shape[-3],
+                        val.shape[-2],
+                        val.shape[-1],
+                        device=val.device
+                    ) for key, val in x_dict.items()}
+                    for x_dict in x_coeff[1:]
+                )
             )
                 
             D_COE0, H_COE0, W_COE0 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
@@ -1043,9 +1047,9 @@ class SpectralConvWavelet3D(nn.Module):
             )
             
             # Instantiate higher wavelet_level coefficients as zeros
-            for jj in range(2, self.wavelet_level + 1):
-                out_coeff[jj] = {key: torch.zeros([*out_coeff[jj][key].shape], device=x.device)
-                                for key in out_coeff[jj].keys()}
+            # for jj in range(2, self.wavelet_level + 1):
+            #     out_coeff[jj] = {key: torch.zeros([*x_coeff[jj][key].shape], device=x.device)
+            #                     for key in out_coeff[jj].keys()}
 
             # Return to physical space        
             xr[i, ...] = waverec3(out_coeff, pywt.Wavelet(self.wavelet_filter))
