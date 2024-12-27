@@ -841,6 +841,9 @@ class SpectralConvWavelet3D(nn.Module):
                 self.wavelet_size = wavelet_size
         else:
             raise Exception('wavelet_size: WaveConv3d accepts wavelet_size of 3D signal is list')
+        
+        if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
+        
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
         dummy_data = torch.randn([*self.wavelet_size]).unsqueeze(0)
@@ -924,7 +927,16 @@ class SpectralConvWavelet3D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
-        xr = torch.zemusoros(x.shape, device = x.device)
+        batchsize = x.shape[0]
+        xr = torch.zeros(
+            batchsize,
+            self.out_channels,
+            x.shape[-3],
+            x.shape[-2], 
+            x.shape[-1], 
+            device = x.device
+        )
+        
         for i in range(x.shape[0]):
             
             if x.shape[-1] > self.wavelet_size[-1]:
@@ -956,6 +968,22 @@ class SpectralConvWavelet3D(nn.Module):
                     level=self.wavelet_level, 
                     mode=self.wavelet_mode
                 )
+            
+            out_coeff = (
+                torch.zeros(
+                    self.out_channels,
+                    x_coeff[0].shape[-3],
+                    x_coeff[0].shape[-2],
+                    x_coeff[0].shape[-1], 
+                    device=x_coeff[0].device),  # Approximation coefficients
+                {key: torch.zeros(
+                    self.out_channels,
+                    val.shape[-3],
+                    val.shape[-2],
+                    val.shape[-1], 
+                    device=val.device
+                ) for key, val in x_coeff[1].items()}  # Detail coefficients
+            )
                 
             D_COE0, H_COE0, W_COE0 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
             D_COE1, H_COE1, W_COE1 = x_coeff[0].shape[-3], x_coeff[0].shape[-2], x_coeff[0].shape[-1]
@@ -967,59 +995,58 @@ class SpectralConvWavelet3D(nn.Module):
             modes2_coe1 = min(self.modes2, H_COE1)
             modes3_coe1 = min(self.modes3, W_COE1)
             
-            
             # Multiply relevant Wavelet modes
             tmp_aaa = x_coeff[0].clone()
-            x_coeff[0][..., :modes1_coe0, :modes2_coe0, :modes3_coe0] = self.mul3d(
+            out_coeff[0][..., :modes1_coe0, :modes2_coe0, :modes3_coe0] = self.mul3d(
                 tmp_aaa[..., :modes1_coe0, :modes2_coe0, :modes3_coe0], 
                 self.weight[0][..., :modes1_coe0, :modes2_coe0, :modes3_coe0]
             )
             
             tmp_aad = x_coeff[1]['aad'].clone()
-            x_coeff[1]['aad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['aad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_aad[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], self.weight[1][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             tmp_ada = x_coeff[1]['ada'].clone()
-            x_coeff[1]['ada'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['ada'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_ada[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], self.weight[2][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             tmp_add = x_coeff[1]['add'].clone()
-            x_coeff[1]['add'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['add'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_add[..., :modes1_coe1, :modes2_coe1, :modes3_coe1], 
                 self.weight[3][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             tmp_daa = x_coeff[1]['daa'].clone()
-            x_coeff[1]['daa'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['daa'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_daa[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
                 self.weight[4][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             tmp_dad = x_coeff[1]['dad'].clone()
-            x_coeff[1]['dad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['dad'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_dad[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
                 self.weight[5][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             tmp_dda = x_coeff[1]['dda'].clone()
-            x_coeff[1]['dda'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['dda'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_dda[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
                 self.weight[6]
             )
             
             tmp_ddd = x_coeff[1]['ddd'].clone()
-            x_coeff[1]['ddd'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
+            out_coeff[1]['ddd'][..., :modes1_coe1, :modes2_coe1, :modes3_coe1] = self.mul3d(
                 tmp_ddd[..., :modes1_coe1, :modes2_coe1, :modes3_coe1],
                 self.weight[7][..., :modes1_coe1, :modes2_coe1, :modes3_coe1]
             )
             
             # Instantiate higher wavelet_level coefficients as zeros
             for jj in range(2, self.wavelet_level + 1):
-                x_coeff[jj] = {key: torch.zeros([*x_coeff[jj][key].shape], device=x.device)
-                                for key in x_coeff[jj].keys()}
-            
+                out_coeff[jj] = {key: torch.zeros([*out_coeff[jj][key].shape], device=x.device)
+                                for key in out_coeff[jj].keys()}
+
             # Return to physical space        
-            xr[i, ...] = waverec3(x_coeff, pywt.Wavelet(self.wavelet_filter))
+            xr[i, ...] = waverec3(out_coeff, pywt.Wavelet(self.wavelet_filter))
         return xr
