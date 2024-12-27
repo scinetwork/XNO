@@ -24,6 +24,66 @@ except ImportError:
     raise ImportError("Required packages are missing. Please install dependencies as per the documentation.")
 
 
+
+def _check_wavelet_mode_valid(mode: str):
+    """
+    Validate that wavelet mode is recognized by pywt.
+    Raises a ValueError if not valid.
+    """
+    valid_modes = pywt.Modes.modes
+    if mode not in valid_modes:
+        raise ValueError(
+            f"Invalid wavelet mode '{mode}'. "
+            f"Expected one of: {list(valid_modes.keys())}"
+        )
+
+def _check_wavelet_filter_valid(wavelet_filter: str):
+    """
+    Validate that the wavelet_filter is recognized by pywt.
+    Raises a ValueError if not valid.
+    """
+    try:
+        _ = pywt.Wavelet(wavelet_filter)  # Just to see if it raises
+    except ValueError:
+        raise ValueError(
+            f"Wavelet filter '{wavelet_filter}' not recognized by pywt. "
+            "Check valid wavelet names in pywt.wavelist()"
+        )
+
+def _check_wavelet_size_valid(
+    wavelet_size: List[int], 
+    wavelet_level: int, 
+    wavelet_filter: str, 
+    wavelet_mode: str
+):
+    """
+    Validate wavelet_size and wavelet_level together.
+    For a wavelet decomposition at level L, one typical rule-of-thumb is:
+         size >= 2^L * (filter_length - 1)
+    for each dimension.
+    If this is not met, we raise an Exception.
+
+    Note: This check can be stricter or more lenient depending on the wavelet mode.
+          We enforce it strictly for safety.
+    """
+    w = pywt.Wavelet(wavelet_filter)
+    # The "dec_len" is the length of the decomposition filter.
+    filter_length = w.dec_len
+
+    # For certain wavelets (biorthogonal, etc.), dec_len can be large.
+    # Adjust logic if you have a custom approach.
+    for dim_idx, dim_size in enumerate(wavelet_size):
+        min_required = (2 ** wavelet_level) * (filter_length - 1)
+        if dim_size < min_required:
+            raise ValueError(
+                f"Dimension {dim_idx} of wavelet_size = {dim_size} is too small for "
+                f"wavelet_level = {wavelet_level} and wavelet_filter = '{wavelet_filter}' "
+                f"(dec_len={filter_length}). Minimum required size for that dimension is "
+                f"{min_required}, but got {dim_size}."
+            )
+
+
+
 """ Def: 1d Wavelet convolutional layer """
 class SpectralConvWavelet1D(nn.Module):
     def __init__(
@@ -85,9 +145,22 @@ class SpectralConvWavelet1D(nn.Module):
             raise Exception('wavelet_size: WaveConv1d accepts wavelet_size of 1D signal is list') 
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
+        
+        if not wavelet_filter or not isinstance(wavelet_filter, list):
+            raise ValueError(
+                "wavelet_filter must be a non-empty list of wavelet names. "
+                f"Got: {wavelet_filter}"
+            )
 
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
+        
+        # Check filter and mode validity 
+        _check_wavelet_filter_valid(self.wavelet_filter)
+        _check_wavelet_mode_valid(self.wavelet_mode)
+        
+        # This ensures that each dimension is big enough to do wavelet_level decompositions
+        # _check_wavelet_size_valid(self.wavelet_size, self.wavelet_level, self.wavelet_filter, self.wavelet_mode)
         
         self.dwt_ = DWT1D(
             wave=self.wavelet_filter, 
@@ -317,8 +390,22 @@ class SpectralConvWavelet2D(nn.Module):
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
+        if not wavelet_filter or not isinstance(wavelet_filter, list):
+            raise ValueError(
+                "wavelet_filter must be a non-empty list of wavelet names. "
+                f"Got: {wavelet_filter}"
+            )
+        
         self.wavelet_filter = wavelet_filter[0]       
         self.wavelet_mode = wavelet_mode
+        
+        # Check filter and mode validity 
+        _check_wavelet_filter_valid(self.wavelet_filter)
+        _check_wavelet_mode_valid(self.wavelet_mode)
+        
+        # This ensures that each dimension is big enough to do wavelet_level decompositions
+        # _check_wavelet_size_valid(self.wavelet_size, self.wavelet_level, self.wavelet_filter, self.wavelet_mode)
+        
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size )        
         dwt_ = DWT(
@@ -562,14 +649,21 @@ class SpectralConvWavelet2DCwt(nn.Module):
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
-        self.wavelet_level1 = wavelet_filter[0]
-        self.wavelet_level2 = wavelet_filter[1]    
+        if not wavelet_filter or not isinstance(wavelet_filter, list):
+            raise ValueError(
+                "wavelet_filter must be a non-empty list of wavelet names. "
+                f"Got: {wavelet_filter}"
+            )
+        
+        self.wavelet_filter1 = wavelet_filter[0]
+        self.wavelet_filter2 = wavelet_filter[1] 
+    
         
         dummy_data = torch.randn( 1,1,*self.wavelet_size ) 
         dwt_ = DTCWTForward(
             J=self.wavelet_level, 
-            biort=self.wavelet_level1, 
-            qshift=self.wavelet_level2
+            biort=self.wavelet_filter1, 
+            qshift=self.wavelet_filter2
         )
         mode_data, mode_coef = dwt_(dummy_data)
         self.modes1 = mode_data.shape[-2]
@@ -663,8 +757,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
             # Compute dual tree continuous Wavelet coefficients
             cwt = DTCWTForward(
                 J=self.wavelet_level+factor, 
-                biort=self.wavelet_level1, 
-                qshift=self.wavelet_level2
+                biort=self.wavelet_filter1, 
+                qshift=self.wavelet_filter2
             ).to(x.device)
             x_ft, x_coeff = cwt(x)
             
@@ -674,16 +768,16 @@ class SpectralConvWavelet2DCwt(nn.Module):
             # Compute dual tree continuous Wavelet coefficients
             cwt = DTCWTForward(
                 J=self.wavelet_level-factor, 
-                biort=self.wavelet_level1, 
-                qshift=self.wavelet_level2
+                biort=self.wavelet_filter1, 
+                qshift=self.wavelet_filter2
             ).to(x.device)
             x_ft, x_coeff = cwt(x)            
         else:
             # Compute dual tree continuous Wavelet coefficients 
             cwt = DTCWTForward(
                 J=self.wavelet_level, 
-                biort=self.wavelet_level1, 
-                qshift=self.wavelet_level2
+                biort=self.wavelet_filter1, 
+                qshift=self.wavelet_filter2
             ).to(x.device)
             x_ft, x_coeff = cwt(x)
         
@@ -778,7 +872,7 @@ class SpectralConvWavelet2DCwt(nn.Module):
             
         
         # Reconstruct the signal
-        icwt = DTCWTInverse(biort=self.wavelet_level1, qshift=self.wavelet_level2).to(x.device)
+        icwt = DTCWTInverse(biort=self.wavelet_filter1, qshift=self.wavelet_filter2).to(x.device)
         x = icwt((out_ft, out_coeff))
         return x
     
@@ -844,8 +938,23 @@ class SpectralConvWavelet3D(nn.Module):
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
+        if not wavelet_filter or not isinstance(wavelet_filter, list):
+            raise ValueError(
+                "wavelet_filter must be a non-empty list of wavelet names. "
+                f"Got: {wavelet_filter}"
+            )
+        
         self.wavelet_filter = wavelet_filter[0]
         self.wavelet_mode = wavelet_mode
+        
+        # Check filter and mode validity 
+        _check_wavelet_filter_valid(self.wavelet_filter)
+        _check_wavelet_mode_valid(self.wavelet_mode)
+        
+        # This ensures that each dimension is big enough to do wavelet_level decompositions
+        # _check_wavelet_size_valid(self.wavelet_size, self.wavelet_level, self.wavelet_filter, self.wavelet_mode)
+
+        
         dummy_data = torch.randn([*self.wavelet_size]).unsqueeze(0)
         mode_data = wavedec3(
             dummy_data, 
@@ -952,7 +1061,7 @@ class SpectralConvWavelet3D(nn.Module):
             
             elif x.shape[-1] < self.wavelet_size[-1]:
                 factor = int(np.log2(self.wavelet_size[-1] // x.shape[-1]))
-                
+                # import pdb; pdb.set_trace()
                 # Compute single tree Discrete Wavelet coefficients using some wavelet
                 x_coeff = wavedec3(
                     x[i, ...], 
