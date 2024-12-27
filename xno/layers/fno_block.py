@@ -169,7 +169,7 @@ class FNOBlocks(nn.Module):
                 implementation=implementation,
                 separable=separable,
                 factorization=factorization,
-                fno_block_precision=fno_block_precision,
+                xno_block_precision=fno_block_precision,
                 decomposition_kwargs=decomposition_kwargs,
                 complex_data=complex_data
             ) 
