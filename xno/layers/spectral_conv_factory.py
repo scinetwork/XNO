@@ -17,10 +17,14 @@ class BaseConvFactory(abc.ABC):
 
     def __init__(
         self, 
+        in_channels, 
+        out_channels,
         n_modes: List[int], 
         transformation_kwargs: Dict, 
         norm: str=None
     ):
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.n_modes = n_modes
         self.dim = len(n_modes)
         self.transformation_kwargs = transformation_kwargs
@@ -46,6 +50,10 @@ class BaseConvFactory(abc.ABC):
         Otherwise, by default, do nothing.
         """
         return self.norm
+    
+    def validate(self):
+        """Base validation logic (can be overridden in subclasses)."""
+        pass
 
 
 class FNOConvFactory(BaseConvFactory):
@@ -57,6 +65,9 @@ class FNOConvFactory(BaseConvFactory):
     def get_extra_args(self) -> Dict:
         # Usually no special wavelet/laplace args needed. We can just return {}
         return {}
+    
+    def validate(self):
+        return super().validate()
 
 
 class HNOConvFactory(BaseConvFactory):
@@ -66,6 +77,9 @@ class HNOConvFactory(BaseConvFactory):
 
     def get_extra_args(self) -> Dict:
         return {}
+    
+    def validate(self):
+        return super().validate()
 
 
 class LNOConvFactory(BaseConvFactory):
@@ -84,7 +98,6 @@ class LNOConvFactory(BaseConvFactory):
         if self.norm is None:
             return "group_norm"
         return self.norm
-
 
 class WNOConvFactory(BaseConvFactory):
     """Factory for Wavelet-based Convolutions (WNO)."""
@@ -122,6 +135,9 @@ class WNOConvFactory(BaseConvFactory):
         }
         extra_args = {k: v for k, v in tmp_args.items() if k in supported_args and v is not None}
         return extra_args
+    
+    def validate(self):
+        return super().validate()
 
 
 class SpectralConvFactory:
@@ -131,30 +147,39 @@ class SpectralConvFactory:
     """
     def __init__(
         self,
+        in_channels, 
+        out_channels,
         transformation: str,
         n_modes: List[int],
         norm: str,
         transformation_kwargs: Dict,
+        complex_data = False,
         verbose=True,
     ):
+        self.in_channels = in_channels
+        self.out_channels = in_channels
         self.transformation = transformation.lower()
         self.n_modes = n_modes
         self.norm = norm
         self.dim = len(self.n_modes)
         self.transformation_kwargs = transformation_kwargs or {}
         self.verbose = verbose
+        
+        # Error handeling for complex input data. 
+        if complex_data and transformation.lower() in {"lno", "hno", "wno"}:
+            raise ValueError("HNO, WNO, and LNO just work with real input values, for now!")
 
     def create_factory(self) -> BaseConvFactory:
         """Return an instance of the correct sub-factory."""
         factory = None
         if self.transformation == "fno":
-            factory = FNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = FNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "hno":
-            factory = HNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = HNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "lno":
-            factory = LNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = LNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
         elif self.transformation == "wno":
-            factory = WNOConvFactory(self.n_modes, self.transformation_kwargs, self.norm)
+            factory = WNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
         else:
             raise ValueError(
                 f"Unknown transform type '{self.transformation}'. "

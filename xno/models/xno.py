@@ -271,7 +271,7 @@ class XNO(BaseModel, name='XNO'):
             if isinstance(resolution_scaling_factor, (float, int)):
                 resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
         self.resolution_scaling_factor = resolution_scaling_factor
-
+        
         self.xno_blocks = XNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,

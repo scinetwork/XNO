@@ -39,7 +39,11 @@ def test_FNOBlock_resolution_scaling_factor():
         
         # Upsample outputs
         block = FNOBlocks(
-            3, 4, n_modes[:dim], n_layers=1, resolution_scaling_factor=2, 
+            3, 
+            4, 
+            n_modes[:dim], 
+            n_layers=1, 
+            resolution_scaling_factor=2, 
             channel_mlp_dropout=channel_mlp_dropout, channel_mlp_expansion=channel_mlp_expansion, 
             channel_mlp_skip=channel_mlp_skip)
 

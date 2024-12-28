@@ -98,6 +98,7 @@ class SpectralConvLaplace1D(nn.Module):
         ] = validate_scaling_factor(resolution_scaling_factor, self.order)
         
         max_n_modes, = self.n_modes
+        self.max_n_modes = self.n_modes
         
         self.scale = 1 / (in_channels * out_channels)
         
@@ -280,6 +281,8 @@ class SpectralConvLaplace2D(nn.Module):
             Commulating all weights into a single weight attribute on the class, and break it down for different applications like weights_pole1, etc. in convolution process. 
         """
         max_modes1, max_modes2 = self.n_modes
+        self.max_n_modes = self.n_modes
+        
         # if max_n_modes is None:
         #     max_modes1, max_modes2 = self.n_modes
         # elif isinstance(max_n_modes, int):
@@ -480,7 +483,9 @@ class SpectralConvLaplace3D(nn.Module):
         
         self.modes1, self.modes2, self.modes3 = self.n_modes
          
-        max_modes1, max_modes2, max_modes3 = self.n_modes 
+        max_modes1, max_modes2, max_modes3 = self.n_modes
+        self.max_n_modes = self.n_modes
+         
         # if max_n_modes is None:
         #     max_modes1, max_modes2, max_modes3 = self.n_modes
         # elif isinstance(max_n_modes, int):
@@ -650,7 +655,6 @@ class SpectralConvLaplace3D(nn.Module):
                            torch.exp(term1),
                            torch.exp(term2),
                            torch.exp(term3))
-        
         x2=torch.einsum("kbpqm,bipqmzxy->kizxy", 
                         output_residue2,
                         term4)

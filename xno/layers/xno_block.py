@@ -249,12 +249,16 @@ class XNOBlocks(nn.Module):
         if conv_module is None:
             # Use the new OOP factory
             factory = SpectralConvFactory(
+                in_channels = in_channels, 
+                out_channels = out_channels,
                 transformation=self.transformation,
                 n_modes=self._n_modes,
                 norm=norm,
-                transformation_kwargs=self.transformation_kwargs
+                transformation_kwargs=self.transformation_kwargs,
+                complex_data = self.complex_data
             )
             sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+            sub_factory.validate()
             conv_module = sub_factory.select_conv_class()
             extra_args = sub_factory.get_extra_args()
             # Possibly update 'norm' if needed
@@ -321,6 +325,7 @@ class XNOBlocks(nn.Module):
             self.channel_mlp = nn.ModuleList(
                 [ComplexValued(x) for x in self.channel_mlp]
             )
+
         self.channel_mlp_skips = nn.ModuleList(
             [
                 skip_connection(

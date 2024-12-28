@@ -142,7 +142,7 @@ class SpectralConvWavelet1D(nn.Module):
             else:
                 self.wavelet_size = wavelet_size[-1]
         else:
-            raise Exception('wavelet_size: WaveConv1d accepts wavelet_size of 1D signal is list') 
+            raise Exception('wavelet_size: WaveConv1d accepts wavelet_size of 1D signal as a List') 
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
@@ -386,7 +386,7 @@ class SpectralConvWavelet2D(nn.Module):
             else:
                 self.wavelet_size = wavelet_size
         else:
-            raise Exception('wavelet_size: WaveConv2d accepts wavelet_size of 2D signal is list')
+            raise Exception('wavelet_size: WaveConv2d accepts wavelet_size of 2D signal as a List')
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
@@ -645,7 +645,7 @@ class SpectralConvWavelet2DCwt(nn.Module):
             else:
                 self.wavelet_size = wavelet_size
         else:
-            raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal is list')
+            raise Exception('wavelet_size: WaveConv2dCwt accepts wavelet_size of 2D signal as a List')
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         
@@ -934,7 +934,7 @@ class SpectralConvWavelet3D(nn.Module):
             else:
                 self.wavelet_size = wavelet_size
         else:
-            raise Exception('wavelet_size: WaveConv3d accepts wavelet_size of 3D signal is list')
+            raise Exception('wavelet_size: WaveConv3d accepts wavelet_size of 3D signal as a List')
         
         if wavelet_level < 1: raise ValueError(f"wavelet_level (J) must be >= 1, got {wavelet_level}")
         

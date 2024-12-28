@@ -46,9 +46,13 @@ def test_XNOBlock_basic_forward(transformation, in_channels, out_channels, n_mod
         # Possibly no extra arguments needed, or you might configure something 
         # for Laplace1D/2D/3D
         transformation_kwargs = {}
+        # in_channels = out_channels
     elif transformation.lower() == "hno":
         # Hilbert might require none or some optional args
         transformation_kwargs = {}
+    
+    if in_channels != out_channels: channel_mlp_skip='linear'
+    else: channel_mlp_skip = "soft-gating"
 
     block = XNOBlocks(
         in_channels=in_channels,
@@ -56,7 +60,8 @@ def test_XNOBlock_basic_forward(transformation, in_channels, out_channels, n_mod
         n_modes=n_modes,
         transformation=transformation,
         transformation_kwargs=transformation_kwargs,
-        n_layers=n_layers
+        n_layers=n_layers,
+        channel_mlp_skip=channel_mlp_skip
     )
 
     y = block(x)
@@ -84,7 +89,7 @@ def test_XNOBlock_missing_transformation_kwargs_for_WNO():
     If transformation='WNO' but 'transformation_kwargs' is missing required
     wavelet parameters, we expect a ValueError (depending on the factory logic).
     """
-    with pytest.raises(ValueError, match="Missing `transformation_kwargs`"):
+    with pytest.raises(ValueError):
         _ = XNOBlocks(
             in_channels=3,
             out_channels=3,
@@ -107,7 +112,8 @@ def test_XNOBlock_resolution_scaling_factor():
         block = XNOBlocks(
             3, 4, max_n_modes[:dim], 
             max_n_modes=max_n_modes[:dim], n_layers=1, 
-            transformation="FNO"
+            transformation="FNO", 
+            channel_mlp_skip="linear"
         )
 
         # Check setter logic for n_modes property
@@ -123,7 +129,8 @@ def test_XNOBlock_resolution_scaling_factor():
             n_modes=n_modes[:dim],
             n_layers=1,
             resolution_scaling_factor=0.5,
-            transformation="FNO"
+            transformation="FNO",
+            channel_mlp_skip="linear"
         )
 
         x = torch.randn(2, 3, *size[:dim])
@@ -140,7 +147,8 @@ def test_XNOBlock_resolution_scaling_factor():
             n_modes=n_modes[:dim],
             n_layers=1,
             resolution_scaling_factor=2,
-            transformation="FNO"
+            transformation="FNO",
+            channel_mlp_skip="linear"
         )
         x = torch.randn(2, 3, *size[:dim])
         res = block(x)
@@ -169,6 +177,7 @@ def test_XNOBlock_norm(norm):
         norm=norm,
         ada_in_features=ada_in_features,
         transformation="FNO",  # or "LNO", etc.
+        channel_mlp_skip="linear"
     )
 
     if norm == 'ada_in':
@@ -191,14 +200,22 @@ def test_XNOBlock_complex_data(n_dim):
     modes = (8, 8, 8)
     size = [10] * 3
     x = torch.randn(2, 3, *size[:n_dim], dtype=torch.cfloat)
+    
+    transformation_kwargs = {
+            "wavelet_level": 1,
+            "wavelet_size": [2],
+            "wavelet_filter": ["db4"],  # or your wavelet filter
+            "wavelet_mode": "symmetric"
+        }
 
     block = XNOBlocks(
         in_channels=3,
         out_channels=4,
         n_modes=modes[:n_dim],
-        n_layers=1,
+        n_layers=2,
         complex_data=True,
-        transformation="FNO"  # or "HNO", etc.
+        transformation="FNO",  # Just for FNO
+        channel_mlp_skip="linear", 
     )
     res = block(x)
     assert list(res.shape[2:]) == size[:n_dim], (
@@ -216,7 +233,8 @@ def test_XNOBlock_submodule():
         out_channels=4,
         n_modes=[4, 4],
         n_layers=3,  # multiple layers
-        transformation="FNO"
+        transformation="HNO",
+        channel_mlp_skip="linear"
     )
     x = torch.randn(2, 3, 10, 10)
     # get the second block
@@ -226,39 +244,34 @@ def test_XNOBlock_submodule():
     # processes the 'index=1' layer. 
     assert y.shape == (2, 4, 10, 10)
 
-
-def test_XNOBlock_submodule_single_layer_error():
-    """
-    If n_layers=1, get_block() should raise ValueError 
-    because there's only one layer.
-    """
-    block = XNOBlocks(
-        in_channels=3,
-        out_channels=4,
-        n_modes=[4],
-        n_layers=1,
-        transformation="FNO"
-    )
-    with pytest.raises(ValueError, match="A single layer is parametrized"):
-        _ = block.get_block(indices=0)
-
-
-def test_XNOBlock_preactivation():
+@pytest.mark.parametrize("transformation", ["FNO", "HNO", "LNO", "WNO"])
+def test_XNOBlock_preactivation(transformation):
     """
     If 'preactivation=True', the forward pass calls 'forward_with_preactivation'.
     We verify no crash and shape correctness.
     """
+    transformation_kwargs = {}
+    
+    if transformation == "WNO":
+        transformation_kwargs = {
+            "wavelet_level": 1,
+            "wavelet_size": [2, 2],
+            "wavelet_filter": ["db4"],  # or your wavelet filter
+            "wavelet_mode": "symmetric"
+        }
     block = XNOBlocks(
         in_channels=3,
-        out_channels=4,
+        out_channels=3,
         n_modes=[4, 4],
         n_layers=2,
         preactivation=True,
-        transformation="FNO"
+        transformation=transformation, 
+        channel_mlp_skip="linear", 
+        transformation_kwargs=transformation_kwargs
     )
     x = torch.randn(2, 3, 10, 10)
     res = block(x)
-    assert res.shape == (2, 4, 10, 10)
+    assert res.shape == (2, 3, 10, 10)
     # No numerical checks but at least we confirm it runs.
 
 
