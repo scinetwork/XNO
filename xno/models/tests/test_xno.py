@@ -419,7 +419,7 @@ def test_XNO_call_with_output_shape(transformation):
     xno = XNO(
         n_modes=(4, 4),
         in_channels=2,
-        out_channels=3,
+        out_channels=2,
         hidden_channels=4,
         transformation=transformation,
         transformation_kwargs=transformation_kwargs,
@@ -429,7 +429,7 @@ def test_XNO_call_with_output_shape(transformation):
     # Suppose we want the final output to be (16, 8) in spatial dims
     out_sh = (16, 8)
     y = xno(x, output_shape=out_sh)
-    assert y.shape == (1, 3, 16, 8)
+    assert y.shape == (1, 2, 16, 8)
 
 
 def test_XNO1d_forward(transformation):
@@ -441,7 +441,7 @@ def test_XNO1d_forward(transformation):
         wavelet_size = [2, 2, 2]
         transformation_kwargs = {
             "wavelet_level": 1,
-            "wavelet_size": wavelet_size[:2],
+            "wavelet_size": wavelet_size[:1],
             "wavelet_filter": ["db4"],  # or your wavelet filter
             "wavelet_mode": "symmetric"
         }
@@ -498,7 +498,7 @@ def test_XNO3d_forward(transformation):
         wavelet_size = [2, 2, 2]
         transformation_kwargs = {
             "wavelet_level": 1,
-            "wavelet_size": wavelet_size[:2],
+            "wavelet_size": wavelet_size[:3],
             "wavelet_filter": ["db4"],  # or your wavelet filter
             "wavelet_mode": "symmetric"
         }
