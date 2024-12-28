@@ -494,7 +494,7 @@ class SpectralConvWavelet2D(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x * y]
         """
-        batchsize = x.shape[0]
+        batchsize, channels, *mode_sizes = x.shape
         
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
@@ -582,6 +582,21 @@ class SpectralConvWavelet2D(nn.Module):
             wave=self.wavelet_filter
         ).to(x.device)
         x = idwt((out_ft, out_coeff))
+        
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+
+        if output_shape is not None:
+            mode_sizes = output_shape
+        
+        # Output shape insurance
+        if x.shape[2:] != mode_sizes:
+            x = x[..., :mode_sizes[-2], :mode_sizes[-1]]  # Crop excess
+            # Or pad with zeros if too small
+            pad = [(0, max(0, ds - os)) for ds, os in zip(mode_sizes, x.shape[2:])]
+            x = torch.nn.functional.pad(x, [p for sub in pad[::-1] for p in sub])
+            
         return x
 
     
@@ -1037,6 +1052,9 @@ class SpectralConvWavelet3D(nn.Module):
         output_shape: Optional[Tuple[int]] = None
     ):
         batchsize = x.shape[0]
+        if output_shape is None:
+            output_shape = x.shape
+            
         xr = torch.zeros(
             batchsize,
             self.out_channels,
@@ -1162,4 +1180,22 @@ class SpectralConvWavelet3D(nn.Module):
 
             # Return to physical space        
             xr[i, ...] = waverec3(out_coeff, pywt.Wavelet(self.wavelet_filter))
+            
+        # Ensure output shape matches the desired shape
+        # if xr.shape[-3:] != output_shape:
+        #     target_shape = output_shape
+        #     current_shape = xr.shape[-3:]
+            
+        #     # Calculate padding or cropping
+        #     diff = [ts - cs for ts, cs in zip(target_shape, current_shape)]
+            
+        #     # Crop excess dimensions
+        #     if any(d < 0 for d in diff):
+        #         xr = xr[..., :target_shape[-3], :target_shape[-2], :target_shape[-1]]
+            
+        #     # Pad missing dimensions
+        #     if any(d > 0 for d in diff):
+        #         pad = [(0, max(0, d)) for d in diff[::-1]]
+        #         xr = torch.nn.functional.pad(xr, [p for sub in pad for p in sub])
+        
         return xr
