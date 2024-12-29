@@ -10,7 +10,7 @@ from torch.nn.parameter import Parameter
 from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
-from shape_enforcer import ShapeEnforcer
+from .shape_enforcer import ShapeEnforcer
 
 
 Number = Union[int, float]
@@ -1090,9 +1090,6 @@ class SpectralConvWavelet3D(nn.Module):
         output_shape: Optional[Tuple[int]] = None
     ):
         batchsize, channels, *mode_sizes = x.shape
-        
-        if output_shape is None:
-            output_shape = x.shape
             
         xr = torch.zeros(
             batchsize,

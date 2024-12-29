@@ -9,7 +9,7 @@ from typing import Optional, Union, Sequence
 from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
-from shape_enforcer import ShapeEnforcer
+from .shape_enforcer import ShapeEnforcer
 
 Number = Union[int, float]
 
