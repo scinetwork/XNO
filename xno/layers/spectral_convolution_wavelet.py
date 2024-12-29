@@ -10,6 +10,7 @@ from torch.nn.parameter import Parameter
 from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
+from shape_enforcer import ShapeEnforcer
 
 
 Number = Union[int, float]
@@ -189,6 +190,9 @@ class SpectralConvWavelet1D(nn.Module):
                 self.modes1, 
             )
         )
+        
+        # Shape enforcer object to shape the forward output 
+        self.shape_enforcer = ShapeEnforcer()
     
     def transform(
         self, 
@@ -249,7 +253,7 @@ class SpectralConvWavelet1D(nn.Module):
         x : tensor, shape-[Batch * Channel * x]
         """
         
-        batchsize = x.shape[0]
+        batchsize, channels, *mode_sizes = x.shape
         
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
@@ -322,6 +326,18 @@ class SpectralConvWavelet1D(nn.Module):
         ).to(x.device)
         
         x = idwt((out_ft, out_coeff)) 
+        
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+
+        if output_shape is not None:
+            mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
+            
         return x
 
 
@@ -436,6 +452,8 @@ class SpectralConvWavelet2D(nn.Module):
                 self.modes2
             )
         )
+        
+        self.shape_enforcer = ShapeEnforcer()
         
     def transform(
         self, 
@@ -586,16 +604,20 @@ class SpectralConvWavelet2D(nn.Module):
         
         if self.resolution_scaling_factor is not None and output_shape is None:
             mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
-
+            
         if output_shape is not None:
             mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
         
-        # Output shape insurance
-        if x.shape[2:] != mode_sizes:
-            x = x[..., :mode_sizes[-2], :mode_sizes[-1]]  # Crop excess
-            # Or pad with zeros if too small
-            pad = [(0, max(0, ds - os)) for ds, os in zip(mode_sizes, x.shape[2:])]
-            x = torch.nn.functional.pad(x, [p for sub in pad[::-1] for p in sub])
+        # # Output shape insurance
+        # if list(x.shape[2:]) != mode_sizes:
+        #     x = x[..., :mode_sizes[-2], :mode_sizes[-1]]  # Crop excess
+        #     # Or pad with zeros if too small
+        #     pad = [(0, max(0, ds - os)) for ds, os in zip(mode_sizes, x.shape[2:])]
+        #     x = torch.nn.functional.pad(x, [p for sub in pad[::-1] for p in sub])
             
         return x
 
@@ -707,6 +729,8 @@ class SpectralConvWavelet2DCwt(nn.Module):
             )
         )
         
+        self.shape_enforcer = ShapeEnforcer()
+        
     def transform(
         self, 
         x, 
@@ -764,7 +788,7 @@ class SpectralConvWavelet2DCwt(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x * y]
         """      
-        batchsize = x.shape[0]
+        batchsize, channels, *mode_sizes = x.shape
         
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
@@ -889,6 +913,18 @@ class SpectralConvWavelet2DCwt(nn.Module):
         # Reconstruct the signal
         icwt = DTCWTInverse(biort=self.wavelet_filter1, qshift=self.wavelet_filter2).to(x.device)
         x = icwt((out_ft, out_coeff))
+        
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+
+        if output_shape is not None:
+            mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
+        
         return x
     
     
@@ -1001,6 +1037,8 @@ class SpectralConvWavelet3D(nn.Module):
                 self.modes3
             )
         )
+        
+        self.shape_enforcer = ShapeEnforcer()
     
     def transform(
         self, 
@@ -1051,7 +1089,8 @@ class SpectralConvWavelet3D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
-        batchsize = x.shape[0]
+        batchsize, channels, *mode_sizes = x.shape
+        
         if output_shape is None:
             output_shape = x.shape
             
@@ -1181,21 +1220,14 @@ class SpectralConvWavelet3D(nn.Module):
             # Return to physical space        
             xr[i, ...] = waverec3(out_coeff, pywt.Wavelet(self.wavelet_filter))
             
-        # Ensure output shape matches the desired shape
-        # if xr.shape[-3:] != output_shape:
-        #     target_shape = output_shape
-        #     current_shape = xr.shape[-3:]
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
             
-        #     # Calculate padding or cropping
-        #     diff = [ts - cs for ts, cs in zip(target_shape, current_shape)]
+        if output_shape is not None:
+            mode_sizes = output_shape
             
-        #     # Crop excess dimensions
-        #     if any(d < 0 for d in diff):
-        #         xr = xr[..., :target_shape[-3], :target_shape[-2], :target_shape[-1]]
-            
-        #     # Pad missing dimensions
-        #     if any(d > 0 for d in diff):
-        #         pad = [(0, max(0, d)) for d in diff[::-1]]
-        #         xr = torch.nn.functional.pad(xr, [p for sub in pad for p in sub])
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(xr.shape[2:]) != mode_sizes:
+            xr = self.shape_enforcer(xr, output_shape=mode_sizes)
         
         return xr
