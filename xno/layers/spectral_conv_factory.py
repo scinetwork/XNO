@@ -5,6 +5,8 @@ import abc
 import inspect
 from typing import Dict, List, Union
 from . import get_spectral_convolution_class
+import torch.nn.functional as F
+import torch
 
 class BaseConvFactory(abc.ABC):
     """
@@ -54,6 +56,10 @@ class BaseConvFactory(abc.ABC):
     def validate(self):
         """Base validation logic (can be overridden in subclasses)."""
         pass
+    
+    def non_linearity(self):
+        """Return convolution specific non-linearity."""
+        pass
 
 
 class FNOConvFactory(BaseConvFactory):
@@ -68,8 +74,10 @@ class FNOConvFactory(BaseConvFactory):
     
     def validate(self):
         return super().validate()
-
-
+    
+    def non_linearity(self):
+        return F.gelu
+    
 class HNOConvFactory(BaseConvFactory):
     """Factory for Hilbert-based Convolutions (HNO)."""
     def select_conv_class(self):
@@ -80,6 +88,9 @@ class HNOConvFactory(BaseConvFactory):
     
     def validate(self):
         return super().validate()
+    
+    def non_linearity(self):
+        return F.gelu
 
 
 class LNOConvFactory(BaseConvFactory):
@@ -98,6 +109,9 @@ class LNOConvFactory(BaseConvFactory):
         if self.norm is None:
             return "group_norm"
         return self.norm
+    
+    def non_linearity(self):
+        return torch.sin
 
 class WNOConvFactory(BaseConvFactory):
     """Factory for Wavelet-based Convolutions (WNO)."""
@@ -138,7 +152,9 @@ class WNOConvFactory(BaseConvFactory):
     
     def validate(self):
         return super().validate()
-
+    
+    def non_linearity(self):
+        return F.mish
 
 class SpectralConvFactory:
     """
