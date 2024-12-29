@@ -398,6 +398,7 @@ class XNOBlocks(nn.Module):
 
     def forward_with_postactivation(self, x, index=0, output_shape=None):
         x_skip_xno = self.xno_skips[index](x)
+        
         x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)

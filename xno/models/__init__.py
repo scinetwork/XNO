@@ -1,3 +1,4 @@
+from .xno import TXNO, TXNO1d, TXNO2d, TXNO3d
 from .fno import TFNO, TFNO1d, TFNO2d, TFNO3d
 from .fno import FNO, FNO1d, FNO2d, FNO3d
 from .hno import HNO, HNO1d, HNO2d, HNO3d
