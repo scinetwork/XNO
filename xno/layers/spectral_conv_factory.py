@@ -7,6 +7,7 @@ from typing import Dict, List, Union
 from . import get_spectral_convolution_class
 import torch.nn.functional as F
 import torch
+from .complex import CGELU
 
 class BaseConvFactory(abc.ABC):
     """
@@ -23,7 +24,8 @@ class BaseConvFactory(abc.ABC):
         out_channels,
         n_modes: List[int], 
         transformation_kwargs: Dict, 
-        norm: str=None
+        norm: str=None, 
+        complex_data: bool=False
     ):
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -31,6 +33,7 @@ class BaseConvFactory(abc.ABC):
         self.dim = len(n_modes)
         self.transformation_kwargs = transformation_kwargs
         self.norm = norm  # Could be None, "group_norm", "instance_norm", etc.
+        self.complex_data = complex_data
 
     @abc.abstractmethod
     def select_conv_class(self):
@@ -76,7 +79,9 @@ class FNOConvFactory(BaseConvFactory):
         return super().validate()
     
     def non_linearity(self):
-        return F.gelu
+        # apply real nonlin if data is real, otherwise CGELU
+        if self.complex_data: return CGELU
+        else: return F.gelu
     
 class HNOConvFactory(BaseConvFactory):
     """Factory for Hilbert-based Convolutions (HNO)."""
@@ -90,7 +95,9 @@ class HNOConvFactory(BaseConvFactory):
         return super().validate()
     
     def non_linearity(self):
-        return F.gelu
+        # apply real nonlin if data is real, otherwise CGELU
+        if self.complex_data: return CGELU
+        else: return F.gelu
 
 
 class LNOConvFactory(BaseConvFactory):
@@ -180,22 +187,49 @@ class SpectralConvFactory:
         self.dim = len(self.n_modes)
         self.transformation_kwargs = transformation_kwargs or {}
         self.verbose = verbose
+        self.complex_data = complex_data
         
         # Error handeling for complex input data. 
-        if complex_data and transformation.lower() in {"lno", "hno", "wno"}:
+        if self.complex_data and transformation.lower() in {"lno", "hno", "wno"}:
             raise ValueError("HNO, WNO, and LNO just work with real input values, for now!")
 
     def create_factory(self) -> BaseConvFactory:
         """Return an instance of the correct sub-factory."""
         factory = None
         if self.transformation == "fno":
-            factory = FNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
+            factory = FNOConvFactory(
+                self.in_channels, 
+                self.out_channels, 
+                self.n_modes, 
+                self.transformation_kwargs, 
+                self.norm, 
+                self.complex_data
+                )
         elif self.transformation == "hno":
-            factory = HNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
+            factory = HNOConvFactory(
+                self.in_channels, 
+                self.out_channels, 
+                self.n_modes, 
+                self.transformation_kwargs, 
+                self.norm, 
+                self.complex_data
+                )
         elif self.transformation == "lno":
-            factory = LNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
+            factory = LNOConvFactory(
+                self.in_channels, 
+                self.out_channels, 
+                self.n_modes, 
+                self.transformation_kwargs, 
+                self.norm
+                )
         elif self.transformation == "wno":
-            factory = WNOConvFactory(self.in_channels, self.out_channels, self.n_modes, self.transformation_kwargs, self.norm)
+            factory = WNOConvFactory(
+                self.in_channels, 
+                self.out_channels, 
+                self.n_modes, 
+                self.transformation_kwargs, 
+                self.norm
+                )
         else:
             raise ValueError(
                 f"Unknown transform type '{self.transformation}'. "
