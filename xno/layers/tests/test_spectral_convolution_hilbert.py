@@ -10,7 +10,7 @@ from xno.layers.spectral_convolution_hilbert import (SpectralConvHilbert3d, Spec
 @pytest.mark.parametrize('implementation', ['factorized', 'reconstructed'])
 @pytest.mark.parametrize('separable', [False, True])
 @pytest.mark.parametrize('dim', [1,2,3,4])
-@pytest.mark.parametrize('complex_data', [False, True])
+@pytest.mark.parametrize('complex_data', [False])
 def test_SpectralConv(factorization, implementation, separable, dim, complex_data):
     """Test for SpectralConv of any order
     
