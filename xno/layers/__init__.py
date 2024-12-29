@@ -6,6 +6,8 @@ from .spectral_convolution_fourier import SpectralConvFourier
 from .spectral_convolution_hilbert import SpectralConvHilbert
 from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
 from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet3D
+from .shape_enforcer import ShapeEnforcer
+
 
 # Map transformation types to their corresponding convolution classes
 CONVOLUTION_MAP = {

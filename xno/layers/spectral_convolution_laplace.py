@@ -9,6 +9,7 @@ from typing import Optional, Union, Sequence
 from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
+from shape_enforcer import ShapeEnforcer
 
 Number = Union[int, float]
 
@@ -113,6 +114,8 @@ class SpectralConvLaplace1D(nn.Module):
                 dtype=torch.cfloat
                 )
         )
+        
+        self.shape_enforcer = ShapeEnforcer()
        
     
     def transform(
@@ -178,6 +181,8 @@ class SpectralConvLaplace1D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
+        
+        batchsize, channels, *mode_sizes = x.shape
                 
         modes1, = self.n_modes
         L = x.shape[-1]
@@ -236,7 +241,20 @@ class SpectralConvLaplace1D(nn.Module):
                         term2)
         x2=torch.real(x2)
         x2=x2/x.size(-1)
-        return x1+x2
+        
+        x = x1+x2
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+            
+        if output_shape is not None:
+            mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
+            
+        return x
 
 
 class SpectralConvLaplace2D(nn.Module):
@@ -302,6 +320,8 @@ class SpectralConvLaplace2D(nn.Module):
             )
         )
         
+        self.shape_enforcer = ShapeEnforcer()
+        
     def transform(
         self, 
         x, 
@@ -365,6 +385,8 @@ class SpectralConvLaplace2D(nn.Module):
         x: torch.Tensor, 
         output_shape: Optional[Tuple[int]] = None
     ):
+        batchsize, channels, *mode_sizes = x.shape
+        
         modes1, modes2 = self.n_modes
         H, W = x.shape[-2], x.shape[-1]
 
@@ -442,8 +464,20 @@ class SpectralConvLaplace2D(nn.Module):
                           term3)  # (b, o, H, W)
 
         x2 = torch.real(x2) / (x.size(-1) * x.size(-2))
-
-        return x1 + x2  # Both are (b, o, H, W)
+        
+        x = x1+x2  # Both are (b, o, H, W)
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+            
+        if output_shape is not None:
+            mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
+            
+        return x
 
 class SpectralConvLaplace3D(nn.Module):
     def __init__(
@@ -498,6 +532,8 @@ class SpectralConvLaplace3D(nn.Module):
         self.weight = nn.Parameter(
             self.scale * torch.rand(in_channels, out_channels, total_modes, dtype=torch.cfloat)
         )
+        
+        self.shape_enforcer = ShapeEnforcer()
     
     def transform(
         self, 
@@ -571,6 +607,8 @@ class SpectralConvLaplace3D(nn.Module):
         output_shape: Optional[Tuple[int]] = None
     ):
         
+        batchsize, channels, *mode_sizes = x.shape
+
         modes1, modes2, modes3 = self.n_modes
         D, H, W = x.shape[-3], x.shape[-2], x.shape[-1]
         
@@ -660,5 +698,17 @@ class SpectralConvLaplace3D(nn.Module):
                         term4)
         x2=torch.real(x2)
         x2=x2/x.size(-1)/x.size(-2)/x.size(-3)
-        # import pdb; pdb.set_trace()
-        return x1+x2
+        
+        x = x1+x2  
+        
+        if self.resolution_scaling_factor is not None and output_shape is None:
+            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+            
+        if output_shape is not None:
+            mode_sizes = output_shape
+            
+        # Ensuring the ouputshape is matched with desired, if it's specified
+        if list(x.shape[2:]) != mode_sizes:
+            x = self.shape_enforcer(x, output_shape=mode_sizes)
+            
+        return x
