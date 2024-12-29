@@ -8,14 +8,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution_fourier import SpectralConv
+from ..layers.spectral_convolution_fourier import SpectralConvFourier
 from ..layers.padding import DomainPadding
 from ..layers.fno_block import FNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
-class ZNO(BaseModel, name='ZNO'):
+class FNO(BaseModel, name='FNO'):
     """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
     spaces of functions discretized over regular grids using Fourier convolutions, 
     as described in [1]_.
@@ -52,7 +52,7 @@ class ZNO(BaseModel, name='ZNO'):
         ratio of projection channels to hidden_channels, by default 2
         The number of projection channels in the projection block of the FNO is
         projection_channel_ratio * hidden_channels (e.g. default 512)
-    ~~ positional_embedding : Union[str, nn.Module], optional
+    positional_embedding : Union[str, nn.Module], optional
         Positional embedding to apply to last channels of raw input
         before being passed through the FNO. Defaults to "grid"
 
@@ -65,7 +65,7 @@ class ZNO(BaseModel, name='ZNO'):
 
         * If None, does nothing
 
-    ~~ non_linearity : nn.Module, optional
+    non_linearity : nn.Module, optional
         Non-Linear activation function module to use, by default F.gelu
     ~~ norm : str {"ada_in", "group_norm", "instance_norm"}, optional
         Normalization layer to use, by default None
@@ -168,6 +168,8 @@ class ZNO(BaseModel, name='ZNO'):
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
+        positional_embedding: Union[str, nn.Module]="grid",
+        non_linearity: nn.Module=F.gelu,
         **kwargs
     ):
         
@@ -183,21 +185,119 @@ class ZNO(BaseModel, name='ZNO'):
         self.out_channels = out_channels
         self.n_layers = n_layers
 
+        # init lifting and projection channels using ratios w.r.t hidden channels
         self.lifting_channel_ratio = lifting_channel_ratio
+        self.lifting_channels = lifting_channel_ratio * self.hidden_channels
 
         self.projection_channel_ratio = projection_channel_ratio
+        self.projection_channels = projection_channel_ratio * self.hidden_channels
+
+        self.non_linearity = non_linearity
         
+        if positional_embedding == "grid":
+            spatial_grid_boundaries = [[0., 1.]] * self.n_dim
+            self.positional_embedding = GridEmbeddingND(in_channels=self.in_channels,
+                                                        dim=self.n_dim, 
+                                                        grid_boundaries=spatial_grid_boundaries)
+        elif isinstance(positional_embedding, GridEmbedding2D):
+            if self.n_dim == 2:
+                self.positional_embedding = positional_embedding
+            else:
+                raise ValueError(f'Error: expected {self.n_dim}-d positional embeddings, got {positional_embedding}')
+        elif isinstance(positional_embedding, GridEmbeddingND):
+            self.positional_embedding = positional_embedding
+        elif positional_embedding == None:
+            self.positional_embedding = None
+        else:
+            raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
+                              expected one of \'grid\', GridEmbeddingND")
+        
+        # if domain_padding is not None and (
+        #     (isinstance(domain_padding, list) and sum(domain_padding) > 0)
+        #     or (isinstance(domain_padding, (float, int)) and domain_padding > 0)
+        # ):
+        #     self.domain_padding = DomainPadding(
+        #         domain_padding=domain_padding,
+        #         padding_mode=domain_padding_mode,
+        #         resolution_scaling_factor=resolution_scaling_factor,
+        #     )
+        # else:
+        #     self.domain_padding = None
+
+        # self.domain_padding_mode = domain_padding_mode
+        # self.complex_data = self.complex_data
+
+        # if resolution_scaling_factor is not None:
+        #     if isinstance(resolution_scaling_factor, (float, int)):
+        #         resolution_scaling_factor = [resolution_scaling_factor] * self.n_layers
+        # self.resolution_scaling_factor = resolution_scaling_factor
+
         self.fno_blocks = FNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
+            # resolution_scaling_factor=resolution_scaling_factor,
+            # channel_mlp_dropout=channel_mlp_dropout,
+            # channel_mlp_expansion=channel_mlp_expansion,
+            non_linearity=non_linearity,
+            # stabilizer=stabilizer,
+            # norm=norm,
+            # preactivation=preactivation,
+            # fno_skip=fno_skip,
+            # channel_mlp_skip=channel_mlp_skip,
+            # complex_data=complex_data,
+            # max_n_modes=max_n_modes,
+            # fno_block_precision=fno_block_precision,
+            # rank=rank,
+            # fixed_rank_modes=fixed_rank_modes,
+            # implementation=implementation,
+            # separable=separable,
+            # factorization=factorization,
+            # decomposition_kwargs=decomposition_kwargs,
+            # conv_module=conv_module,
             n_layers=n_layers,
             **kwargs
         )
         
         # if adding a positional embedding, add those channels to lifting
         lifting_in_channels = self.in_channels
+        if self.positional_embedding is not None:
+            lifting_in_channels += self.n_dim
+        # if lifting_channels is passed, make lifting a Channel-Mixing MLP
+        # with a hidden layer of size lifting_channels
+        if self.lifting_channels:
+            self.lifting = ChannelMLP(
+                in_channels=lifting_in_channels,
+                out_channels=self.hidden_channels,
+                hidden_channels=self.lifting_channels,
+                n_layers=2,
+                n_dim=self.n_dim,
+                non_linearity=non_linearity
+            )
+        # otherwise, make it a linear layer
+        else:
+            self.lifting = ChannelMLP(
+                in_channels=lifting_in_channels,
+                hidden_channels=self.hidden_channels,
+                out_channels=self.hidden_channels,
+                n_layers=1,
+                n_dim=self.n_dim,
+                non_linearity=non_linearity
+            )
+        # Convert lifting to a complex ChannelMLP if self.complex_data==True
+        # if self.complex_data:
+        #     self.lifting = ComplexValued(self.lifting)
 
+        self.projection = ChannelMLP(
+            in_channels=self.hidden_channels,
+            out_channels=out_channels,
+            hidden_channels=self.projection_channels,
+            n_layers=2,
+            n_dim=self.n_dim,
+            non_linearity=non_linearity,
+        )
+        # if self.complex_data:
+        #     self.projection = ComplexValued(self.projection)
 
     def forward(self, x, output_shape=None, **kwargs):
         """FNO's forward pass
@@ -234,11 +334,21 @@ class ZNO(BaseModel, name='ZNO'):
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
             output_shape = [None]*(self.n_layers - 1) + [output_shape]
+
+        # append spatial pos embedding if set
+        if self.positional_embedding is not None:
+            x = self.positional_embedding(x)
         
         x = self.lifting(x)
 
+        # if self.domain_padding is not None:
+        #     x = self.domain_padding.pad(x)
+
         for layer_idx in range(self.n_layers):
             x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+
+        # if self.domain_padding is not None:
+        #     x = self.domain_padding.unpad(x)
 
         x = self.projection(x)
 
@@ -254,7 +364,7 @@ class ZNO(BaseModel, name='ZNO'):
         self._n_modes = n_modes
 
 
-class ZNO1d(ZNO):
+class FNO1d(FNO):
     """1D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -271,21 +381,62 @@ class ZNO1d(ZNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
+        lifting_channels=256,
+        projection_channels=256,
+        # max_n_modes=None,
         n_layers=4,
+        # resolution_scaling_factor=None,
+        non_linearity=F.gelu,
+        # stabilizer=None,
+        # complex_data=False,
+        # fno_block_precision="full",
+        # channel_mlp_dropout=0,
+        # channel_mlp_expansion=0.5,
+        # norm=None,
         skip="soft-gating",
+        # separable=False,
+        # preactivation=False,
+        # factorization=None,
+        # rank=1.0,
+        # fixed_rank_modes=False,
+        # implementation="factorized",
+        # decomposition_kwargs=dict(),
+        # domain_padding=None,
+        # domain_padding_mode="one-sided",
         **kwargs
     ):
         super().__init__(
             n_modes=(n_modes_height,),
             hidden_channels=hidden_channels,
             in_channels=in_channels,
+            out_channels=out_channels,
+            lifting_channels=lifting_channels,
+            projection_channels=projection_channels,
             n_layers=n_layers,
+            # resolution_scaling_factor=resolution_scaling_factor,
+            non_linearity=non_linearity,
+            # stabilizer=stabilizer,
+            # complex_data=complex_data,
+            # fno_block_precision=fno_block_precision,
+            # channel_mlp_dropout=channel_mlp_dropout,
+            # channel_mlp_expansion=channel_mlp_expansion,
+            # max_n_modes=max_n_modes,
+            # norm=norm,
             skip=skip,
+            # separable=separable,
+            # preactivation=preactivation,
+            # factorization=factorization,
+            # rank=rank,
+            # fixed_rank_modes=fixed_rank_modes,
+            # implementation=implementation,
+            # decomposition_kwargs=decomposition_kwargs,
+            # domain_padding=domain_padding,
+            # domain_padding_mode=domain_padding_mode,
         )
         self.n_modes_height = n_modes_height
 
 
-class ZNO2d(ZNO):
+class FNO2d(FNO):
     """2D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -305,8 +456,28 @@ class ZNO2d(ZNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
+        lifting_channels=256,
+        projection_channels=256,
         n_layers=4,
+        # resolution_scaling_factor=None,
+        # max_n_modes=None,
+        non_linearity=F.gelu,
+        # stabilizer=None,
+        # complex_data=False,
+        # fno_block_precision="full",
+        # channel_mlp_dropout=0,
+        # channel_mlp_expansion=0.5,
+        # norm=None,
         skip="soft-gating",
+        # separable=False,
+        # preactivation=False,
+        # factorization=None,
+        # rank=1.0,
+        # fixed_rank_modes=False,
+        # implementation="factorized",
+        # decomposition_kwargs=dict(),
+        # domain_padding=None,
+        # domain_padding_mode="one-sided",
         **kwargs
     ):
         super().__init__(
@@ -314,14 +485,34 @@ class ZNO2d(ZNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
+            lifting_channels=lifting_channels,
+            projection_channels=projection_channels,
             n_layers=n_layers,
+            # resolution_scaling_factor=resolution_scaling_factor,
+            non_linearity=non_linearity,
+            # stabilizer=stabilizer,
+            # complex_data=complex_data,
+            # fno_block_precision=fno_block_precision,
+            # channel_mlp_dropout=channel_mlp_dropout,
+            # channel_mlp_expansion=channel_mlp_expansion,
+            # max_n_modes=max_n_modes,
+            # norm=norm,
             skip=skip,
+            # separable=separable,
+            # preactivation=preactivation,
+            # factorization=factorization,
+            # rank=rank,
+            # fixed_rank_modes=fixed_rank_modes,
+            # implementation=implementation,
+            # decomposition_kwargs=decomposition_kwargs,
+            # domain_padding=domain_padding,
+            # domain_padding_mode=domain_padding_mode,
         )
         self.n_modes_height = n_modes_height
         self.n_modes_width = n_modes_width
 
 
-class ZNO3d(ZNO):
+class FNO3d(FNO):
     """3D Fourier Neural Operator
 
     For the full list of parameters, see :class:`neuralop.models.FNO`.
@@ -344,8 +535,28 @@ class ZNO3d(ZNO):
         hidden_channels,
         in_channels=3,
         out_channels=1,
+        lifting_channels=256,
+        projection_channels=256,
         n_layers=4,
+        # resolution_scaling_factor=None,
+        # max_n_modes=None,
+        non_linearity=F.gelu,
+        # stabilizer=None,
+        # complex_data=False,
+        # fno_block_precision="full",
+        # channel_mlp_dropout=0,
+        # channel_mlp_expansion=0.5,
+        # norm=None,
         skip="soft-gating",
+        # separable=False,
+        # preactivation=False,
+        # factorization=None,
+        # rank=1.0,
+        # fixed_rank_modes=False,
+        # implementation="factorized",
+        # decomposition_kwargs=dict(),
+        # domain_padding=None,
+        # domain_padding_mode="one-sided",
         **kwargs
     ):
         super().__init__(
@@ -353,8 +564,28 @@ class ZNO3d(ZNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
+            lifting_channels=lifting_channels,
+            projection_channels=projection_channels,
             n_layers=n_layers,
+            # resolution_scaling_factor=resolution_scaling_factor,
+            non_linearity=non_linearity,
+            # stabilizer=stabilizer,
+            # complex_data=complex_data,
+            # fno_block_precision=fno_block_precision,
+            # max_n_modes=max_n_modes,
+            # channel_mlp_dropout=channel_mlp_dropout,
+            # channel_mlp_expansion=channel_mlp_expansion,
+            # norm=norm,
             skip=skip,
+            # separable=separable,
+            # preactivation=preactivation,
+            # factorization=factorization,
+            # rank=rank,
+            # fixed_rank_modes=fixed_rank_modes,
+            # implementation=implementation,
+            # decomposition_kwargs=decomposition_kwargs,
+            # domain_padding=domain_padding,
+            # domain_padding_mode=domain_padding_mode,
         )
         self.n_modes_height = n_modes_height
         self.n_modes_width = n_modes_width
@@ -390,7 +621,12 @@ def partialclass(new_name, cls, *args, **kwargs):
     return new_class
 
 
-TZNO = partialclass("TZNO", ZNO)
-TZNO1d = partialclass("TZNO1d", ZNO1d)
-TZNO2d = partialclass("TZNO2d", ZNO2d)
-TZNO3d = partialclass("TZNO3d", ZNO3d)
+# TFNO = partialclass("TFNO", FNO, factorization="Tucker")
+# TFNO1d = partialclass("TFNO1d", FNO1d, factorization="Tucker")
+# TFNO2d = partialclass("TFNO2d", FNO2d, factorization="Tucker")
+# TFNO3d = partialclass("TFNO3d", FNO3d, factorization="Tucker")
+
+TFNO = partialclass("TFNO", FNO)
+TFNO1d = partialclass("TFNO1d", FNO1d)
+TFNO2d = partialclass("TFNO2d", FNO2d)
+TFNO3d = partialclass("TFNO3d", FNO3d)

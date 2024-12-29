@@ -8,7 +8,7 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
-from .spectral_convolution_fourier import SpectralConvFourier
+from .spectral_convolution_hilbert import SpectralConvHilbert
 from ..utils import validate_scaling_factor
 
 
@@ -114,7 +114,7 @@ class FNOBlocks(nn.Module):
         separable=False,
         factorization=None,
         rank=1.0,
-        conv_module=SpectralConvFourier,
+        conv_module=SpectralConvHilbert,
         fixed_rank_modes=False, #undoc
         implementation="factorized", #undoc
         decomposition_kwargs=dict(),
@@ -169,7 +169,7 @@ class FNOBlocks(nn.Module):
                 implementation=implementation,
                 separable=separable,
                 factorization=factorization,
-                xno_block_precision=fno_block_precision,
+                fno_block_precision=fno_block_precision,
                 decomposition_kwargs=decomposition_kwargs,
                 complex_data=complex_data
             ) 

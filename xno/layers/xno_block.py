@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2024 Saman Pordanesh
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software...
+
 from typing import List, Optional, Union
 
 import torch
@@ -8,18 +12,23 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
-from .spectral_convolution_fourier import SpectralConvFourier
+
+# from .spectral_convolution_x import SpectralConv
+# from .spectral_convolution_fourier import SpectralConvFourier
+# from .spectral_convolution_hilbert import SpectralConvHilbert
+# from .spectral_convolution_laplace import SpectralConvLaplace1D, SpectralConvLaplace2D, SpectralConvLaplace3D
+# from .spectral_convolution_wavelet import SpectralConvWavelet1D, SpectralConvWavelet2D, SpectralConvWavelet2DCwt, SpectralConvWavelet3D
+
+from .spectral_conv_factory import SpectralConvFactory
 from ..utils import validate_scaling_factor
+import inspect
 
 
 Number = Union[int, float]
 
 
-class FNOBlocks(nn.Module):
-    """FNOBlocks implements a sequence of Fourier layers, the operations of which 
-    are first described in [1]_. The exact implementation details of the Fourier 
-    layer architecture are discussed in [2]_.
-
+class XNOBlocks(nn.Module):
+    """XNOBlocks
     Parameters
     ----------
     in_channels : int
@@ -31,20 +40,25 @@ class FNOBlocks(nn.Module):
         in frequency space. Can either be specified as
         an int (for all dimensions) or an iterable with one
         number per dimension
+    transformation : str
+        The mathematical transformation ("X..") option as the convolution kernel. 
+        This is what X stands on XNO. 
+    transformation_kwargs : dict
+        For extra keyword prompting where the spectral convolution kernel needs more tailored configuration. 
     resolution_scaling_factor : Optional[Union[Number, List[Number]]], optional
         factor by which to scale outputs for super-resolution, by default None
     n_layers : int, optional
         number of Fourier layers to apply in sequence, by default 1
     max_n_modes : int, List[int], optional
         maximum number of modes to keep along each dimension, by default None
-    fno_block_precision : str, optional
+    xno_block_precision : str, optional
         floating point precision to use for computations, by default "full"
     channel_mlp_dropout : int, optional
         dropout parameter for self.channel_mlp, by default 0
     channel_mlp_expansion : float, optional
         expansion parameter for self.channel_mlp, by default 0.5
     non_linearity : torch.nn.F module, optional
-        nonlinear activation function to use between layers, by default F.gelu
+        nonlinear activation function to use between layers, by default None -> Default specified for different transformations at BaseConvFactory
     stabilizer : Literal["tanh"], optional
         stabilizing module to use between certain layers, by default None
         if "tanh", use tanh
@@ -56,8 +70,8 @@ class FNOBlocks(nn.Module):
         whether to call forward pass with pre-activation, by default False
         if True, call nonlinear activation and norm before Fourier convolution
         if False, call activation and norms after Fourier convolutions
-    fno_skip : str, optional
-        module to use for FNO skip connections, by default "linear"
+    xno_skip : str, optional
+        module to use for XNO skip connections, by default "linear"
         see layers.skip_connections for more details
     channel_mlp_skip : str, optional
         module to use for ChannelMLP skip connections, by default "soft-gating"
@@ -66,7 +80,7 @@ class FNOBlocks(nn.Module):
     Other Parameters
     -------------------
     complex_data : bool, optional
-        whether the FNO's data takes on complex values in space, by default False
+        whether the XNO's data takes on complex values in space, by default False
     separable : bool, optional
         separable parameter for SpectralConv, by default False
     factorization : str, optional
@@ -74,7 +88,7 @@ class FNOBlocks(nn.Module):
     rank : float, optional
         rank parameter for SpectralConv, by default 1.0
     conv_module : BaseConv, optional
-        module to use for convolutions in FNO block, by default SpectralConv
+        module to use for convolutions in XNO block, by default SpectralConv
     joint_factorization : bool, optional
         whether to factorize all spectralConv weights as one tensor, by default False
     fixed_rank_modes : bool, optional
@@ -83,38 +97,36 @@ class FNOBlocks(nn.Module):
         implementation parameter for SpectralConv, by default "factorized"
     decomposition_kwargs : _type_, optional
         kwargs for tensor decomposition in SpectralConv, by default dict()
-    
+
     References
     -----------
-    .. [1] Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
-           Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
-    .. [2] Kossaifi, J., Kovachki, N., Azizzadenesheli, K., Anandkumar, A. "Multi-Grid
-           Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024). 
-           TMLR 2024, https://openreview.net/pdf?id=AWiDlO63bH.
+    
     """
     def __init__(
         self,
         in_channels,
         out_channels,
         n_modes,
+        transformation="FNO",
+        transformation_kwargs=None,
         resolution_scaling_factor=None,
         n_layers=1,
         max_n_modes=None,
-        fno_block_precision="full",
+        xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
-        non_linearity=F.gelu,
+        non_linearity=None,
         stabilizer=None,
         norm=None,
         ada_in_features=None,
         preactivation=False,
-        fno_skip="linear",
+        xno_skip="linear",
         channel_mlp_skip="soft-gating",
         complex_data=False,
         separable=False,
         factorization=None,
         rank=1.0,
-        conv_module=SpectralConvFourier,
+        conv_module=None,
         fixed_rank_modes=False, #undoc
         implementation="factorized", #undoc
         decomposition_kwargs=dict(),
@@ -125,13 +137,18 @@ class FNOBlocks(nn.Module):
             n_modes = [n_modes]
         self._n_modes = n_modes
         self.n_dim = len(n_modes)
+        
+        # self.hidden_channels = hidden_channels
 
         self.resolution_scaling_factor: Union[
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
+        
+        self.transformation = transformation
+        self.transformation_kwargs = transformation_kwargs
 
         self.max_n_modes = max_n_modes
-        self.fno_block_precision = fno_block_precision
+        self.xno_block_precision = xno_block_precision
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.n_layers = n_layers
@@ -140,7 +157,7 @@ class FNOBlocks(nn.Module):
         self.factorization = factorization
         self.fixed_rank_modes = fixed_rank_modes
         self.decomposition_kwargs = decomposition_kwargs
-        self.fno_skip = fno_skip
+        self.xno_skip = xno_skip
         self.channel_mlp_skip = channel_mlp_skip
         self.complex_data = complex_data
 
@@ -150,18 +167,122 @@ class FNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
+               
+        extra_args = None  
+        dim  = len(n_modes) 
+                     
+        # if self.transformation.lower() == "fno":
+        #     conv_module = SpectralConvFourier
+        # elif self.transformation.lower() == "hno":
+        #     conv_module = SpectralConvHilbert
+        # elif self.transformation.lower() == "lno":
+        #     # Adding Laplace kernel special normaliazer. 
+        #     if norm is None:
+        #         norm = "group_norm"
+        #     if dim == 1:
+        #         conv_module = SpectralConvLaplace1D
+        #     elif dim == 2:
+        #         conv_module = SpectralConvLaplace2D
+        #     elif dim == 3:
+        #         conv_module = SpectralConvLaplace3D
+        #     else: 
+        #         raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+            
+        # elif self.transformation.lower() == "wno":
+            
+        #     if dim == 1:
+        #         conv_module = SpectralConvWavelet1D
+        #     elif dim == 2:
+        #         conv_module = SpectralConvWavelet2D
+        #     elif dim == 3:
+        #         conv_module = SpectralConvWavelet3D
+        #     else: 
+        #         raise ValueError(f"Dimensions must be 1D, 2D or 3D. You've passed n_modes for {dim} dimensions.")
+            
+            
+        #     # Dynamically filter arguments for the conv_module
+        #     conv_signature = inspect.signature(conv_module.__init__)
+        #     conv_supported_args = conv_signature.parameters.keys()
+
+        #     # Check if transformation_kwargs is provided
+        #     if self.transformation_kwargs is None:
+        #         raise ValueError(
+        #             "Missing `transformation_kwargs` for WNO. "
+        #             "Expected a dictionary with keys: 'wavelet_level', 'wavelet_size', 'wavelet_filter', 'wavelet_mode'."
+        #         ) 
+        #     if "wavelet_level" not in self.transformation_kwargs:
+        #         raise ValueError("Missing mandatory argument `wavelet_level` in `transformation_kwargs` for WNO.")
+        #     if not isinstance(self.transformation_kwargs["wavelet_level"], int) or self.transformation_kwargs["wavelet_level"] <= 0:
+        #         raise ValueError("`wavelet_level` must be a positive integer.")
+            
+        #     if "wavelet_size" not in self.transformation_kwargs:
+        #         raise ValueError("Missing mandatory argument `wavelet_size` in `transformation_kwargs` for WNO.")
+        #     if not isinstance(self.transformation_kwargs["wavelet_size"], list) or len(self.transformation_kwargs["wavelet_size"]) != 2:
+        #         raise ValueError("`wavelet_size` must be a list of two integers (e.g., [32, 32]).")
+            
+        #     # Extract or use defaults for optional arguments
+        #     wavelet_filter = self.transformation_kwargs.get("wavelet_filter", None)
+        #     wavelet_mode = self.transformation_kwargs.get("wavelet_mode", None)
+
+        #     # Prepare arguments for the constructor
+        #     extra_args = {
+        #         "wavelet_level": self.transformation_kwargs["wavelet_level"],
+        #         "wavelet_size": self.transformation_kwargs["wavelet_size"],
+        #     }
+            
+        #     # Add optional arguments only if they are explicitly provided
+        #     if wavelet_filter is not None:
+        #         extra_args["wavelet_filter"] = wavelet_filter
+        #     if wavelet_mode is not None:
+        #         extra_args["wavelet_mode"] = wavelet_mode
+                
+        #     extra_args = {k: v for k, v in extra_args.items() if k in conv_supported_args and v is not None}
+
+        # else:
+        #     raise ValueError(
+        #         f"Unknown transform type '{transformation}'. "
+        #         "XNO just accepts FNO, HNO, LNO, and WNO as transformation argument."
+        #     )
+        
+        
+         # Decide if we are auto-selecting the spectral conv or using a user-supplied one
+        if conv_module is None:
+            # Use the new OOP factory
+            factory = SpectralConvFactory(
+                in_channels = in_channels, 
+                out_channels = out_channels,
+                transformation=self.transformation,
+                n_modes=self._n_modes,
+                norm=norm,
+                transformation_kwargs=self.transformation_kwargs,
+                complex_data = self.complex_data
+            )
+            sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+            sub_factory.validate()
+            conv_module = sub_factory.select_conv_class()
+            extra_args = sub_factory.get_extra_args()
+            # Possibly update 'norm' if needed
+            norm = sub_factory.update_norm()
+            # Retrieve transformation specifc non-linearity 
+            if non_linearity is None:
+                non_linearity = sub_factory.non_linearity()
+        else:
+            # user manually gave a conv, so no special logic
+            conv_module = conv_module
+            extra_args = {}
+
 
         # apply real nonlin if data is real, otherwise CGELU
-        if self.complex_data:
-            self.non_linearity = CGELU
-        else:
-            self.non_linearity = non_linearity
-        
+        # if self.complex_data:
+        #     self.non_linearity = CGELU
+        # else:
+        #     self.non_linearity = non_linearity
+                    
         self.convs = nn.ModuleList([
                 conv_module(
-                self.in_channels,
-                self.out_channels,
-                self.n_modes,
+                in_channels=self.in_channels,
+                out_channels=self.out_channels,
+                n_modes=self.n_modes,
                 resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
                 max_n_modes=max_n_modes,
                 rank=rank,
@@ -169,26 +290,27 @@ class FNOBlocks(nn.Module):
                 implementation=implementation,
                 separable=separable,
                 factorization=factorization,
-                xno_block_precision=fno_block_precision,
+                xno_block_precision=xno_block_precision,
                 decomposition_kwargs=decomposition_kwargs,
-                complex_data=complex_data
+                complex_data=complex_data,
+                **extra_args
             ) 
             for i in range(n_layers)])
 
-        self.fno_skips = nn.ModuleList(
+        self.xno_skips = nn.ModuleList(
             [
                 skip_connection(
                     self.in_channels,
                     self.out_channels,
-                    skip_type=fno_skip,
+                    skip_type=xno_skip,
                     n_dim=self.n_dim,
                 )
                 for _ in range(n_layers)
             ]
         )
         if self.complex_data:
-            self.fno_skips = nn.ModuleList(
-                [ComplexValued(x) for x in self.fno_skips]
+            self.xno_skips = nn.ModuleList(
+                [ComplexValued(x) for x in self.xno_skips]
                 )
 
         self.channel_mlp = nn.ModuleList(
@@ -206,6 +328,7 @@ class FNOBlocks(nn.Module):
             self.channel_mlp = nn.ModuleList(
                 [ComplexValued(x) for x in self.channel_mlp]
             )
+
         self.channel_mlp_skips = nn.ModuleList(
             [
                 skip_connection(
@@ -277,8 +400,9 @@ class FNOBlocks(nn.Module):
             return self.forward_with_postactivation(x, index, output_shape)
 
     def forward_with_postactivation(self, x, index=0, output_shape=None):
-        x_skip_fno = self.fno_skips[index](x)
-        x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
+        x_skip_xno = self.xno_skips[index](x)
+        
+        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
         x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
@@ -289,13 +413,13 @@ class FNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_xno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
 
         if self.norm is not None:
-            x_fno = self.norm[self.n_norms * index](x_fno)
+            x_xno = self.norm[self.n_norms * index](x_xno)
 
-        x = x_fno + x_skip_fno
+        x = x_xno + x_skip_xno
 
         if (index < (self.n_layers - 1)):
             x = self.non_linearity(x)
@@ -318,8 +442,8 @@ class FNOBlocks(nn.Module):
         if self.norm is not None:
             x = self.norm[self.n_norms * index](x)
 
-        x_skip_fno = self.fno_skips[index](x)
-        x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
+        x_skip_xno = self.xno_skips[index](x)
+        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
         x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
@@ -330,9 +454,9 @@ class FNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_fno = self.convs[index](x, output_shape=output_shape)
+        x_xno = self.convs[index](x, output_shape=output_shape)
 
-        x = x_fno + x_skip_fno
+        x = x_xno + x_skip_xno
 
         if index < (self.n_layers - 1):
             x = self.non_linearity(x)
@@ -355,9 +479,9 @@ class FNOBlocks(nn.Module):
         self._n_modes = n_modes
 
     def get_block(self, indices):
-        """Returns a sub-FNO Block layer from the jointly parametrized main block
+        """Returns a sub-XNO Block layer from the jointly parametrized main block
 
-        The parametrization of an FNOBlock layer is shared with the main one.
+        The parametrization of an XNOBlock layer is shared with the main one.
         """
         if self.n_layers == 1:
             raise ValueError(
@@ -387,3 +511,15 @@ class SubModule(nn.Module):
 
     def forward(self, x):
         return self.main_module.forward(x, self.indices)
+    
+"""
+Statndard N-Dim pytorch normalizer. 
+This helps avoid exponential growth after each convolution in SpectralConv class (if needed). 
+"""
+class NDNormalizer(nn.Module):
+    def __init__(self, num_channels):
+        super(NDNormalizer, self).__init__()
+        self.norm = nn.GroupNorm(num_groups=1, num_channels=num_channels)
+
+    def forward(self, x):
+        return self.norm(x)
