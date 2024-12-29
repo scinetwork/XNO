@@ -58,7 +58,7 @@ class XNOBlocks(nn.Module):
     channel_mlp_expansion : float, optional
         expansion parameter for self.channel_mlp, by default 0.5
     non_linearity : torch.nn.F module, optional
-        nonlinear activation function to use between layers, by default F.gelu
+        nonlinear activation function to use between layers, by default None -> Default specified for different transformations at BaseConvFactory
     stabilizer : Literal["tanh"], optional
         stabilizing module to use between certain layers, by default None
         if "tanh", use tanh
@@ -115,7 +115,7 @@ class XNOBlocks(nn.Module):
         xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
-        non_linearity=F.gelu,
+        non_linearity=None,
         stabilizer=None,
         norm=None,
         ada_in_features=None,
@@ -263,6 +263,9 @@ class XNOBlocks(nn.Module):
             extra_args = sub_factory.get_extra_args()
             # Possibly update 'norm' if needed
             norm = sub_factory.update_norm()
+            # Retrieve transformation specifc non-linearity 
+            if non_linearity is None:
+                non_linearity = sub_factory.non_linearity()
         else:
             # user manually gave a conv, so no special logic
             conv_module = conv_module
@@ -270,10 +273,10 @@ class XNOBlocks(nn.Module):
 
 
         # apply real nonlin if data is real, otherwise CGELU
-        if self.complex_data:
-            self.non_linearity = CGELU
-        else:
-            self.non_linearity = non_linearity
+        # if self.complex_data:
+        #     self.non_linearity = CGELU
+        # else:
+        #     self.non_linearity = non_linearity
                     
         self.convs = nn.ModuleList([
                 conv_module(

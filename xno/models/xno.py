@@ -69,7 +69,7 @@ class XNO(BaseModel, name='XNO'):
         * If None, does nothing
 
     non_linearity : nn.Module, optional
-        Non-Linear activation function module to use, by default F.gelu
+        Non-Linear activation function module to use, by default None -> Default specified for different transformations at BaseConvFactory
     norm : str {"ada_in", "group_norm", "instance_norm"}, optional
         Normalization layer to use, by default None
     complex_data : bool, optional
@@ -174,7 +174,7 @@ class XNO(BaseModel, name='XNO'):
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
         positional_embedding: Union[str, nn.Module]="grid",
-        non_linearity: nn.Module=F.gelu,
+        non_linearity: nn.Module=None,
         norm: str=None,
         complex_data: bool=False,
         channel_mlp_dropout: float=0,
@@ -302,6 +302,11 @@ class XNO(BaseModel, name='XNO'):
             **kwargs
         )
         
+        if non_linearity is None: 
+            mlp_non_linearity = F.gelu
+        else: 
+            mlp_non_linearity = non_linearity
+        
         # if adding a positional embedding, add those channels to lifting
         lifting_in_channels = self.in_channels
         if self.positional_embedding is not None:
@@ -315,7 +320,7 @@ class XNO(BaseModel, name='XNO'):
                 hidden_channels=self.lifting_channels,
                 n_layers=2,
                 n_dim=self.n_dim,
-                non_linearity=non_linearity
+                non_linearity=mlp_non_linearity
             )
         # otherwise, make it a linear layer
         else:
@@ -325,7 +330,7 @@ class XNO(BaseModel, name='XNO'):
                 out_channels=self.hidden_channels,
                 n_layers=1,
                 n_dim=self.n_dim,
-                non_linearity=non_linearity
+                non_linearity=mlp_non_linearity
             )
         # Convert lifting to a complex ChannelMLP if self.complex_data==True
         if self.complex_data:
@@ -337,7 +342,7 @@ class XNO(BaseModel, name='XNO'):
             hidden_channels=self.projection_channels,
             n_layers=2,
             n_dim=self.n_dim,
-            non_linearity=non_linearity,
+            non_linearity=mlp_non_linearity,
         )
         if self.complex_data:
             self.projection = ComplexValued(self.projection)
@@ -434,7 +439,7 @@ class XNO1d(XNO):
         max_n_modes=None,
         n_layers=4,
         resolution_scaling_factor=None,
-        non_linearity=F.gelu,
+        non_linearity=None,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
@@ -513,7 +518,7 @@ class XNO2d(XNO):
         n_layers=4,
         resolution_scaling_factor=None,
         max_n_modes=None,
-        non_linearity=F.gelu,
+        non_linearity=None,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
@@ -596,7 +601,7 @@ class XNO3d(XNO):
         n_layers=4,
         resolution_scaling_factor=None,
         max_n_modes=None,
-        non_linearity=F.gelu,
+        non_linearity=None,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
