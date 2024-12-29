@@ -96,8 +96,7 @@ class HNOConvFactory(BaseConvFactory):
     
     def non_linearity(self):
         # apply real nonlin if data is real, otherwise CGELU
-        if self.complex_data: return CGELU
-        else: return F.gelu
+        return F.gelu
 
 
 class LNOConvFactory(BaseConvFactory):
