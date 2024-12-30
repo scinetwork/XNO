@@ -3,5 +3,6 @@ numpy
 pandas
 PyWavelets
 ptwt
+open3d
 # Pytorch Wavelets library (from GitHub)
 git+https://github.com/fbcotter/pytorch_wavelets.git

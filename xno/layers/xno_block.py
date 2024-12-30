@@ -167,6 +167,7 @@ class XNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
+        self.non_linearity = non_linearity
                
         extra_args = None  
         dim  = len(n_modes) 
@@ -264,8 +265,8 @@ class XNOBlocks(nn.Module):
             # Possibly update 'norm' if needed
             norm = sub_factory.update_norm()
             # Retrieve transformation specifc non-linearity 
-            if non_linearity is None:
-                non_linearity = sub_factory.non_linearity()
+            if self.non_linearity is None:
+                self.non_linearity = sub_factory.non_linearity()
         else:
             # user manually gave a conv, so no special logic
             conv_module = conv_module

@@ -2,6 +2,7 @@ from timeit import default_timer
 from pathlib import Path
 from typing import Union
 import sys
+import warnings
 
 import torch
 from torch.cuda import amp
@@ -16,8 +17,8 @@ try:
 except ModuleNotFoundError:
     wandb_available = False
 
-import neuralop.mpu.comm as comm
-from neuralop.losses import LpLoss
+import xno.mpu.comm as comm
+from xno.losses import LpLoss
 from .training_state import load_training_state, save_training_state
 
 
@@ -112,7 +113,7 @@ class Trainer:
             testing dataloaders
         optimizer: torch.optim.Optimizer
             optimizer to use during training
-        optimizer: torch.optim.lr_scheduler
+        scheduler: torch.optim.lr_scheduler
             learning rate scheduler to use during training
         training_loss: training.losses function
             cost function to minimize
@@ -149,6 +150,13 @@ class Trainer:
 
         if training_loss is None:
             training_loss = LpLoss(d=2)
+        
+        # Warn the user if training loss is reducing across the batch
+        if hasattr(training_loss, 'reduction'):
+            if training_loss.reduction == "mean":
+                warnings.warn(f"{training_loss.reduction=}. This means that the loss is "
+                              "initialized to average across the batch dim. The Trainer "
+                              "expects losses to sum across the batch dim.")
 
         if eval_losses is None:  # By default just evaluate on the training loss
             eval_losses = dict(l2=training_loss)
@@ -251,7 +259,9 @@ class Trainer:
         self.n_samples = 0
 
         for idx, sample in enumerate(train_loader):
+            
             loss = self.train_one_batch(idx, sample, training_loss)
+            import pdb; pdb.set_trace()
             loss.backward()
             self.optimizer.step()
 
@@ -294,7 +304,6 @@ class Trainer:
         # evaluate and gather metrics across each loader in test_loaders
         all_metrics = {}
         for loader_name, loader in test_loaders.items():
-                        
             loader_metrics = self.evaluate(eval_losses, loader,
                                     log_prefix=loader_name)   
             all_metrics.update(**loader_metrics)
@@ -334,13 +343,20 @@ class Trainer:
 
         errors = {f"{log_prefix}_{loss_name}": 0 for loss_name in loss_dict.keys()}
 
+        # Warn the user if any of the eval losses is reducing across the batch
+        for _, eval_loss in loss_dict.items():
+            if hasattr(eval_loss, 'reduction'):
+                if eval_loss.reduction == "mean":
+                    warnings.warn(f"{eval_loss.reduction=}. This means that the loss is "
+                                "initialized to average across the batch dim. The Trainer "
+                                "expects losses to sum across the batch dim.")
+
         self.n_samples = 0
         with torch.no_grad():
             for idx, sample in enumerate(data_loader):
                 return_output = False
                 if idx == len(data_loader) - 1:
                     return_output = True
-                                        
                 eval_step_losses, outs = self.eval_one_batch(sample, loss_dict, return_output=return_output)
 
                 for loss_name, val_loss in eval_step_losses.items():
@@ -403,7 +419,6 @@ class Trainer:
             }
 
         self.n_samples += sample["y"].shape[0]
-        
 
         if self.mixed_precision:
             with torch.autocast(device_type=self.autocast_device_type):
@@ -462,8 +477,9 @@ class Trainer:
                 for k, v in sample.items()
                 if torch.is_tensor(v)
             }
-        
+
         self.n_samples += sample["y"].size(0)
+
         out = self.model(**sample)
 
         if self.data_processor is not None:
@@ -573,7 +589,6 @@ class Trainer:
         """
         if isinstance(save_dir, str):
             save_dir = Path(save_dir)
-        print(f"{save_dir=} {type(save_dir)}")
 
         # check for save model exists
         if (save_dir / "best_model_state_dict.pt").exists():
