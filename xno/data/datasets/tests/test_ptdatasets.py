@@ -30,7 +30,7 @@ def test_DarcyDatasetDownload(resolution):
     assert dataset.data_processor
     shutil.rmtree(test_data_dir)
 
-burgers_root = Path("./neuralop/data/datasets/data/").resolve()
+burgers_root = Path("./xno/data/datasets/data/").resolve()
 
 @pytest.mark.parametrize('resolution', [16])
 def test_BurgersDataset(resolution):

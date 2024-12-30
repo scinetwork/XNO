@@ -6,7 +6,7 @@ from torch.testing import assert_close
 from ..data_processors import DefaultDataProcessor, IncrementalDataProcessor, MGPatchingDataProcessor
 from ..normalizers import UnitGaussianNormalizer
 
-from neuralop.tests.test_utils import DummyModel
+from xno.tests.test_utils import DummyModel
 
 def test_DefaultDataProcessor_pipeline():
     if torch.backends.cuda.is_built():

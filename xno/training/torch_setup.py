@@ -1,5 +1,5 @@
 import torch
-import neuralop.mpu.comm as comm
+import xno.mpu.comm as comm
 
 
 def setup(config):

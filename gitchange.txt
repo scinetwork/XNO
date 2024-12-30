@@ -1,0 +1,1969 @@
+commit 514b5555573da2fcfef6cbafd4fbb24b27920875
+Author: Sina Pordanesh <sina.pordanesh@yahoo.com>
+Date:   Mon Dec 30 15:04:28 2024 -0700
+
+    Update: Update borrowed scripts
+    * Updater borrowed scripts from neuralop package to version 1.0.1
+
+diff --git a/requirements.txt b/requirements.txt
+index 94f61b4..456fa76 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -3,5 +3,6 @@ numpy
+ pandas
+ PyWavelets
+ ptwt
++open3d
+ # Pytorch Wavelets library (from GitHub)
+ git+https://github.com/fbcotter/pytorch_wavelets.git
+diff --git a/use_cases/data/1D_Lorenz_rho10.mat b/use_cases/data/1D_Lorenz_rho10.mat
+new file mode 100644
+index 0000000..09ae7f6
+Binary files /dev/null and b/use_cases/data/1D_Lorenz_rho10.mat differ
+diff --git a/xno/__init__.py b/xno/__init__.py
+index 53c9528..f8f9373 100644
+--- a/xno/__init__.py
++++ b/xno/__init__.py
+@@ -1,4 +1,4 @@
+-__version__ = '0.3.0'
++__version__ = '1.0.2'
+ 
+ from .models import TFNO3d, TFNO2d, TFNO1d, TFNO
+ from .models import get_model
+diff --git a/xno/data/datasets/__init__.py b/xno/data/datasets/__init__.py
+index dc73e28..1b84884 100644
+--- a/xno/data/datasets/__init__.py
++++ b/xno/data/datasets/__init__.py
+@@ -5,6 +5,7 @@ from .burgers import Burgers1dTimeDataset
+ from .dict_dataset import DictDataset
+ from .mesh_datamodule import MeshDataModule
+ from .car_cfd_dataset import CarCFDDataset
++from .hdf5_dataset import H5pyDataset
+ 
+ # only import SphericalSWEDataset if torch_harmonics is built locally
+ try:
+diff --git a/xno/data/datasets/darcy.py b/xno/data/datasets/darcy.py
+index de23ed8..d28e2e1 100644
+--- a/xno/data/datasets/darcy.py
++++ b/xno/data/datasets/darcy.py
+@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
+ from .pt_dataset import PTDataset
+ from .web_utils import download_from_zenodo_record
+ 
+-from neuralop.utils import get_project_root
++from xno.utils import get_project_root
+ 
+ logger = logging.Logger(logging.root.level)
+ 
+@@ -17,7 +17,7 @@ class DarcyDataset(PTDataset):
+     DarcyDataset stores data generated according to Darcy's Law.
+     Input is a coefficient function and outputs describe flow. 
+ 
+-    Data source: https://zenodo.org/records/10994262
++    Data source: https://zenodo.org/records/12784353
+ 
+     Attributes
+     ----------
+@@ -86,7 +86,7 @@ class DarcyDataset(PTDataset):
+             root_dir.mkdir(parents=True)
+ 
+         # Zenodo record ID for Darcy-Flow dataset
+-        zenodo_record_id = "10994262"
++        zenodo_record_id = "12784353"
+ 
+         # List of resolutions needed for dataset object
+         resolutions = set(test_resolutions + [train_resolution])
+diff --git a/xno/data/datasets/mesh_datamodule.py b/xno/data/datasets/mesh_datamodule.py
+index da130fd..a2503d9 100644
+--- a/xno/data/datasets/mesh_datamodule.py
++++ b/xno/data/datasets/mesh_datamodule.py
+@@ -8,8 +8,9 @@ import numpy as np
+ # the class will build, but no files will be loaded.
+ try:
+     import open3d as o3d
++    o3d_warn = False
+ except ModuleNotFoundError:
+-    print("Warning: you are attempting to run MeshDataModule without the required dependency open3d.")
++    o3d_warn = True
+ 
+ import torch
+ from torch.utils.data import DataLoader
+@@ -52,6 +53,9 @@ class MeshDataModule:
+             as keys for each batch dict
+         """
+ 
++        if o3d_warn:
++            print("Warning: you are attempting to run MeshDataModule without the required dependency open3d.")
++
+         if isinstance(root_dir, str):
+             root_dir = Path(root_dir)
+ 
+diff --git a/xno/layers/xno_block.py b/xno/layers/xno_block.py
+index f985a0f..74b374c 100644
+--- a/xno/layers/xno_block.py
++++ b/xno/layers/xno_block.py
+@@ -167,6 +167,7 @@ class XNOBlocks(nn.Module):
+         self.separable = separable
+         self.preactivation = preactivation
+         self.ada_in_features = ada_in_features
++        self.non_linearity = non_linearity
+                
+         extra_args = None  
+         dim  = len(n_modes) 
+@@ -264,8 +265,8 @@ class XNOBlocks(nn.Module):
+             # Possibly update 'norm' if needed
+             norm = sub_factory.update_norm()
+             # Retrieve transformation specifc non-linearity 
+-            if non_linearity is None:
+-                non_linearity = sub_factory.non_linearity()
++            if self.non_linearity is None:
++                self.non_linearity = sub_factory.non_linearity()
+         else:
+             # user manually gave a conv, so no special logic
+             conv_module = conv_module
+diff --git a/xno/losses/__init__.py b/xno/losses/__init__.py
+index c83ad31..8ef11f3 100644
+--- a/xno/losses/__init__.py
++++ b/xno/losses/__init__.py
+@@ -1,3 +1,3 @@
+-from .data_losses import LpLoss, H1Loss, MSELoss
++from .data_losses import LpLoss, H1Loss
+ from .equation_losses import BurgersEqnLoss, ICLoss
+ from .meta_losses import WeightedSumLoss
+\ No newline at end of file
+diff --git a/xno/losses/data_losses.py b/xno/losses/data_losses.py
+index ac73443..8a0f5ef 100644
+--- a/xno/losses/data_losses.py
++++ b/xno/losses/data_losses.py
+@@ -16,61 +16,74 @@ from .finite_diff import central_diff_1d, central_diff_2d, central_diff_3d
+ class LpLoss(object):
+     """
+     LpLoss provides the L-p norm between two 
+-    discretized d-dimensional functions
++    discretized d-dimensional functions. Note that 
++    LpLoss always averages over the spatial dimensions.
++
++    .. note :: 
++        In function space, the Lp norm is an integral over the
++        entire domain. To ensure the norm converges to the integral,
++        we scale the matrix norm by quadrature weights along each spatial dimension.
++
++        If no quadrature is passed at a call to LpLoss, we assume a regular 
++        discretization and take ``1 / measure`` as the quadrature weights. 
++
++    Parameters
++    ----------
++    d : int, optional
++        dimension of data on which to compute, by default 1
++    p : int, optional
++        order of L-norm, by default 2
++        L-p norm: [\sum_{i=0}^n (x_i - y_i)**p] ** (1/p)
++    measure : float or list, optional
++        measure of the domain, by default 1.0
++        either single scalar for each dim, or one per dim
++
++        .. note::
++
++        To perform quadrature, ``LpLoss`` scales ``measure`` by the size
++        of each spatial dimension of ``x``, and multiplies them with 
++        ||x-y||, such that the final norm is a scaled average over the spatial
++        dimensions of ``x``. 
++    reduction : str, optional
++        whether to reduce across the batch and channel dimensions
++        by summing ('sum') or averaging ('mean')
++
++        .. warning:: 
++
++            ``LpLoss`` always reduces over the spatial dimensions according to ``self.measure``.
++            `reduction` only applies to the batch and channel dimensions.
++
++    Examples
++    --------
++
++    ```
+     """
+-    def __init__(self, d=1, p=2, L=2*math.pi, reduce_dims=0, reductions='sum'):
+-        """
+ 
+-        Parameters
+-        ----------
+-        d : int, optional
+-            dimension of data on which to compute, by default 1
+-        p : int, optional
+-            order of L-norm, by default 2
+-            L-p norm: [\sum_{i=0}^n (x_i - y_i)**p] ** (1/p)
+-        L : float or list, optional
+-            quadrature weights per dim, by default 2*math.pi
+-            either single scalar for each dim, or one per dim
+-        reduce_dims : int, optional
+-            dimensions across which to reduce for loss, by default 0
+-        reductions : str, optional
+-            whether to reduce each dimension above 
+-            by summing ('sum') or averaging ('mean')
+-        """
++    def __init__(self, d=1, p=2, measure=1., reduction='sum'):
+         super().__init__()
+ 
+         self.d = d
+         self.p = p
+-
+-        if isinstance(reduce_dims, int):
+-            self.reduce_dims = [reduce_dims]
+-        else:
+-            self.reduce_dims = reduce_dims
+         
+-        if self.reduce_dims is not None:
+-            allowed_reductions = ["sum", "mean"]
+-            if isinstance(reductions, str):
+-                assert reductions == 'sum' or reductions == 'mean',\
+-                f"error: expected `reductions` to be one of {allowed_reductions}, got {reductions}"
+-                self.reductions = [reductions]*len(self.reduce_dims)
+-            else:
+-                for j in range(len(reductions)):
+-                    assert reductions[j] == 'sum' or reductions[j] == 'mean',\
+-                        f"error: expected `reductions` to be one of {allowed_reductions}, got {reductions[j]}"
+-                self.reductions = reductions
+-
+-        if isinstance(L, float):
+-            self.L = [L]*self.d
++        allowed_reductions = ["sum", "mean"]
++        assert reduction in allowed_reductions,\
++        f"error: expected `reduction` to be one of {allowed_reductions}, got {reduction}"
++        self.reduction = reduction
++
++        if isinstance(measure, float):
++            self.measure = [measure]*self.d
+         else:
+-            self.L = L
++            self.measure = measure
+     
+     @property
+     def name(self):
+         return f"L{self.p}_{self.d}Dloss"
+     
+-    def uniform_h(self, x):
+-        """uniform_h creates default normalization constants
+-        if none already exist.
++    def uniform_quadrature(self, x):
++        """
++        uniform_quadrature creates quadrature weights
++        scaled by the spatial size of ``x`` to ensure that 
++        ``LpLoss`` computes the average over spatial dims. 
+ 
+         Parameters
+         ----------
+@@ -79,34 +92,32 @@ class LpLoss(object):
+ 
+         Returns
+         -------
+-        h : list
+-            list of normalization constants per-dim
++        quadrature : list
++            list of quadrature weights per-dim
+         """
+-        h = [0.0]*self.d
++        quadrature = [0.0]*self.d
+         for j in range(self.d, 0, -1):
+-            h[-j] = self.L[-j]/x.size(-j)
++            quadrature[-j] = self.measure[-j]/x.size(-j)
+         
+-        return h
++        return quadrature
+ 
+     def reduce_all(self, x):
+         """
+-        reduce x across all dimensions in self.reduce_dims 
+-        according to self.reductions
++        reduce x across the batch according to `self.reduction`
+ 
+         Params
+         ------
+         x: torch.Tensor
+             inputs
+         """
+-        for j in range(len(self.reduce_dims)):
+-            if self.reductions[j] == 'sum':
+-                x = torch.sum(x, dim=self.reduce_dims[j], keepdim=True)
+-            else:
+-                x = torch.mean(x, dim=self.reduce_dims[j], keepdim=True)
++        if self.reduction == 'sum':
++            x = torch.sum(x)
++        else:
++            x = torch.mean(x)
+         
+         return x
+ 
+-    def abs(self, x, y, h=None):
++    def abs(self, x, y, quadrature=None):
+         """absolute Lp-norm
+ 
+         Parameters
+@@ -115,23 +126,22 @@ class LpLoss(object):
+             inputs
+         y : torch.Tensor
+             targets
+-        h : float or list, optional
+-            normalization constants for reduction
++        quadrature : float or list, optional
++            quadrature weights for integral
+             either single scalar or one per dimension
+         """
+         #Assume uniform mesh
+-        if h is None:
+-            h = self.uniform_h(x)
++        if quadrature is None:
++            quadrature = self.uniform_quadrature(x)
+         else:
+-            if isinstance(h, float):
+-                h = [h]*self.d
++            if isinstance(quadrature, float):
++                quadrature = [quadrature]*self.d
+         
+-        const = math.prod(h)**(1.0/self.p)
++        const = math.prod(quadrature)**(1.0/self.p)
+         diff = const*torch.norm(torch.flatten(x, start_dim=-self.d) - torch.flatten(y, start_dim=-self.d), \
+                                               p=self.p, dim=-1, keepdim=False)
+ 
+-        if self.reduce_dims is not None:
+-            diff = self.reduce_all(diff).squeeze()
++        diff = self.reduce_all(diff).squeeze()
+             
+         return diff
+ 
+@@ -154,8 +164,7 @@ class LpLoss(object):
+ 
+         diff = diff/ynorm
+ 
+-        if self.reduce_dims is not None:
+-            diff = self.reduce_all(diff).squeeze()
++        diff = self.reduce_all(diff).squeeze()
+             
+         return diff
+ 
+@@ -165,32 +174,50 @@ class LpLoss(object):
+ class H1Loss(object):
+     """
+     H1Loss provides the H1 Sobolev norm between
+-    two d-dimensional discretized functions
++    two d-dimensional discretized functions.
++
++    .. note :: 
++        In function space, the Sobolev norm is an integral over the
++        entire domain. To ensure the norm converges to the integral,
++        we scale the matrix norm by quadrature weights along each spatial dimension.
++
++        If no quadrature is passed at a call to H1Loss, we assume a regular 
++        discretization and take ``1 / measure`` as the quadrature weights. 
++
++    Parameters
++    ----------
++    d : int, optional
++        dimension of input functions, by default 1
++    measure : float or list, optional
++        measure of the domain, by default 1.0
++        either single scalar for each dim, or one per dim
++
++        .. note::
++
++        To perform quadrature, ``H1Loss`` scales ``measure`` by the size
++        of each spatial dimension of ``x``, and multiplies them with 
++        ||x-y||, such that the final norm is a scaled average over the spatial
++        dimensions of ``x``. 
++
++    reduction : str, optional
++        whether to reduce across the batch and channel dimension
++        by summing ('sum') or averaging ('mean')
++
++        .. warning : 
++
++            H1Loss always averages over the spatial dimensions. 
++            `reduction` only applies to the batch and channel dimensions.
++    fix_x_bnd : bool, optional
++        whether to fix finite difference derivative
++        computation on the x boundary, by default False
++    fix_y_bnd : bool, optional
++        whether to fix finite difference derivative
++        computation on the y boundary, by default False
++    fix_z_bnd : bool, optional
++        whether to fix finite difference derivative
++        computation on the z boundary, by default False
+     """
+-    def __init__(self, d=1, L=2*math.pi, reduce_dims=0, reductions='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False):
+-        """
+-
+-        Parameters
+-        ----------
+-        d : int, optional
+-            dimension of input functions, by default 1
+-        L : int or list, optional
+-            quadrature weights (single or by dimension), by default 2*math.pi
+-        reduce_dims : int, optional
+-            dimensions across which to reduce for loss, by default 0
+-        reductions : str, optional
+-            whether to reduce each dimension above 
+-            by summing ('sum') or averaging ('mean')
+-        fix_x_bnd : bool, optional
+-            whether to fix finite difference derivative
+-            computation on the x boundary, by default False
+-        fix_y_bnd : bool, optional
+-            whether to fix finite difference derivative
+-            computation on the y boundary, by default False
+-        fix_z_bnd : bool, optional
+-            whether to fix finite difference derivative
+-            computation on the z boundary, by default False
+-        """
++    def __init__(self, d=1, measure=1., reduction='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False):
+         super().__init__()
+ 
+         assert d > 0 and d < 4, "Currently only implemented for 1, 2, and 3-D."
+@@ -199,31 +226,22 @@ class H1Loss(object):
+         self.fix_x_bnd = fix_x_bnd
+         self.fix_y_bnd = fix_y_bnd
+         self.fix_z_bnd = fix_z_bnd
+-
+-        if isinstance(reduce_dims, int):
+-            self.reduce_dims = [reduce_dims]
+-        else:
+-            self.reduce_dims = reduce_dims
+         
+-        if self.reduce_dims is not None:
+-            if isinstance(reductions, str):
+-                assert reductions == 'sum' or reductions == 'mean'
+-                self.reductions = [reductions]*len(self.reduce_dims)
+-            else:
+-                for j in range(len(reductions)):
+-                    assert reductions[j] == 'sum' or reductions[j] == 'mean'
+-                self.reductions = reductions
+-
+-        if isinstance(L, float):
+-            self.L = [L]*self.d
++        allowed_reductions = ["sum", "mean"]
++        assert reduction in allowed_reductions,\
++        f"error: expected `reduction` to be one of {allowed_reductions}, got {reduction}"
++        self.reduction = reduction
++
++        if isinstance(measure, float):
++            self.measure = [measure]*self.d
+         else:
+-            self.L = L
++            self.measure = measure
+     
+     @property
+     def name(self):
+         return f"H1_{self.d}DLoss"
+      
+-    def compute_terms(self, x, y, h):
++    def compute_terms(self, x, y, quadrature):
+         """compute_terms computes the necessary
+         finite-difference derivative terms for computing
+         the H1 norm
+@@ -234,13 +252,9 @@ class H1Loss(object):
+             inputs
+         y : torch.Tensor
+             targets
+-        h : int or list
+-            discretization size (single or per dim)
++        quadrature : int or list
++            quadrature weights
+ 
+-        Returns
+-        -------
+-        _type_
+-            _description_
+         """
+         dict_x = {}
+         dict_y = {}
+@@ -249,8 +263,8 @@ class H1Loss(object):
+             dict_x[0] = x
+             dict_y[0] = y
+ 
+-            x_x = central_diff_1d(x, h[0], fix_x_bnd=self.fix_x_bnd)
+-            y_x = central_diff_1d(y, h[0], fix_x_bnd=self.fix_x_bnd)
++            x_x = central_diff_1d(x, quadrature[0], fix_x_bnd=self.fix_x_bnd)
++            y_x = central_diff_1d(y, quadrature[0], fix_x_bnd=self.fix_x_bnd)
+ 
+             dict_x[1] = x_x
+             dict_y[1] = y_x
+@@ -259,8 +273,8 @@ class H1Loss(object):
+             dict_x[0] = torch.flatten(x, start_dim=-2)
+             dict_y[0] = torch.flatten(y, start_dim=-2)
+ 
+-            x_x, x_y = central_diff_2d(x, h, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd)
+-            y_x, y_y = central_diff_2d(y, h, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd)
++            x_x, x_y = central_diff_2d(x, quadrature, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd)
++            y_x, y_y = central_diff_2d(y, quadrature, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd)
+ 
+             dict_x[1] = torch.flatten(x_x, start_dim=-2)
+             dict_x[2] = torch.flatten(x_y, start_dim=-2)
+@@ -272,8 +286,8 @@ class H1Loss(object):
+             dict_x[0] = torch.flatten(x, start_dim=-3)
+             dict_y[0] = torch.flatten(y, start_dim=-3)
+ 
+-            x_x, x_y, x_z = central_diff_3d(x, h, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd, fix_z_bnd=self.fix_z_bnd)
+-            y_x, y_y, y_z = central_diff_3d(y, h, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd, fix_z_bnd=self.fix_z_bnd)
++            x_x, x_y, x_z = central_diff_3d(x, quadrature, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd, fix_z_bnd=self.fix_z_bnd)
++            y_x, y_y, y_z = central_diff_3d(y, quadrature, fix_x_bnd=self.fix_x_bnd, fix_y_bnd=self.fix_y_bnd, fix_z_bnd=self.fix_z_bnd)
+ 
+             dict_x[1] = torch.flatten(x_x, start_dim=-3)
+             dict_x[2] = torch.flatten(x_y, start_dim=-3)
+@@ -285,9 +299,11 @@ class H1Loss(object):
+         
+         return dict_x, dict_y
+ 
+-    def uniform_h(self, x):
+-        """uniform_h creates default normalization constants
+-        if none already exist.
++    def uniform_quadrature(self, x):
++        """
++        uniform_quadrature creates quadrature weights
++        scaled by the spatial size of ``x`` to ensure that 
++        ``LpLoss`` computes the average over spatial dims. 
+ 
+         Parameters
+         ----------
+@@ -296,34 +312,32 @@ class H1Loss(object):
+ 
+         Returns
+         -------
+-        h : list
+-            list of normalization constants per-dim
++        quadrature : list
++            list of quadrature weights per-dim
+         """
+-        h = [0.0]*self.d
++        quadrature = [0.0]*self.d
+         for j in range(self.d, 0, -1):
+-            h[-j] = self.L[-j]/x.size(-j)
++            quadrature[-j] = self.measure[-j]/x.size(-j)
+         
+-        return h
++        return quadrature
+     
+     def reduce_all(self, x):
+         """
+-        reduce x across all dimensions in self.reduce_dims 
+-        according to self.reductions
++        reduce x across the batch according to `self.reduction`
+ 
+         Params
+         ------
+         x: torch.Tensor
+             inputs
+         """
+-        for j in range(len(self.reduce_dims)):
+-            if self.reductions[j] == 'sum':
+-                x = torch.sum(x, dim=self.reduce_dims[j], keepdim=True)
+-            else:
+-                x = torch.mean(x, dim=self.reduce_dims[j], keepdim=True)
++        if self.reduction == 'sum':
++            x = torch.sum(x)
++        else:
++            x = torch.mean(x)
+         
+         return x
+         
+-    def abs(self, x, y, h=None):
++    def abs(self, x, y, quadrature=None):
+         """absolute H1 norm
+ 
+         Parameters
+@@ -332,19 +346,19 @@ class H1Loss(object):
+             inputs
+         y : torch.Tensor
+             targets
+-        h : float or list, optional
+-            normalization constant for reduction, by default None
++        quadrature : float or list, optional
++            quadrature constant for reduction along each dim, by default None
+         """
+         #Assume uniform mesh
+-        if h is None:
+-            h = self.uniform_h(x)
++        if quadrature is None:
++            quadrature = self.uniform_quadrature(x)
+         else:
+-            if isinstance(h, float):
+-                h = [h]*self.d
++            if isinstance(quadrature, float):
++                quadrature = [quadrature]*self.d
+             
+-        dict_x, dict_y = self.compute_terms(x, y, h)
++        dict_x, dict_y = self.compute_terms(x, y, quadrature)
+ 
+-        const = math.prod(h)
++        const = math.prod(quadrature)
+         diff = const*torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
+ 
+         for j in range(1, self.d + 1):
+@@ -352,12 +366,11 @@ class H1Loss(object):
+         
+         diff = diff**0.5
+ 
+-        if self.reduce_dims is not None:
+-            diff = self.reduce_all(diff).squeeze()
++        diff = self.reduce_all(diff).squeeze()
+             
+         return diff
+         
+-    def rel(self, x, y, h=None):
++    def rel(self, x, y, quadrature=None):
+         """relative H1-norm
+ 
+         Parameters
+@@ -366,17 +379,17 @@ class H1Loss(object):
+             inputs
+         y : torch.Tensor
+             targets
+-        h : float or list, optional
+-            normalization constant for reduction, by default None
++        quadrature : float or list, optional
++            quadrature constant for reduction along each dim, by default None
+         """
+         #Assume uniform mesh
+-        if h is None:
+-            h = self.uniform_h(x)
++        if quadrature is None:
++            quadrature = self.uniform_quadrature(x)
+         else:
+-            if isinstance(h, float):
+-                h = [h]*self.d
++            if isinstance(quadrature, float):
++                quadrature = [quadrature]*self.d
+         
+-        dict_x, dict_y = self.compute_terms(x, y, h)
++        dict_x, dict_y = self.compute_terms(x, y, quadrature)
+ 
+         diff = torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
+         ynorm = torch.norm(dict_y[0], p=2, dim=-1, keepdim=False)**2
+@@ -387,12 +400,11 @@ class H1Loss(object):
+         
+         diff = (diff**0.5)/(ynorm**0.5)
+ 
+-        if self.reduce_dims is not None:
+-            diff = self.reduce_all(diff).squeeze()
++        diff = self.reduce_all(diff).squeeze()
+             
+         return diff
+ 
+-    def __call__(self, y_pred, y, h=None, **kwargs):
++    def __call__(self, y_pred, y, quadrature=None, **kwargs):
+         """
+         Parameters
+         ----------
+@@ -400,63 +412,60 @@ class H1Loss(object):
+             inputs
+         y : torch.Tensor
+             targets
+-        h : float or list, optional
++        quadrature : float or list, optional
+             normalization constant for reduction, by default None
+         """
+-        return self.rel(y_pred, y, h=h)
++        return self.rel(y_pred, y, quadrature=quadrature)
+ 
+ class PointwiseQuantileLoss(object):
+-    def __init__(self, alpha, reduce_dims = 0, reductions='sum'):
+-        """PointwiseQuantileLoss computes Quantile Loss described in [1]_
++    """PointwiseQuantileLoss computes Quantile Loss described in [1]_
+ 
+         Parameters
+         ----------
+         alpha : float
+             value, between 0 and 1, of the proportion of points
+             in the output domain expected to fall within predicted quantiles
+-        reduce_dims : int, optional
+-            dimensions to reduce when summing, by default 0
+-            This loss was formulated for functions with a co-domain in R, 
+-            so for now only 0 is supported
+-        reductions : str, optional
+-            how to apply reduction (sum or mean), by default 'sum'
++        reduction : str, optional
++        whether to reduce across the batch and channel dimensions
++        by summing ('sum') or averaging ('mean')
++
++        .. warning : 
++
++            PointwiseQuantileLoss always averages over the spatial dimensions. 
++            `reduction` only applies to the batch and channel dimensions.
+ 
+         References
+         -----------
+-        .. _[1]:
+-        Ma, Z., Azizzadenesheli, K., Anandkumar, A., (2024).
++        .. _[1] : Ma, Z., Pitt, D., Azizzadenesheli, K., Anandkumar, A., (2024).
+             Calibrated Uncertainty Quantification for Operator Learning via Conformal Prediction
+-            ArXiV preprint, https://arxiv.org/html/2402.01960v1
++            TMLR 2024, https://openreview.net/pdf?id=cGpegxy12T
+         """
++    def __init__(self, alpha, reduction='sum'):
+         
+         super().__init__()
+ 
+         self.alpha = alpha
+ 
+-        if isinstance(reduce_dims, int):
+-            self.reduce_dims = [reduce_dims]
+-        else:
+-            self.reduce_dims = reduce_dims
+-
+-        if self.reduce_dims is not None:
+-            allowed_reductions = ["sum", "mean"]
+-            if isinstance(reductions, str):
+-                assert reductions == 'sum' or reductions == 'mean',\
+-                f"error: expected `reductions` to be one of {allowed_reductions}, got {reductions}"
+-                self.reductions = [reductions]*len(self.reduce_dims)
+-            else:
+-                for j in range(len(reductions)):
+-                    assert reductions[j] == 'sum' or reductions[j] == 'mean',\
+-                        f"error: expected `reductions` to be one of {allowed_reductions}, got {reductions[j]}"
+-                self.reductions = reductions
+ 
++        allowed_reductions = ["sum", "mean"]
++        assert reduction in allowed_reductions,\
++        f"error: expected `reduction` to be one of {allowed_reductions}, got {reduction}"
++        self.reduction = reduction
++    
+     def reduce_all(self, x):
+-        for j in range(len(self.reduce_dims)):
+-            if self.reductions[j] == 'sum':
+-                x = torch.sum(x, dim=self.reduce_dims[j], keepdim=True)
+-            else:
+-                x = torch.mean(x, dim=self.reduce_dims[j], keepdim=True)
++        """
++        reduce x across the batch according to `self.reduction`
+ 
++        Params
++        ------
++        x: torch.Tensor
++            inputs
++        """
++        if self.reduction == 'sum':
++            x = torch.sum(x)
++        else:
++            x = torch.mean(x)
++        
+         return x
+ 
+     def __call__(self, y_pred, y, eps=1e-7, **kwargs):
+@@ -478,36 +487,6 @@ class PointwiseQuantileLoss(object):
+         ptwise_loss_scaled = ptwise_loss / 2 / quantile / (1 - quantile) / yscale
+         ptavg_loss = ptwise_loss_scaled.view(ptwise_loss_scaled.shape[0], -1).mean(1, keepdim=True)
+ 
+-        if self.reduce_dims is not None:
+-            loss_batch = self.reduce_all(ptavg_loss).squeeze()
++        loss_batch = self.reduce_all(ptavg_loss).squeeze()
+ 
+         return loss_batch
+-    
+-class MSELoss(object):
+-    """
+-    MSELoss computes absolute mean-squared error between two tensors.
+-    """
+-    def __init__(self, reductions='sum'):
+-        super().__init__()
+-        allowed_reductions = ['sum', 'mean']
+-        assert reductions in allowed_reductions, f"error: expected `reductions` to be one of {allowed_reductions}, got {reductions}"
+-        self.reductions = reductions
+-
+-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor, dim: List[int]=None, **kwargs):
+-        """MSE loss call 
+-
+-        Parameters
+-        ----------
+-        y_pred : torch.Tensor
+-            tensor of predictions
+-        y : torch.Tensor
+-            ground truth, must be same shape as x
+-        dim : List[int], optional
+-            dimensions across which to compute MSE, by default None
+-        """
+-        if dim is None:
+-            dim = list(range(1, y_pred.ndim)) # no reduction across batch dim
+-        if self.reductions == 'sum':
+-            return torch.mean((y_pred - y) ** 2, dim=dim).sum() # sum of MSEs for each element
+-        elif self.reductions == 'mean':
+-            return torch.mean((y_pred - y) ** 2, dim=dim).mean()
+diff --git a/xno/losses/tests/__init__.py b/xno/losses/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/xno/losses/tests/test_losses.py b/xno/losses/tests/test_losses.py
+new file mode 100644
+index 0000000..399ae19
+--- /dev/null
++++ b/xno/losses/tests/test_losses.py
+@@ -0,0 +1,110 @@
++import math
++import torch
++from torch.testing import assert_close
++
++from ..data_losses import LpLoss, H1Loss
++from ..finite_diff import central_diff_1d, central_diff_2d, central_diff_3d
++from neuralop.layers.embeddings import regular_grid_nd
++
++def test_lploss():
++    l2_2d_mean = LpLoss(d=2, p=2, reduction='mean', measure=1.)
++    l2_2d_sum = LpLoss(d=2, p=2, reduction='sum', measure=1.)
++    x = torch.randn(10, 1, 4, 4)
++
++    abs_0 = l2_2d_mean.abs(x,x)
++    assert abs_0.item() == 0.
++
++    zeros = torch.zeros_like(x)
++    ones = torch.ones_like(x)
++
++    # L2 w/out normalizing constant
++    # sum of items in each element in ones is 16
++    # norm is 4
++    mean_abs_l2_err = l2_2d_mean.abs(zeros, ones)
++    assert mean_abs_l2_err.item() == 1.
++
++    sum_abs_l2_err = l2_2d_sum.abs(zeros, ones)
++    assert sum_abs_l2_err.item() == 10.
++
++    # Test quadrature weights: for spatial dims, each weight should
++    # be 1/the corresponding size in x, so that after applying weights,
++    # lploss constitutes an average over spatial dims. 
++    d = 2
++    default_quad_weights = l2_2d_mean.uniform_quadrature(x)
++    assert default_quad_weights[-d:] == [1 / s for s in x.shape[-d:]]
++    
++
++    # Sanity check: ensure that both sum and mean reduction sum-reduce over spatial dims
++    x = torch.arange(1,5) * torch.ones(4,4)
++    flipped_x = x.T.unsqueeze(0).unsqueeze(0)
++    x = x.unsqueeze(0).unsqueeze(0)
++
++    zeros = torch.zeros_like(x)
++
++    # batch and channel size of 1. squared diff should be 120, avg over spatial dims 7.5
++    mean_err = l2_2d_mean.abs(flipped_x, zeros)
++    sum_err = l2_2d_sum.abs(x, zeros)
++
++    assert mean_err == sum_err
++    assert_close(mean_err, torch.sqrt(torch.tensor(7.5)))
++
++
++
++def test_h1loss():
++    h1 = H1Loss(d=2, reduction='mean')
++    x = torch.randn(10, 4, 4)
++
++    abs_0 = h1.abs(x,x)
++    assert abs_0.item() == 0.
++
++    zeros = torch.zeros_like(x)
++    ones = torch.ones_like(x)
++
++    # H1 w/o normalizing constant, 
++    # finite-difference derivatives of both sides are zero
++    # sum of items in each element in ones is 16
++    # norm is 1 averaged in space
++    mean_abs_h1 = h1.abs(zeros, ones)
++    assert mean_abs_h1.item() == 1.
++
++def test_central_diff1d():
++    # assert f(x) = x
++    # has derivative 1 everywhere when boundaries are fixed
++    x = torch.arange(10)
++    dx = central_diff_1d(x, fix_x_bnd=True, h=1.)
++    assert_close(dx,torch.ones_like(dx))
++
++def test_central_diff2d():
++    grid = regular_grid_nd(resolutions=[10,10], grid_boundaries=[[0,10]] * 2)
++    x = torch.stack(grid, dim=0)
++    dx, dy = central_diff_2d(x, fix_x_bnd=True, fix_y_bnd=True, h=1.)
++    # pos encoding A[:,i,j] = [xi, yj]
++
++    # dx[:,i,j] = f(x_i, y_j) vector valued <fx, fy>
++    # dfx(coords) == 1s
++    
++    assert_close(dx[0], torch.ones_like(dx[0]))
++    assert_close(dx[1], torch.zeros_like(dx[1]))
++    
++    assert_close(dy[0], torch.zeros_like(dy[0]))
++    assert_close(dy[1], torch.ones_like(dy[1]))
++
++def test_central_diff3d():
++    grid = regular_grid_nd(resolutions=[10,10,10], grid_boundaries=[[0,10]] * 3)
++    x = torch.stack(grid, dim=0)
++    # pos encoding A[:,i,j,k] = [xi, yj, zk]
++    dx, dy, dz = central_diff_3d(x, fix_x_bnd=True, fix_y_bnd=True, fix_z_bnd=True, h=1.)
++    # dx[:,i,j,k] = f(x_i, y_j, z_k) vector valued <fx, fy, fz>
++    # dfx(coords) == 1s
++    
++    assert_close(dx[0], torch.ones_like(dx[0]))
++    assert_close(dx[1], torch.zeros_like(dx[1]))
++    assert_close(dx[2], torch.zeros_like(dx[1]))
++    
++    assert_close(dy[0], torch.zeros_like(dy[0]))
++    assert_close(dy[1], torch.ones_like(dy[1]))
++    assert_close(dy[2], torch.zeros_like(dy[2]))
++
++    assert_close(dz[0], torch.zeros_like(dz[0]))
++    assert_close(dz[1], torch.zeros_like(dz[1]))
++    assert_close(dz[2], torch.ones_like(dz[2]))
+diff --git a/xno/models/base_model.py b/xno/models/base_model.py
+index 0ac9f46..ced8179 100644
+--- a/xno/models/base_model.py
++++ b/xno/models/base_model.py
+@@ -3,6 +3,7 @@ import torch
+ import warnings
+ from pathlib import Path
+ 
++# Author: Jean Kossaifi
+ 
+ class BaseModel(torch.nn.Module):
+     """Based class for all Models
+@@ -75,7 +76,68 @@ class BaseModel(torch.nn.Module):
+         instance._init_kwargs = kwargs
+ 
+         return instance
+-    
++
++    def state_dict(self, destination: dict=None, prefix: str='', keep_vars: bool=False):
++        """
++        state_dict subclasses nn.Module.state_dict() and adds a metadata field
++        to track the model version and ensure only compatible saves are loaded.
++
++        Parameters
++        ----------
++        destination : dict, optional
++            If provided, the state of module will
++            be updated into the dict and the same object is returned.
++            Otherwise, an OrderedDict will be created and returned, by default None
++        prefix : str, optional
++            a prefix added to parameter and buffer
++            names to compose the keys in state_dict, by default ``''``
++        keep_vars (bool, optional): by default the torch.Tensors
++            returned in the state dict are detached from autograd. 
++            If True, detaching will not be performed, by default False
++
++        """
++        state_dict = super().state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars)
++        if state_dict.get('_metadata') == None:
++            state_dict['_metadata'] = self._init_kwargs
++        else:
++            warnings.warn("Attempting to update metadata for a module with metadata already in self.state_dict()")
++        return state_dict
++
++    def load_state_dict(self, state_dict, strict=True, assign=False):
++        """load_state_dict subclasses nn.Module.load_state_dict() and adds a metadata field
++        to track the model version and ensure only compatible saves are loaded.
++
++        Parameters
++        ----------
++        state_dict : dict
++            state dictionary generated by ``nn.Module.state_dict()``
++        strict : bool, optional
++            whether to strictly enforce that the keys in ``state_dict``
++            match the keys returned by this module's, by default True.
++        assign : bool, optional
++            whether to assign items in the state dict to their corresponding keys
++            in the module instead of copying them inplace into the module's current
++            parameters and buffers. When False, the properties of the tensors in the
++            current module are preserved while when True, the properties of the Tensors
++            in the state dict are preserved, by default False
++
++        Returns
++        -------
++        _type_
++            _description_
++        """
++        metadata = state_dict.pop('_metadata', None)
++
++        if metadata is not None:
++            saved_version = metadata.get('_version', None)
++            if saved_version is None:
++                warnings.warn(f"Saved instance of {self.__class__} has no stored version attribute.")
++            if saved_version != self._version:
++                warnings.warn(f"Attempting to load a {self.__class__} of version {saved_version},"
++                              f"But current version of {self.__class__} is {saved_version}")
++            # remove state dict metadata at the end to ensure proper loading with PyTorch module
++        return super().load_state_dict(state_dict, strict=strict, assign=assign)
++
+     def save_checkpoint(self, save_folder, save_name):
+         """Saves the model state and init param in the given folder under the given name
+         """
+@@ -108,7 +170,7 @@ class BaseModel(torch.nn.Module):
+         version = init_kwargs.pop('_version')
+         if hasattr(cls, '_version') and version != cls._version:
+             print(version)
+-            warnings.warn(f'Checkpoing saved for version {version} of model {cls._name} but current code is version {cls._version}')
++            warnings.warn(f'Checkpoint saved for version {version} of model {cls._name} but current code is version {cls._version}')
+         
+         if 'args' in init_kwargs:
+             init_args = init_kwargs.pop('args')
+diff --git a/xno/mpu/__init__.py b/xno/mpu/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/xno/mpu/comm.py b/xno/mpu/comm.py
+new file mode 100644
+index 0000000..8a2edde
+--- /dev/null
++++ b/xno/mpu/comm.py
+@@ -0,0 +1,193 @@
++# coding=utf-8
++# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++
++import os
++import logging
++import torch
++import torch.distributed as dist
++import datetime as dt
++
++class disable_logging(object):
++    def __init__(self, level=logging.ERROR):
++        logging.disable(level=level)
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, type, value, traceback):
++        logging.disable(level=logging.NOTSET)
++
++
++# dummy placeholders
++_DATA_PARALLEL_GROUP = None
++_MODEL_PARALLEL_GROUP = None
++
++# world comm
++def get_world_size():
++    if not dist.is_initialized():
++        return 1
++    else:
++        return dist.get_world_size()
++
++
++def get_local_rank():
++    if not dist.is_initialized():
++        return 0
++    else:
++        return dist.get_rank()
++
++
++def get_global_rank():
++    if not dist.is_initialized():
++        return 0
++    else:
++        return dist.get_global_rank(group=_DATA_PARALLEL_GROUP,
++                                   group_rank=get_local_rank())
++
++# data parallel
++def get_data_parallel_size():
++    if not dist.is_initialized():
++        return 1
++    else:
++        return dist.get_world_size(group=_DATA_PARALLEL_GROUP)
++
++
++def get_data_parallel_rank():
++    if not dist.is_initialized():
++        return 0
++    else:
++        return dist.get_rank(group=_DATA_PARALLEL_GROUP)
++
++def get_data_parallel_group():
++    assert dist.is_initialized(), "Error, initialize torch.distributed first"
++    return _DATA_PARALLEL_GROUP 
++
++
++# model parallel
++def get_model_parallel_size():
++    if not dist.is_initialized() or (_MODEL_PARALLEL_GROUP is None):
++        return 1
++    else:
++        return dist.get_world_size(group=_MODEL_PARALLEL_GROUP)
++
++
++def get_model_parallel_rank():
++    if not dist.is_initialized() or (_MODEL_PARALLEL_GROUP is None):
++        return 0
++    else:
++        return dist.get_rank(group=_MODEL_PARALLEL_GROUP)
++
++
++def get_model_parallel_group():
++    assert dist.is_initialized(), "Error, initialize torch.distributed first"
++    return _MODEL_PARALLEL_GROUP  
++
++
++def init(model_parallel_size: int=1, verbose: bool=False):
++    """
++    Set up global and local communicator.
++    `torchrun` initializes rank env vars by default and uses its own wireup logic
++    """
++
++    local_rank = int(os.getenv("LOCAL_RANK", 0))
++    global_rank = int(os.getenv("RANK", 0))
++    world_size = torch.cuda.device_count()
++    
++    if world_size > 1:
++        with disable_logging():
++            # initialize process groups
++            dist.init_process_group(backend='nccl', rank=local_rank)
++        
++            # once initialized, get true values for rank and size using torch.distributed
++            world_size = get_world_size()
++            local_rank = get_local_rank()
++
++            # set a barrier until all processes reach this point
++            dist.barrier(device_ids=[local_rank])
++
++    # process 0 is logger 
++    is_logger = (get_local_rank() == 0)
++
++    # get model groups
++    model_group_size = model_parallel_size
++    
++    # compute data parallel size 
++    data_group_size = world_size // model_group_size
++
++    if is_logger:
++        print(f"Using {world_size} in {model_group_size} x {data_group_size} decomposition (#model-ranks x #data-ranks)")
++
++    assert ( (model_group_size <= world_size) and (world_size % model_group_size == 0) ), \
++        "Error, please make sure matmul_parallel_size * spatial_parallel_size <= world size and that world size is evenly divisible by matmul_parallel_size * spatial_parallel_size"
++    
++    # number of model groups
++    num_model_groups = world_size // model_group_size
++
++    global _DATA_PARALLEL_GROUP
++    global _MODEL_PARALLEL_GROUP
++
++    if is_logger:
++        print("Starting Wireup")
++
++    if world_size > 1:
++        if model_group_size > 1:
++            model_groups = []
++            for i in range(num_model_groups):
++                start = i*model_group_size
++                end = start + model_group_size
++                model_groups.append(list(range(start, end)))
++                    
++            data_groups = [sorted(list(i)) for i in zip(*model_groups)]                     
++
++            if verbose and is_logger:
++                print("Model Parallel Groups w/ respect to world rank:")
++                for grp in model_groups:
++                    print(grp)
++            
++            if verbose and is_logger:
++                print("Data Parallel Groups w/ respect to world rank:")
++                for grp in data_groups:
++                    print(grp)
++
++            # initialize groups
++            with disable_logging():
++                # data groups
++                for grp in data_groups:
++                    tmp_group = dist.new_group(ranks = grp)
++                    if global_rank in grp:
++                        _DATA_PARALLEL_GROUP = tmp_group
++                # model groups
++                for grp in model_groups:
++                    tmp_group = dist.new_group(ranks = grp)
++                    if global_rank in grp:
++                        _MODEL_PARALLEL_GROUP = tmp_group
++                                
++        else:
++            # technically unnecessary but we do it to be clean
++            with disable_logging():
++                _MODEL_PARALLEL_GROUP = dist.new_group(ranks = [global_rank])
++                _SPATIAL_PARALLEL_GROUP = _MODEL_PARALLEL_GROUP
++                _MATMUL_PARALLEL_GROUP = _MODEL_PARALLEL_GROUP
++                _DATA_PARALLEL_GROUP = dist.new_group(ranks = list(range(world_size)))
++
++    # barrier
++    if dist.is_initialized():
++        dist.barrier(device_ids=[local_rank])
++
++    if is_logger:
++        print("Finished Wireup")
++    
++    return
+diff --git a/xno/mpu/helpers.py b/xno/mpu/helpers.py
+new file mode 100644
+index 0000000..c06c4cd
+--- /dev/null
++++ b/xno/mpu/helpers.py
+@@ -0,0 +1,146 @@
++# coding=utf-8
++# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import torch
++import torch.nn.functional as F
++import torch.distributed as dist
++
++
++def get_memory_format(tensor):
++    if tensor.is_contiguous(memory_format=torch.channels_last):
++        return torch.channels_last
++    else:
++        return torch.contiguous_format
++
++
++def pad_helper(tensor, dim, new_size, mode="zero"):
++    ndim = tensor.ndim
++    dim = (dim + ndim) % ndim
++    ndim_pad = ndim - dim
++    output_shape = [0 for _ in range(2*ndim_pad)]
++    orig_size = tensor.shape[dim]
++    output_shape[1] = new_size - orig_size
++    tensor_pad = F.pad(tensor, output_shape, mode='constant', value=0.)
++    
++    if mode == "conj":
++        lhs_slice = [slice(0,x) if idx != dim else slice(orig_size, new_size) for idx,x in enumerate(tensor.shape)]
++        rhs_slice = [slice(0,x) if idx != dim else slice(1, output_shape[1]+1) for idx,x in enumerate(tensor.shape)]
++        tensor_pad[lhs_slice] = torch.flip(torch.conj(tensor_pad[rhs_slice]), dims=[dim])
++        
++    return tensor_pad
++
++
++def truncate_helper(tensor, dim, new_size):
++    input_format = get_memory_format(tensor)
++    ndim = tensor.ndim
++    dim = (dim + ndim) % ndim
++    output_slice = [slice(0,x) if idx != dim else slice(0,new_size) for idx,x in enumerate(tensor.shape)]
++    tensor_trunc = tensor[output_slice].contiguous(memory_format=input_format)
++    
++    return tensor_trunc
++
++
++def split_tensor_along_dim(tensor, dim, num_chunks):
++    assert dim < tensor.dim(), f"Error, tensor dimension is {tensor.dim()} which cannot be split along {dim}"
++    assert (tensor.shape[dim] % num_chunks == 0), f"Error, cannot split dim {dim} evenly. Dim size is \
++                                                  {tensor.shape[dim]} and requested numnber of splits is {num_chunks}"
++    chunk_size = tensor.shape[dim] // num_chunks
++    tensor_list = torch.split(tensor, chunk_size, dim=dim)
++    
++    return tensor_list
++
++
++# distributed primitives
++def _transpose(tensor, dim0, dim1, group=None, async_op=False):
++    # get input format
++    input_format = get_memory_format(tensor)
++    
++    # get comm params
++    comm_size = dist.get_world_size(group=group)
++
++    # split and local transposition
++    split_size = tensor.shape[dim0] // comm_size
++    x_send = [y.contiguous(memory_format=input_format) for y in torch.split(tensor, split_size, dim=dim0)]
++    x_recv = [torch.empty_like(x_send[0]) for _ in range(comm_size)]
++    
++    # global transposition
++    req = dist.all_to_all(x_recv, x_send, group=group, async_op=async_op)
++    
++    return x_recv, req 
++
++
++def _reduce(input_, use_fp32=True, group=None):
++    """All-reduce the input tensor across model parallel group."""
++
++    # Bypass the function if we are using only 1 GPU.
++    if dist.get_world_size(group=group) == 1:
++        return input_
++    
++    # All-reduce.
++    if use_fp32:
++        dtype = input_.dtype
++        inputf_ = input_.float()
++        dist.all_reduce(inputf_, group=group)
++        input_ = inputf_.to(dtype)
++    else:
++        dist.all_reduce(input_, group=group)
++        
++    return input_
++
++
++def _split(input_, dim_, group=None):
++    """Split the tensor along its last dimension and keep the corresponding slice."""
++    # get input format
++    input_format = get_memory_format(input_)
++    
++    # Bypass the function if we are using only 1 GPU.
++    comm_size = dist.get_world_size(group=group)
++    if comm_size == 1:
++        return input_
++    
++    # Split along last dimension.
++    input_list = split_tensor_along_dim(input_, dim_, comm_size)
++    
++    # Note: torch.split does not create contiguous tensors by default.
++    rank = dist.get_rank(group=group)
++    output = input_list[rank].contiguous(memory_format=input_format)
++    
++    return output
++
++
++def _gather(input_, dim_, group=None):
++    """Gather tensors and concatinate along the last dimension."""
++    # get input format
++    input_format = get_memory_format(input_) 
++
++    comm_size = dist.get_world_size(group=group)
++    # Bypass the function if we are using only 1 GPU.
++    if comm_size==1:
++        return input_
++
++    # sanity checks
++    assert(dim_ < input_.dim()), f"Error, cannot gather along {dim_} for tensor with {input_.dim()} dimensions."
++
++    # Size and dimension.
++    comm_rank = dist.get_rank(group=group)
++    
++    tensor_list = [torch.empty_like(input_) for _ in range(comm_size)]
++    tensor_list[comm_rank] = input_.contiguous(memory_format=input_format)
++    dist.all_gather(tensor_list, input_, group=group)
++    
++    # Note: torch.cat already creates a contiguous tensor.
++    output = torch.cat(tensor_list, dim=dim_).contiguous(memory_format=input_format)
++    
++    return output
+\ No newline at end of file
+diff --git a/xno/mpu/mappings.py b/xno/mpu/mappings.py
+new file mode 100644
+index 0000000..267b6f0
+--- /dev/null
++++ b/xno/mpu/mappings.py
+@@ -0,0 +1,115 @@
++# coding=utf-8
++# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import types
++from typing import Any
++
++import torch
++import torch.distributed as dist
++from .comm import get_model_parallel_group
++
++# torch utils
++from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
++
++# helper functions
++from .helpers import split_tensor_along_dim
++from .helpers import _reduce
++from .helpers import _split
++from .helpers import _gather
++
++# model parallel
++class _CopyToModelParallelRegion(torch.autograd.Function):
++    """Pass the input to the model parallel region."""
++
++    @staticmethod
++    def symbolic(graph, input_):
++        return input_
++    
++    @staticmethod
++    def forward(ctx, input_):
++        return input_
++
++    @staticmethod
++    def backward(ctx, grad_output):
++        return _reduce(grad_output, group=get_model_parallel_group())
++
++
++class _ReduceFromModelParallelRegion(torch.autograd.Function):
++    """All-reduce the input from the model parallel region."""
++    
++    @staticmethod
++    def symbolic(graph, input_):
++        return _reduce(input_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def forward(ctx, input_):
++        return _reduce(input_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def backward(ctx, grad_output):
++        return grad_output
++
++
++class _ScatterToModelParallelRegion(torch.autograd.Function):
++    """Split the input and keep only the corresponding chuck to the rank."""
++    
++    @staticmethod
++    def symbolic(graph, input_, dim_):
++        return _split(input_, dim_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def forward(ctx, input_, dim_):
++        ctx.dim = dim_
++        return _split(input_, dim_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def backward(ctx, grad_output):
++        return _gather(grad_output, ctx.dim, group=get_model_parallel_group()), None
++    
++    
++class _GatherFromModelParallelRegion(torch.autograd.Function):
++    """Gather the input from model parallel region and concatinate."""
++    
++    @staticmethod
++    def symbolic(graph, input_, dim_):
++        return _gather(input_, dim_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def forward(ctx, input_, dim_):
++        ctx.dim = dim_
++        return _gather(input_, dim_, group=get_model_parallel_group())
++    
++    @staticmethod
++    def backward(ctx, grad_output):
++        return _split(grad_output, ctx.dim, group=get_model_parallel_group()), None
++    
++# -----------------
++# Helper functions.
++# -----------------
++# matmul parallel
++def copy_to_model_parallel_region(input_):
++    return _CopyToModelParallelRegion.apply(input_)
++
++
++def reduce_from_model_parallel_region(input_):
++    return _ReduceFromModelParallelRegion.apply(input_)
++
++
++def scatter_to_model_parallel_region(input_, dim):
++    return _ScatterToModelParallelRegion.apply(input_, dim)
++
++
++def gather_from_model_parallel_region(input_, dim):
++    return _GatherFromModelParallelRegion.apply(input_, dim)
+\ No newline at end of file
+diff --git a/xno/training/tests/__init__.py b/xno/training/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/xno/training/tests/test_optim.py b/xno/training/tests/test_optim.py
+new file mode 100644
+index 0000000..84ade51
+--- /dev/null
++++ b/xno/training/tests/test_optim.py
+@@ -0,0 +1,26 @@
++import torch
++from torch.nn import Parameter
++from torch.testing import assert_close
++import pytest
++
++from ..adamw import AdamW
++
++@pytest.mark.parametrize('adam_optimizer_cls', [AdamW])
++def test_correct_complex_adam_momentum(adam_optimizer_cls):
++    # param = x * 2j
++    x = torch.randn((3,3), dtype=torch.float64)
++    param = Parameter(((0. + 1.0j) * x).to(torch.cfloat))
++
++    optimizer = adam_optimizer_cls(params=[param],
++                      betas=(0.5, 0.5))
++
++    loss = torch.view_as_real((param * param.conj())).sum()
++    # grad x^2 = 2x, grads are all 0 + 2j * x
++
++    loss.backward()
++    optimizer.step()
++
++    # momentum value should be elemwise (2jx * -2jx * (1 - 0.5)) = 4x**2 * 0.5 = 2x**2
++    # exp_avg_sq should be empty, meaning it is just momentum * (1-beta2)
++    momentum = optimizer.state[param]["exp_avg_sq"]
++    assert_close(momentum, (2 * x**2).to(torch.cfloat))
+diff --git a/xno/training/tests/test_patching.py b/xno/training/tests/test_patching.py
+new file mode 100644
+index 0000000..25a4a73
+--- /dev/null
++++ b/xno/training/tests/test_patching.py
+@@ -0,0 +1,67 @@
++import torch
++import pytest
++
++from ..patching import MultigridPatching2D, make_patches
++from neuralop.tests.test_utils import DummyModel
++
++# Input shape params
++batch_size = 16
++channels = 1
++side_len = 128
++
++@pytest.mark.parametrize('levels', [1, 2, 3])
++@pytest.mark.parametrize('padding_fraction', [0, 0.1, 0.2])
++def test_make_patches(levels, padding_fraction):
++    x = torch.randn(batch_size, channels, side_len, side_len)
++    n_patches = 2 ** levels
++    
++    padding = int(round(side_len * padding_fraction))
++    patched_x = make_patches(x, n_patches, padding)
++
++    patched_side_len = int((side_len // n_patches) + (2 * padding))
++    assert patched_x.shape == ((n_patches ** 2) * batch_size, channels, patched_side_len, patched_side_len)
++
++@pytest.mark.parametrize('levels', [1, 2, 3])
++@pytest.mark.parametrize('padding_fraction', [0, 0.1, 0.2])
++@pytest.mark.parametrize('stitching', [True, False])
++@pytest.mark.parametrize('evaluation', [True, False])
++
++def test_full_mgp2d(levels, padding_fraction, stitching, evaluation):
++
++    model = DummyModel(16)
++    patcher = MultigridPatching2D(model=model,
++                                  levels=levels,
++                                  padding_fraction=padding_fraction,
++                                  stitching=stitching, # cpu-only, single process
++                                  use_distributed=False)
++    
++    input_shape = (batch_size, channels, side_len, side_len)
++    x = torch.randn(*input_shape)
++    y = torch.randn(*input_shape)
++
++    patched_x, patched_y = patcher.patch(x,y)
++    n_patches = 2 ** levels
++    padding = int(round(side_len * padding_fraction))
++    patched_padded_side_len = int((side_len // n_patches) + (2 * padding))
++
++    assert patched_x.shape ==\
++          ((n_patches ** 2) * batch_size, channels + levels, patched_padded_side_len, patched_padded_side_len)
++    
++    # mimic output after scattering x to model parallel region
++    patched_out_shape = (patched_x.shape[0], 1, *patched_x.shape[2:])
++    patched_out = torch.randn(patched_out_shape)
++    
++    # if padding is not applied, return without stitching
++    # otherwise unpad and stitch
++
++    if stitching or evaluation:
++        unpatch_shape = input_shape
++    else:
++        unpadded_patch_size = int(side_len // n_patches)
++        unpatch_shape = (patched_x.shape[0], channels, unpadded_patch_size, unpadded_patch_size)
++
++    # test stitching here in cases where padding is applied
++    unpatched_x, unpatched_y = patcher.unpatch(patched_out, patched_y, evaluation=evaluation)
++        
++    assert unpatched_x.shape == unpatch_shape
++    assert unpatched_y.shape == unpatch_shape
+diff --git a/xno/training/tests/test_trainer.py b/xno/training/tests/test_trainer.py
+new file mode 100644
+index 0000000..55bcdd1
+--- /dev/null
++++ b/xno/training/tests/test_trainer.py
+@@ -0,0 +1,233 @@
++import os
++import shutil
++from pathlib import Path
++
++import torch
++from torch import nn
++from torch.utils.data import Dataset, DataLoader
++from neuralop.models import FNO
++from neuralop.data.datasets import load_darcy_flow_small
++
++from neuralop import Trainer, LpLoss, H1Loss
++from neuralop.tests.test_utils import DummyDataset, DummyModel
++from neuralop.training import IncrementalFNOTrainer, AdamW
++
++def test_model_checkpoint_saves():
++    save_pth = Path('./test_checkpoints')
++
++    model = DummyModel(50)
++
++    train_loader = DataLoader(DummyDataset(100))
++
++    trainer = Trainer(model=model,
++                      n_epochs=5,
++    )
++
++    optimizer = torch.optim.Adam(model.parameters(), 
++                                lr=3e-4, 
++                                weight_decay=1e-4)
++    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
++
++    # Creating the losses
++    l2loss = LpLoss(d=2, p=2)
++
++    trainer.train(train_loader=train_loader, 
++                  test_loaders={}, 
++                  optimizer=optimizer,
++                  scheduler=scheduler,
++                  regularizer=None,
++                  training_loss=l2loss,
++                  eval_losses=None,
++                  save_dir=save_pth,
++                  save_every=1
++                  )
++    
++    for file_ext in ['model_state_dict.pt', 'model_metadata.pkl', 'optimizer.pt', 'scheduler.pt']:
++        file_pth = save_pth / file_ext
++        assert file_pth.exists()
++
++    # clean up dummy checkpoint directory after testing
++    shutil.rmtree('./test_checkpoints')
++
++def test_model_checkpoint_and_resume():
++    save_pth = Path('./full_states')
++    model = DummyModel(50)
++
++    train_loader = DataLoader(DummyDataset(100))
++    test_loader = DataLoader(DummyDataset(20))
++
++    trainer = Trainer(model=model,
++                      n_epochs=5,
++                      verbose=True
++    )
++
++    optimizer = AdamW(model.parameters(), 
++                                lr=3e-4, 
++                                weight_decay=1e-4)
++    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
++
++    # Creating the losses
++    l2loss = LpLoss(d=2, p=2)
++    h1loss = H1Loss(d=2)
++
++    eval_losses={'h1': h1loss, 'l2': l2loss}
++
++    trainer.train(train_loader=train_loader, 
++                  test_loaders={'test': test_loader}, 
++                  optimizer=optimizer,
++                  scheduler=scheduler,
++                  regularizer=None,
++                  training_loss=l2loss,
++                  eval_losses=eval_losses,
++                  save_best='test_h1',
++                  save_dir=save_pth,
++                  save_every=1
++                  )
++    for file_ext in ['best_model_state_dict.pt', 'best_model_metadata.pkl', 'optimizer.pt', 'scheduler.pt']:
++        file_pth = save_pth / file_ext
++        
++        assert file_pth.exists()
++    
++    # Resume from checkpoint
++
++    new_model = DummyModel(50)
++    new_optimizer = AdamW(new_model.parameters(), 
++                                lr=3e-4, 
++                                weight_decay=1e-4)
++    trainer = Trainer(model=new_model,
++                      n_epochs=10,
++                      verbose=True
++    )
++    errors = trainer.train(train_loader=train_loader, 
++                  test_loaders={'': test_loader}, 
++                  optimizer=new_optimizer,
++                  scheduler=scheduler,
++                  regularizer=None,
++                  training_loss=l2loss,
++                  eval_losses=eval_losses,
++                  resume_from_dir=save_pth
++                  )
++
++    # Ensure model and opt parameter IDs match after reloading - otherwise model will not train
++
++    # Get model and optimizer parameters as a set of IDs
++    model_param_ids = {id(p) for p in trainer.model.parameters()}
++    optimizer_param_ids = {id(p) for group in trainer.optimizer.param_groups for p in group['params']}
++
++    # Check for mismatches, assert there are none
++    missing_in_optimizer = model_param_ids - optimizer_param_ids
++    missing_in_model = optimizer_param_ids - model_param_ids
++    
++    assert not missing_in_optimizer and not missing_in_model
++    
++    # clean up dummy checkpoint directory after testing
++    shutil.rmtree(save_pth)
++
++# ensure that model accuracy after loading from checkpoint
++# is comparable to accuracy at time of save
++def test_load_from_checkpoint():
++    model = DummyModel(50)
++
++    train_loader = DataLoader(DummyDataset(100))
++    test_loader = DataLoader(DummyDataset(100))
++
++    trainer = Trainer(model=model,
++                      n_epochs=10,)
++
++    optimizer = torch.optim.Adam(model.parameters(), 
++                                lr=3e-4, 
++                                weight_decay=1e-4)
++    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
++
++    # Creating the losses
++    l2loss = LpLoss(d=2, p=2)
++    h1loss = H1Loss(d=2)
++
++    eval_losses={'h1': h1loss, 'l2': l2loss}
++
++    orig_model_eval_errors = trainer.train(train_loader=train_loader, 
++                  test_loaders={'test': test_loader}, 
++                  optimizer=optimizer,
++                  scheduler=scheduler,
++                  regularizer=None,
++                  training_loss=l2loss,
++                  eval_losses=eval_losses,
++                  save_dir="./full_states",
++                  save_every=1,
++                  )
++    
++    # create a new model from saved checkpoint and evaluate
++    loaded_model = DummyModel.from_checkpoint(save_folder='./full_states', save_name='model')
++    trainer = Trainer(model=loaded_model,
++                      n_epochs=1,
++    )
++
++    loaded_model_eval_errors = trainer.evaluate(loss_dict=eval_losses,
++                              data_loader=test_loader, log_prefix='test')
++
++    # test l2 difference should be small 
++    assert (orig_model_eval_errors['test_l2'] - loaded_model_eval_errors['test_l2']) /\
++          orig_model_eval_errors['test_l2'] < 0.1
++
++    # clean up dummy checkpoint directory after testing
++    shutil.rmtree('./full_states')
++    
++# enure that the model incrementally increases in frequency modes
++def test_incremental():
++    # Loading the Darcy flow dataset
++    train_loader, test_loaders, output_encoder = load_darcy_flow_small(
++        n_train=10,
++        batch_size=16,
++        test_resolutions=[16, 32],
++        n_tests=[10, 5],
++        test_batch_sizes=[32, 32],
++    )
++
++    initial_n_modes = (2, 2)
++    initial_max_modes = (16, 16)
++    
++    model = FNO(
++        n_modes = initial_n_modes,
++        max_n_modes = initial_max_modes,
++        hidden_channels=32,
++        in_channels=1,
++        out_channels=1,
++    )
++    
++    trainer = IncrementalFNOTrainer(
++        model=model,
++        n_epochs=20,
++        incremental_loss_gap=False,
++        incremental_grad=True,
++        incremental_grad_eps=0.9999,
++        incremental_buffer=5,
++        incremental_max_iter=1,
++        incremental_grad_max_iter=2,)
++
++    optimizer = torch.optim.Adam(model.parameters(), 
++                                lr=3e-4, 
++                                weight_decay=1e-4)
++    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
++
++    # Creating the losses
++    l2loss = LpLoss(d=2, p=2)
++    h1loss = H1Loss(d=2)
++
++    eval_losses={'h1': h1loss, 'l2': l2loss}
++
++    trainer.train(train_loader=train_loader, 
++                  test_loaders=test_loaders, 
++                  optimizer=optimizer,
++                  scheduler=scheduler,
++                  regularizer=None,
++                  training_loss=l2loss,
++                  eval_losses=eval_losses
++                  )
++    
++    # assert that the model has increased in frequency modes
++    for i in range(len(initial_n_modes)):
++        assert model.fno_blocks.convs[0].n_modes[i] > initial_n_modes[i]
++    
++    # assert that the model has not changed the max modes
++    for i in range(len(initial_max_modes)):
++        assert model.fno_blocks.convs[0].max_n_modes[i] == initial_max_modes[i]
+\ No newline at end of file
+diff --git a/xno/training/trainer.py b/xno/training/trainer.py
+index 749af71..0ff33ed 100644
+--- a/xno/training/trainer.py
++++ b/xno/training/trainer.py
+@@ -2,6 +2,7 @@ from timeit import default_timer
+ from pathlib import Path
+ from typing import Union
+ import sys
++import warnings
+ 
+ import torch
+ from torch.cuda import amp
+@@ -16,8 +17,8 @@ try:
+ except ModuleNotFoundError:
+     wandb_available = False
+ 
+-import neuralop.mpu.comm as comm
+-from neuralop.losses import LpLoss
++import xno.mpu.comm as comm
++from xno.losses import LpLoss
+ from .training_state import load_training_state, save_training_state
+ 
+ 
+@@ -112,7 +113,7 @@ class Trainer:
+             testing dataloaders
+         optimizer: torch.optim.Optimizer
+             optimizer to use during training
+-        optimizer: torch.optim.lr_scheduler
++        scheduler: torch.optim.lr_scheduler
+             learning rate scheduler to use during training
+         training_loss: training.losses function
+             cost function to minimize
+@@ -149,6 +150,13 @@ class Trainer:
+ 
+         if training_loss is None:
+             training_loss = LpLoss(d=2)
++        
++        # Warn the user if training loss is reducing across the batch
++        if hasattr(training_loss, 'reduction'):
++            if training_loss.reduction == "mean":
++                warnings.warn(f"{training_loss.reduction=}. This means that the loss is "
++                              "initialized to average across the batch dim. The Trainer "
++                              "expects losses to sum across the batch dim.")
+ 
+         if eval_losses is None:  # By default just evaluate on the training loss
+             eval_losses = dict(l2=training_loss)
+@@ -251,7 +259,9 @@ class Trainer:
+         self.n_samples = 0
+ 
+         for idx, sample in enumerate(train_loader):
++            
+             loss = self.train_one_batch(idx, sample, training_loss)
++            import pdb; pdb.set_trace()
+             loss.backward()
+             self.optimizer.step()
+ 
+@@ -294,7 +304,6 @@ class Trainer:
+         # evaluate and gather metrics across each loader in test_loaders
+         all_metrics = {}
+         for loader_name, loader in test_loaders.items():
+-                        
+             loader_metrics = self.evaluate(eval_losses, loader,
+                                     log_prefix=loader_name)   
+             all_metrics.update(**loader_metrics)
+@@ -334,13 +343,20 @@ class Trainer:
+ 
+         errors = {f"{log_prefix}_{loss_name}": 0 for loss_name in loss_dict.keys()}
+ 
++        # Warn the user if any of the eval losses is reducing across the batch
++        for _, eval_loss in loss_dict.items():
++            if hasattr(eval_loss, 'reduction'):
++                if eval_loss.reduction == "mean":
++                    warnings.warn(f"{eval_loss.reduction=}. This means that the loss is "
++                                "initialized to average across the batch dim. The Trainer "
++                                "expects losses to sum across the batch dim.")
++
+         self.n_samples = 0
+         with torch.no_grad():
+             for idx, sample in enumerate(data_loader):
+                 return_output = False
+                 if idx == len(data_loader) - 1:
+                     return_output = True
+-                                        
+                 eval_step_losses, outs = self.eval_one_batch(sample, loss_dict, return_output=return_output)
+ 
+                 for loss_name, val_loss in eval_step_losses.items():
+@@ -403,7 +419,6 @@ class Trainer:
+             }
+ 
+         self.n_samples += sample["y"].shape[0]
+-        
+ 
+         if self.mixed_precision:
+             with torch.autocast(device_type=self.autocast_device_type):
+@@ -462,8 +477,9 @@ class Trainer:
+                 for k, v in sample.items()
+                 if torch.is_tensor(v)
+             }
+-        
++
+         self.n_samples += sample["y"].size(0)
++
+         out = self.model(**sample)
+ 
+         if self.data_processor is not None:
+@@ -573,7 +589,6 @@ class Trainer:
+         """
+         if isinstance(save_dir, str):
+             save_dir = Path(save_dir)
+-        print(f"{save_dir=} {type(save_dir)}")
+ 
+         # check for save model exists
+         if (save_dir / "best_model_state_dict.pt").exists():
+diff --git a/xno/training/training_state.py b/xno/training/training_state.py
+index 43cf17c..44c4d78 100644
+--- a/xno/training/training_state.py
++++ b/xno/training/training_state.py
+@@ -8,7 +8,7 @@ from pathlib import Path
+ import torch
+ from torch import nn
+ import torch.distributed as dist
+-from neuralop.mpu.comm import get_local_rank
++from xno.mpu.comm import get_local_rank
+ 
+ 
+ def load_training_state(save_dir: Union[str, Path], 
+@@ -43,8 +43,8 @@ def load_training_state(save_dir: Union[str, Path],
+ 
+     Returns
+     -------
+-    dict of training state
+-        keyed `{'model': model, etc}`
++    tuple of training state
++        ``model, optimizer, scheduler, regularizer, epoch``
+         
+     """
+     if not map_location:
+@@ -71,8 +71,9 @@ def load_training_state(save_dir: Union[str, Path],
+         model = model.to(device=f"cuda:{device_id}")
+         torch.cuda.empty_cache()
+     else:
+-        model = model.from_checkpoint(save_dir.absolute().as_posix(), save_name, map_location=map_location)
+-    
++        save_pth = save_dir / f"{save_name}_state_dict.pt"
++        model.load_state_dict(torch.load(save_pth.absolute().as_posix()))
++
+     # load optimizer if state exists
+     if optimizer is not None:
+         optimizer_pth = save_dir / "optimizer.pt"

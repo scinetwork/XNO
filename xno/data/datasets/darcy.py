@@ -125,7 +125,7 @@ class DarcyDataset(PTDataset):
                        output_subsampling_rate=subsampling_rate)
         
 # legacy Small Darcy Flow example
-example_data_root = get_project_root() / "neuralop/data/datasets/data"
+example_data_root = get_project_root() / "xno/data/datasets/data"
 def load_darcy_flow_small(n_train,
     n_tests,
     batch_size,
@@ -173,7 +173,7 @@ def load_darcy_pt(n_train,
                   n_tests,
                   batch_size,
                   test_batch_sizes,
-                  data_root = "./neuralop/data/datasets/data",
+                  data_root = "./xno/data/datasets/data",
                   train_resolution=16,
                   test_resolutions=[16, 32],
                   encode_input=False,

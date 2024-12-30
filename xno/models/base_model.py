@@ -4,7 +4,6 @@ import warnings
 from pathlib import Path
 
 # Author: Jean Kossaifi
-
 class BaseModel(torch.nn.Module):
     """Based class for all Models
 
@@ -185,7 +184,6 @@ class BaseModel(torch.nn.Module):
 def available_models():
     """List the available neural operators"""
     return list(BaseModel._models.keys())
-
 
 def get_model(config):
     """Returns an instantiated model for the given config
