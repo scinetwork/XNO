@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from .pt_dataset import PTDataset
 from .web_utils import download_from_zenodo_record
-from neuralop.utils import get_project_root
+from xno.utils import get_project_root
 
 logger = logging.Logger(logging.root.level)
 
@@ -124,7 +124,7 @@ class NavierStokesDataset(PTDataset):
                        input_subsampling_rate=subsampling_rate,
                        output_subsampling_rate=subsampling_rate)
 
-example_data_root = get_project_root() / "neuralop/datasets/data"
+example_data_root = get_project_root() / "xno/datasets/data"
 # load navier stokes pt for backwards compatibility
 def load_navier_stokes_pt(n_train,
     n_tests,

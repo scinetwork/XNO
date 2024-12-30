@@ -2,7 +2,7 @@ import torch
 import pytest
 
 from ..patching import MultigridPatching2D, make_patches
-from neuralop.tests.test_utils import DummyModel
+from xno.tests.test_utils import DummyModel
 
 # Input shape params
 batch_size = 16

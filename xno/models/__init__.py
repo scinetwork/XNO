@@ -8,12 +8,12 @@ from .wno import WNO, WNO1d, WNO2d, WNO3d
 
 
 
-from .local_fno import LocalFNO
+# from .local_fno import LocalFNO
 # only import SFNO if torch_harmonics is built locally
-try:
-    from .sfno import SFNO
-except ModuleNotFoundError:
-    pass
+# try:
+#     from .sfno import SFNO
+# except ModuleNotFoundError:
+#     pass
 # from .uno import UNO
 # from .uqno import UQNO
 # from .fnogno import FNOGNO

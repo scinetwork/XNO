@@ -4,7 +4,7 @@ from torch.testing import assert_close
 
 from ..data_losses import LpLoss, H1Loss
 from ..finite_diff import central_diff_1d, central_diff_2d, central_diff_3d
-from neuralop.layers.embeddings import regular_grid_nd
+from xno.layers.embeddings import regular_grid_nd
 
 def test_lploss():
     l2_2d_mean = LpLoss(d=2, p=2, reduction='mean', measure=1.)

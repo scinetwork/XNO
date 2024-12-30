@@ -1,11 +1,11 @@
 from abc import ABCMeta, abstractmethod
 
 import torch
-from neuralop.training.patching import MultigridPatching2D
+from xno.training.patching import MultigridPatching2D
 
 
 import torch
-from neuralop.training.patching import MultigridPatching2D
+from xno.training.patching import MultigridPatching2D
 
 
 class DataProcessor(torch.nn.Module, metaclass=ABCMeta):

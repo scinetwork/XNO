@@ -3,8 +3,8 @@ import math
 import torch
 from torch import nn
 
-import neuralop.mpu.comm as comm
-from neuralop.mpu.mappings import (
+import xno.mpu.comm as comm
+from xno.mpu.mappings import (
     gather_from_model_parallel_region,
     scatter_to_model_parallel_region,
 )

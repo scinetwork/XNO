@@ -160,8 +160,7 @@ class XNO(BaseModel, name='XNO'):
     Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
         Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
 
-    """
-
+    """        
     def __init__(
         self,
         n_modes: Tuple[int],
@@ -263,7 +262,6 @@ class XNO(BaseModel, name='XNO'):
             )
         else:
             self.domain_padding = None
-
         self.domain_padding_mode = domain_padding_mode
         self.complex_data = self.complex_data
 

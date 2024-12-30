@@ -5,12 +5,12 @@ from pathlib import Path
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
-from neuralop.models import FNO
-from neuralop.data.datasets import load_darcy_flow_small
+from xno.models import FNO
+from xno.data.datasets import load_darcy_flow_small
 
-from neuralop import Trainer, LpLoss, H1Loss
-from neuralop.tests.test_utils import DummyDataset, DummyModel
-from neuralop.training import IncrementalFNOTrainer, AdamW
+from xno import Trainer, LpLoss, H1Loss
+from xno.tests.test_utils import DummyDataset, DummyModel
+from xno.training import IncrementalFNOTrainer, AdamW
 
 def test_model_checkpoint_saves():
     save_pth = Path('./test_checkpoints')
