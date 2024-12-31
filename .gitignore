@@ -8,6 +8,8 @@ toolbox/
 *.mat 
 *.ipynb
 */.DS_Store
+*.pt
+*.pkl
 
 # Specific file ignore
 pytest.ini
