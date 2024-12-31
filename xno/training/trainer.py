@@ -261,7 +261,6 @@ class Trainer:
         for idx, sample in enumerate(train_loader):
             
             loss = self.train_one_batch(idx, sample, training_loss)
-            import pdb; pdb.set_trace()
             loss.backward()
             self.optimizer.step()
 

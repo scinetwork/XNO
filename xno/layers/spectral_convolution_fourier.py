@@ -404,7 +404,6 @@ class SpectralConvFourier(BaseSpectralConv):
         -------
         tensorized_spectral_conv(x)
         """
-        
         batchsize, channels, *mode_sizes = x.shape
 
         fft_size = list(mode_sizes)
