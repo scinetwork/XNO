@@ -5,7 +5,8 @@ import torch
 from torch import nn
 
 from .trainer import Trainer
-from ..models import FNO, TFNO, HNO, XNO, LNO, WNO
+# from ..models import FNO, TFNO, HNO, XNO, LNO, WNO
+from ..models import FNO, TFNO, XNO
 from ..utils import compute_explained_variance
 
 class IncrementalFNOTrainer(Trainer):
@@ -42,7 +43,14 @@ class IncrementalFNOTrainer(Trainer):
                 incremental_loss_eps: float = 0.001,
                 ):
         self.model = model
-        assert (isinstance(model, FNO) or isinstance(self.model, TFNO) or isinstance(self.model, HNO) or isinstance(self.model, XNO) or isinstance(self.model, LNO) or isinstance(self.model, WNO)), f"Error: \
+        assert (
+            isinstance(model, FNO) or 
+            isinstance(self.model, TFNO) or 
+            isinstance(self.model, XNO) 
+            # isinstance(self.model, HNO) or 
+            # isinstance(self.model, LNO) or 
+            # isinstance(self.model, WNO)
+        ), f"Error: \
             IncrementalFNOTrainer is designed to work with FNO, TFNO, HNO, LNO, WNO and XNO, instead got\
             a model of type {model.__class__.__name__}"
             
