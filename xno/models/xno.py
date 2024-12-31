@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution_x import SpectralConv
+from ...toolbox.spectral_convolution_x import SpectralConv
 from ..layers.padding import DomainPadding
 from ..layers.xno_block import XNOBlocks
 from ..layers.channel_mlp import ChannelMLP

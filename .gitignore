@@ -2,6 +2,7 @@
 .vscode
 .idea/
 neuraloperator/
+toolbox/
 
 # File type ignore
 *.mat 
