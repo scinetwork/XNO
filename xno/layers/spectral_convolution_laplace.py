@@ -194,10 +194,10 @@ class SpectralConvLaplace1D(nn.Module):
         #     self.linspace_steps = x.shape[2:]
         self.linspace_steps = x.shape[2:]
             
-        dt_list, shape = _compute_dt(shape=self.linspace_steps, 
-                                     start_points=self.linspace_startpoints, 
-                                     end_points=self.linspace_endpoints
-                                     )
+        dt_list, shape = _compute_dt(
+            shape=self.linspace_steps, 
+            start_points=self.linspace_startpoints, end_points=self.linspace_endpoints
+        )
         
         t = shape[0]
         dt = dt_list[0]        

@@ -1,6 +1,7 @@
 neuraloperator/
 *.ipynb
 */.DS_Store
+*.mat 
 
 .vscode
 .idea/
