@@ -172,7 +172,7 @@ class SpectralConvWavelet1D(nn.Module):
         mode_data, _ = self.dwt_(dummy_data)
         self.modes1 = mode_data.shape[-1]
         
-        self.n_modes = (self.modes1)
+        self.n_modes = (self.modes1, )
         self.max_n_modes = self.n_modes
         
         self.order = self.n_modes
