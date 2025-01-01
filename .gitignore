@@ -10,6 +10,7 @@ toolbox/
 */.DS_Store
 *.pt
 *.pkl
+*.npz
 
 # Specific file ignore
 pytest.ini
