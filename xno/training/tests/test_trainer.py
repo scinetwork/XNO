@@ -10,7 +10,7 @@ from xno.data.datasets import load_darcy_flow_small
 
 from xno import Trainer, LpLoss, H1Loss
 from xno.tests.test_utils import DummyDataset, DummyModel
-from xno.training import IncrementalFNOTrainer, AdamW
+from xno.training import IncrementalXNOTrainer, AdamW
 
 def test_model_checkpoint_saves():
     save_pth = Path('./test_checkpoints')
@@ -194,7 +194,7 @@ def test_incremental():
         out_channels=1,
     )
     
-    trainer = IncrementalFNOTrainer(
+    trainer = IncrementalXNOTrainer(
         model=model,
         n_epochs=20,
         incremental_loss_gap=False,

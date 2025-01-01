@@ -9,8 +9,8 @@ from .trainer import Trainer
 from ..models import FNO, TFNO, XNO
 from ..utils import compute_explained_variance
 
-class IncrementalFNOTrainer(Trainer):
-    """IncrementalFNOTrainer subclasses the Trainer 
+class IncrementalXNOTrainer(Trainer):
+    """IncrementalXNOTrainer subclasses the Trainer 
     to implement specific logic for the Incremental-FNO
     as described in [1]_.
 
@@ -51,7 +51,7 @@ class IncrementalFNOTrainer(Trainer):
             # isinstance(self.model, LNO) or 
             # isinstance(self.model, WNO)
         ), f"Error: \
-            IncrementalFNOTrainer is designed to work with FNO, TFNO, HNO, LNO, WNO and XNO, instead got\
+            IncrementalXNOTrainer is designed to work with FNO, TFNO, HNO, LNO, WNO and XNO, instead got\
             a model of type {model.__class__.__name__}"
             
         self.block = self.model.get_blocks()
