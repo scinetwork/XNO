@@ -16,6 +16,7 @@ use_cases/data/
 *.npz
 *.npz
 *.tgz
+*.sh 
 
 # Specific file ignore
 pytest.ini
