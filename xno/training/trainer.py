@@ -389,7 +389,8 @@ class Trainer:
         first_batch = next(iter(data_loader))
         x_shape = first_batch["x"].shape[1:]  # Exclude batch dimension
         y_shape = first_batch["y"].shape[1:]
-        pred_shape = self.model(**first_batch).shape[1:]
+        # pred_shape = self.model(**first_batch).shape[1:]
+        pred_shape = y_shape
         # Tensor initialization for the outputs testing results
         if saving:
             x_tensor = torch.empty((dataset_size, *x_shape), device=self.device)
