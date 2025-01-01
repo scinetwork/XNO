@@ -3,11 +3,15 @@
 .idea/
 neuraloperator/
 toolbox/
+use_cases/save/
 
 # File type ignore
 *.mat 
 *.ipynb
 */.DS_Store
+*.pt
+*.npz
+*.tgz
 
 # Specific file ignore
 pytest.ini
