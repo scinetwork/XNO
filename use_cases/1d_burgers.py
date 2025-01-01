@@ -81,14 +81,26 @@ kwargs = {
     "wavelet_level": 6, 
     "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
 } if transformation.lower() == "wno" else {}
-conv_non_linearity = F.gelu
-mlp_non_linearity = F.gelu
+
+conv_non_linearity = None
+mlp_non_linearity = None
+
+match transformation.lower():
+    case "fno" | "hno":
+        conv_non_linearity = F.gelu
+        mlp_non_linearity = F.gelu
+    case "wno":
+        conv_non_linearity = F.mish
+        mlp_non_linearity = F.gelu
+    case "lno":
+        conv_non_linearity = torch.sin
+        mlp_non_linearity = F.gelu
 
 # AdamW (optimizer) 
 learning_rate = 1e-3
 weight_decay = 1e-4
 # CosineAnnealingLR (scheduler) 
-step_size = 50
+step_size = 100 if transformation.lower() == "lno" else 50
 gamma = 0.5
 
 # IncrementalDataProcessor (data_transform) 
@@ -96,10 +108,10 @@ dataset_resolution = dataset_resolution
 dataset_indices = [2]
 
 # IncrementalXNOTrainer (trainer) 
-n_epochs = 5 # 500
-save_every = 5
+n_epochs = 500 # 500
+save_every = 50
 save_testing = True
-save_dir = f"save/1d_lorenz/{transformation.lower()}/"
+save_dir = f"save/1d_burgers/{transformation.lower()}/"
 
 
 # In[6]:
