@@ -378,6 +378,7 @@ class Trainer:
                     warnings.warn(f"{eval_loss.reduction=}. This means that the loss is "
                                 "initialized to average across the batch dim. The Trainer "
                                 "expects losses to sum across the batch dim.")
+                    
         saving = return_output and self.save_testing
         # Determine dataset size from DataLoader
         dataset_size = len(data_loader.dataset)
@@ -416,7 +417,7 @@ class Trainer:
             
         
         if saving:
-            save_path = f"{self.save_dir}/test_results.pt"
+            save_path = f"{self.save_dir}/test_results_res_{log_prefix}.pt"
             torch.save(
                 {
                     "x": x_tensor,
