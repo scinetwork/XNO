@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
 from .shape_enforcer import ShapeEnforcer
+from .base_spectral_conv import BaseSpectralConv
 
 Number = Union[int, float]
 
@@ -60,7 +61,7 @@ def _compute_dt(
 # ====================================
 #  Laplace layer: pole-residue operation is used to calculate the poles and residues of the output
 # ====================================
-class SpectralConvLaplace1D(nn.Module):
+class SpectralConvLaplace1D(BaseSpectralConv):
     def __init__(
         self, 
         in_channels, 
@@ -85,7 +86,7 @@ class SpectralConvLaplace1D(nn.Module):
         linspace_endpoints=None, 
         
         ):
-        super(SpectralConvLaplace1D, self).__init__()
+        super(SpectralConvLaplace1D, self).__init__(device=device)
         
         
         self.linspace_steps = linspace_steps
@@ -111,7 +112,7 @@ class SpectralConvLaplace1D(nn.Module):
                 in_channels, 
                 out_channels, 
                 total_modes, 
-                dtype=torch.cfloat
+                dtype=torch.cfloat, 
                 )
         )
         
@@ -160,7 +161,7 @@ class SpectralConvLaplace1D(nn.Module):
         term1=torch.div(1,
                         torch.sub(lambda1,
                                   weights_pole
-                                  )
+                        )
                         )
 
         Hw=weights_residue*term1
@@ -200,10 +201,11 @@ class SpectralConvLaplace1D(nn.Module):
         )
         
         t = shape[0]
+        t = t.to(x.device)
         dt = dt_list[0]        
         
         alpha = torch.fft.fft(x, dim=-1)
-        lambda0=torch.fft.fftfreq(t.shape[0], dt)*2*np.pi*1j
+        lambda0=torch.fft.fftfreq(t.shape[0], dt, device=alpha.device)*2*np.pi*1j
         # lambda1=lambda0[:modes1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         lambda1=lambda0.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         
