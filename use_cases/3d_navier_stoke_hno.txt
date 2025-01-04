@@ -1,0 +1,1240 @@
+
+=== Data shape after importing from raw dataset ===
+
+X_Train Shape: torch.Size([1000, 64, 64, 10, 10])
+Y_Train Shape: torch.Size([1000, 64, 64, 10])
+X_Test Shape: torch.Size([200, 64, 64, 10, 10])
+Y_Test Shape: torch.Size([200, 64, 64, 10])
+
+=== Data shape after reshaping based on [Batch, Channel, D1, D2, ...] ===
+
+X_Train Shape: torch.Size([1000, 10, 10, 64, 64])
+Y_Train Shape: torch.Size([1000, 1, 10, 64, 64])
+X_Test Shape: torch.Size([200, 10, 10, 64, 64])
+Y_Test Shape: torch.Size([200, 1, 10, 64, 64])
+
+=== One batch of the Train Loader ===
+
+Loader Type: <class 'torch.utils.data.dataloader.DataLoader'>
+Batch Type: <class 'dict'>
+Batch['x'].shape: torch.Size([5, 10, 10, 64, 64])
+Batch['y'].shape: torch.Size([5, 1, 10, 64, 64])
+
+=== One batch of the Test Loader ===
+
+Loader Type: <class 'torch.utils.data.dataloader.DataLoader'>
+Batch Type: <class 'dict'>
+Batch['x'].shape: torch.Size([5, 10, 10, 64, 64])
+Batch['y'].shape: torch.Size([5, 1, 10, 64, 64])
+
+=== Device: cuda ===
+
+======== Selected Kernel Description =======
+Dimentionality: 3D
+Transformation: [ Hilbert Neural Operator (HNO) Kernel ]
+>>> Overview:
+The HNO applies Hilbert Transform, emphasizing the phase-shifted features of the input
+signal for enhanced data representation.
+
+>>> Key Features:
+- Focuses on phase information, useful in signal processing.
+- Suitable for scenarios requiring advanced spectral analysis.
+
+>>> Reference:
+This is an experimental implementation. Currently no formal reference.
+============================================
+
+================== Config ==================
+>>> Normaliztion: None
+>>> Activation Function: 
+============================================
+
+Original Incre Res: change index to 0
+Original Incre Res: change sub to 2
+Original Incre Res: change res to 32
+
+### N PARAMS ###
+ 13112941
+
+### OPTIMIZER ###
+ AdamW (
+Parameter Group 0
+    betas: (0.9, 0.999)
+    correct_bias: True
+    eps: 1e-06
+    initial_lr: 0.001
+    lr: 0.001
+    weight_decay: 0.0001
+)
+
+### SCHEDULER ###
+ <torch.optim.lr_scheduler.StepLR object at 0x7f87d0431070>
+
+### LOSSES ###
+
+### INCREMENTAL RESOLUTION + GRADIENT EXPLAINED ###
+
+ * Train: <xno.losses.data_losses.H1Loss object at 0x7f87d0084bc0>
+
+ * Test: {'h1': <xno.losses.data_losses.H1Loss object at 0x7f87d0084bc0>, 'l2': <xno.losses.data_losses.LpLoss object at 0x7f87da2d5b20>}
+Training on 1000 samples
+Testing on [200] samples         on resolutions [64].
+Raw outputs of shape torch.Size([5, 1, 5, 64, 64])
+[0] time=8.70, avg_loss=3.9593, train_err=19.7967
+Eval: 64_h1=17.5333, 64_l2=15.5777
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[1] time=7.51, avg_loss=3.4391, train_err=17.1954
+Eval: 64_h1=17.6907, 64_l2=14.6530
+[2] time=9.88, avg_loss=3.2176, train_err=16.0880
+Eval: 64_h1=18.8591, 64_l2=15.3082
+[3] time=7.47, avg_loss=3.0886, train_err=15.4430
+Eval: 64_h1=20.5595, 64_l2=15.8875
+[4] time=7.74, avg_loss=2.9912, train_err=14.9560
+Eval: 64_h1=22.6820, 64_l2=17.1537
+[5] time=7.37, avg_loss=2.9164, train_err=14.5821
+Eval: 64_h1=22.8297, 64_l2=16.6867
+[6] time=6.99, avg_loss=2.8617, train_err=14.3086
+Eval: 64_h1=23.7495, 64_l2=16.7726
+[7] time=6.92, avg_loss=2.8122, train_err=14.0612
+Eval: 64_h1=24.7598, 64_l2=17.2638
+[8] time=7.18, avg_loss=2.7731, train_err=13.8657
+Eval: 64_h1=24.5455, 64_l2=16.9527
+[9] time=7.43, avg_loss=2.7335, train_err=13.6677
+Eval: 64_h1=24.3138, 64_l2=16.5592
+Incre Res Update: change index to 1
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[10] time=9.81, avg_loss=8.0401, train_err=40.2004
+Eval: 64_h1=7.6687, 64_l2=5.4622
+[11] time=10.21, avg_loss=7.0403, train_err=35.2014
+Eval: 64_h1=7.2942, 64_l2=4.9065
+[12] time=10.09, avg_loss=6.7038, train_err=33.5192
+Eval: 64_h1=7.1544, 64_l2=4.8028
+[13] time=9.90, avg_loss=6.4543, train_err=32.2714
+Eval: 64_h1=6.9437, 64_l2=4.6308
+[14] time=9.91, avg_loss=6.2592, train_err=31.2959
+Eval: 64_h1=6.8863, 64_l2=4.6494
+[15] time=9.75, avg_loss=6.1217, train_err=30.6087
+Eval: 64_h1=6.6600, 64_l2=4.3921
+[16] time=9.80, avg_loss=5.9943, train_err=29.9714
+Eval: 64_h1=6.6368, 64_l2=4.5005
+[17] time=9.67, avg_loss=5.8870, train_err=29.4351
+Eval: 64_h1=6.5227, 64_l2=4.3709
+[18] time=10.34, avg_loss=5.8039, train_err=29.0193
+Eval: 64_h1=6.4758, 64_l2=4.3428
+[19] time=9.76, avg_loss=5.7256, train_err=28.6281
+Eval: 64_h1=6.4317, 64_l2=4.3415
+Incre Res Update: change index to 2
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[20] time=10.06, avg_loss=5.6545, train_err=28.2723
+Eval: 64_h1=6.3837, 64_l2=4.3057
+[21] time=10.24, avg_loss=5.5821, train_err=27.9104
+Eval: 64_h1=6.3931, 64_l2=4.3911
+[22] time=9.67, avg_loss=5.5282, train_err=27.6410
+Eval: 64_h1=6.2460, 64_l2=4.2510
+[23] time=9.84, avg_loss=5.4563, train_err=27.2813
+Eval: 64_h1=6.2951, 64_l2=4.2823
+[24] time=9.67, avg_loss=5.4220, train_err=27.1099
+Eval: 64_h1=6.2584, 64_l2=4.3059
+[25] time=9.88, avg_loss=5.3716, train_err=26.8580
+Eval: 64_h1=6.2611, 64_l2=4.3654
+[26] time=9.73, avg_loss=5.3245, train_err=26.6226
+Eval: 64_h1=6.1113, 64_l2=4.1856
+[27] time=9.77, avg_loss=5.3055, train_err=26.5276
+Eval: 64_h1=6.1791, 64_l2=4.3238
+[28] time=9.74, avg_loss=5.2513, train_err=26.2565
+Eval: 64_h1=6.0859, 64_l2=4.1131
+[29] time=9.84, avg_loss=5.2154, train_err=26.0770
+Eval: 64_h1=6.0689, 64_l2=4.1594
+Incre Res Update: change index to 3
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[30] time=9.80, avg_loss=5.1656, train_err=25.8281
+Eval: 64_h1=6.0028, 64_l2=4.0799
+[31] time=9.75, avg_loss=5.1443, train_err=25.7213
+Eval: 64_h1=6.0204, 64_l2=4.0751
+[32] time=9.64, avg_loss=5.1339, train_err=25.6696
+Eval: 64_h1=6.0079, 64_l2=4.1709
+[33] time=9.69, avg_loss=5.0987, train_err=25.4934
+Eval: 64_h1=6.0108, 64_l2=4.1928
+[34] time=9.83, avg_loss=5.0628, train_err=25.3140
+Eval: 64_h1=5.9514, 64_l2=4.0200
+[35] time=9.86, avg_loss=5.0312, train_err=25.1560
+Eval: 64_h1=5.9045, 64_l2=4.0260
+[36] time=9.86, avg_loss=4.9926, train_err=24.9631
+Eval: 64_h1=5.9706, 64_l2=4.1829
+[37] time=9.67, avg_loss=4.9804, train_err=24.9022
+Eval: 64_h1=5.9507, 64_l2=4.1638
+[38] time=9.88, avg_loss=4.9533, train_err=24.7664
+Eval: 64_h1=5.8710, 64_l2=4.0226
+[39] time=10.52, avg_loss=4.9499, train_err=24.7497
+Eval: 64_h1=5.8693, 64_l2=4.0431
+Incre Res Update: change index to 4
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[40] time=9.71, avg_loss=4.9176, train_err=24.5881
+Eval: 64_h1=5.9691, 64_l2=4.1300
+[41] time=10.06, avg_loss=4.9360, train_err=24.6798
+Eval: 64_h1=5.8529, 64_l2=3.9461
+[42] time=9.85, avg_loss=4.8858, train_err=24.4292
+Eval: 64_h1=5.8730, 64_l2=4.1191
+[43] time=9.85, avg_loss=4.8664, train_err=24.3322
+Eval: 64_h1=5.8678, 64_l2=4.0992
+[44] time=9.77, avg_loss=4.8348, train_err=24.1738
+Eval: 64_h1=5.8599, 64_l2=4.1523
+[45] time=9.91, avg_loss=4.8248, train_err=24.1239
+Eval: 64_h1=5.8041, 64_l2=3.9994
+[46] time=9.83, avg_loss=4.8149, train_err=24.0747
+Eval: 64_h1=5.8884, 64_l2=4.1136
+[47] time=9.77, avg_loss=4.7819, train_err=23.9096
+Eval: 64_h1=5.8152, 64_l2=4.0415
+[48] time=9.82, avg_loss=4.7807, train_err=23.9037
+Eval: 64_h1=5.7669, 64_l2=4.0089
+[49] time=9.91, avg_loss=4.7447, train_err=23.7233
+Eval: 64_h1=5.8064, 64_l2=4.0682
+Incre Res Update: change index to 5
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[50] time=9.81, avg_loss=4.7242, train_err=23.6210
+Eval: 64_h1=5.7160, 64_l2=3.9179
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[51] time=10.18, avg_loss=4.7135, train_err=23.5674
+Eval: 64_h1=5.8552, 64_l2=4.1653
+[52] time=9.65, avg_loss=4.7370, train_err=23.6848
+Eval: 64_h1=5.7916, 64_l2=4.0590
+[53] time=10.11, avg_loss=4.6980, train_err=23.4901
+Eval: 64_h1=5.8058, 64_l2=4.1172
+[54] time=9.95, avg_loss=4.6735, train_err=23.3674
+Eval: 64_h1=5.7114, 64_l2=3.9832
+[55] time=9.91, avg_loss=4.6896, train_err=23.4481
+Eval: 64_h1=5.7654, 64_l2=4.1033
+[56] time=9.66, avg_loss=4.6553, train_err=23.2763
+Eval: 64_h1=5.7486, 64_l2=3.9745
+[57] time=9.93, avg_loss=4.6473, train_err=23.2365
+Eval: 64_h1=5.7473, 64_l2=4.0867
+[58] time=9.80, avg_loss=4.6281, train_err=23.1405
+Eval: 64_h1=5.7683, 64_l2=4.0757
+[59] time=10.12, avg_loss=4.6144, train_err=23.0718
+Eval: 64_h1=5.7306, 64_l2=4.0937
+Incre Res Update: change index to 6
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[60] time=10.20, avg_loss=4.6228, train_err=23.1142
+Eval: 64_h1=5.6665, 64_l2=3.9399
+[61] time=9.96, avg_loss=4.6079, train_err=23.0393
+Eval: 64_h1=5.7288, 64_l2=4.0141
+[62] time=10.00, avg_loss=4.5814, train_err=22.9068
+Eval: 64_h1=5.6969, 64_l2=3.9614
+[63] time=10.00, avg_loss=4.5674, train_err=22.8368
+Eval: 64_h1=5.6822, 64_l2=3.9127
+[64] time=9.85, avg_loss=4.5713, train_err=22.8564
+Eval: 64_h1=5.6611, 64_l2=4.0228
+[65] time=9.85, avg_loss=4.5744, train_err=22.8720
+Eval: 64_h1=5.7169, 64_l2=4.0514
+[66] time=9.91, avg_loss=4.5333, train_err=22.6667
+Eval: 64_h1=5.6395, 64_l2=3.9259
+[67] time=9.66, avg_loss=4.5287, train_err=22.6434
+Eval: 64_h1=5.6534, 64_l2=4.0068
+[68] time=10.04, avg_loss=4.5187, train_err=22.5936
+Eval: 64_h1=5.6336, 64_l2=3.8896
+[69] time=9.63, avg_loss=4.5062, train_err=22.5308
+Eval: 64_h1=5.6506, 64_l2=4.0249
+Incre Res Update: change index to 7
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[70] time=9.90, avg_loss=4.5046, train_err=22.5230
+Eval: 64_h1=5.6255, 64_l2=3.8875
+[71] time=9.92, avg_loss=4.5156, train_err=22.5780
+Eval: 64_h1=5.6752, 64_l2=4.0483
+[72] time=10.02, avg_loss=4.5054, train_err=22.5269
+Eval: 64_h1=5.6376, 64_l2=4.0150
+[73] time=9.86, avg_loss=4.4704, train_err=22.3519
+Eval: 64_h1=5.6523, 64_l2=3.9490
+[74] time=10.16, avg_loss=4.4801, train_err=22.4003
+Eval: 64_h1=5.5863, 64_l2=3.8713
+[75] time=9.87, avg_loss=4.4885, train_err=22.4425
+Eval: 64_h1=5.6736, 64_l2=3.9909
+[76] time=9.81, avg_loss=4.4808, train_err=22.4042
+Eval: 64_h1=5.6819, 64_l2=4.0036
+[77] time=9.70, avg_loss=4.4481, train_err=22.2404
+Eval: 64_h1=5.5979, 64_l2=3.9398
+[78] time=9.83, avg_loss=4.4329, train_err=22.1644
+Eval: 64_h1=5.6782, 64_l2=4.0389
+[79] time=9.80, avg_loss=4.4480, train_err=22.2401
+Eval: 64_h1=5.6282, 64_l2=3.9467
+Incre Res Update: change index to 8
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[80] time=9.72, avg_loss=4.4388, train_err=22.1940
+Eval: 64_h1=5.6546, 64_l2=4.0428
+[81] time=9.72, avg_loss=4.3992, train_err=21.9962
+Eval: 64_h1=5.5921, 64_l2=3.9574
+[82] time=10.00, avg_loss=4.4155, train_err=22.0775
+Eval: 64_h1=5.6403, 64_l2=4.0321
+[83] time=9.69, avg_loss=4.3910, train_err=21.9552
+Eval: 64_h1=5.5231, 64_l2=3.8241
+[84] time=9.67, avg_loss=4.3912, train_err=21.9561
+Eval: 64_h1=5.5678, 64_l2=3.8950
+[85] time=9.87, avg_loss=4.3781, train_err=21.8905
+Eval: 64_h1=5.5619, 64_l2=3.8629
+[86] time=9.84, avg_loss=4.3765, train_err=21.8826
+Eval: 64_h1=5.5833, 64_l2=3.9303
+[87] time=9.76, avg_loss=4.3893, train_err=21.9463
+Eval: 64_h1=5.6054, 64_l2=3.9096
+[88] time=10.06, avg_loss=4.3705, train_err=21.8523
+Eval: 64_h1=5.5751, 64_l2=3.9240
+[89] time=9.76, avg_loss=4.3421, train_err=21.7106
+Eval: 64_h1=5.5494, 64_l2=3.8964
+Incre Res Update: change index to 9
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[90] time=9.86, avg_loss=4.3533, train_err=21.7666
+Eval: 64_h1=5.5305, 64_l2=3.8871
+[91] time=9.66, avg_loss=4.3708, train_err=21.8540
+Eval: 64_h1=5.5747, 64_l2=3.9796
+[92] time=9.81, avg_loss=4.3359, train_err=21.6794
+Eval: 64_h1=5.5781, 64_l2=3.9665
+[93] time=9.82, avg_loss=4.3408, train_err=21.7040
+Eval: 64_h1=5.5492, 64_l2=3.9420
+[94] time=9.66, avg_loss=4.3438, train_err=21.7189
+Eval: 64_h1=5.5765, 64_l2=4.0056
+[95] time=9.90, avg_loss=4.3266, train_err=21.6331
+Eval: 64_h1=5.5805, 64_l2=3.9817
+[96] time=9.91, avg_loss=4.3098, train_err=21.5488
+Eval: 64_h1=5.6028, 64_l2=3.9940
+[97] time=9.86, avg_loss=4.3065, train_err=21.5325
+Eval: 64_h1=5.5561, 64_l2=3.9284
+[98] time=9.90, avg_loss=4.2939, train_err=21.4696
+Eval: 64_h1=5.5025, 64_l2=3.8208
+[99] time=9.88, avg_loss=4.3048, train_err=21.5242
+Eval: 64_h1=5.5230, 64_l2=3.8928
+Incre Res Update: change index to 10
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[100] time=9.82, avg_loss=4.2033, train_err=21.0165
+Eval: 64_h1=5.4913, 64_l2=3.9124
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[101] time=10.31, avg_loss=4.1888, train_err=20.9441
+Eval: 64_h1=5.5029, 64_l2=3.9096
+[102] time=10.20, avg_loss=4.1823, train_err=20.9113
+Eval: 64_h1=5.5026, 64_l2=3.9047
+[103] time=10.23, avg_loss=4.1869, train_err=20.9346
+Eval: 64_h1=5.4707, 64_l2=3.8470
+[104] time=9.77, avg_loss=4.1783, train_err=20.8916
+Eval: 64_h1=5.5037, 64_l2=3.9064
+[105] time=10.23, avg_loss=4.1762, train_err=20.8808
+Eval: 64_h1=5.4750, 64_l2=3.8498
+[106] time=10.27, avg_loss=4.1748, train_err=20.8740
+Eval: 64_h1=5.5091, 64_l2=3.9260
+[107] time=9.71, avg_loss=4.1756, train_err=20.8782
+Eval: 64_h1=5.5132, 64_l2=3.9243
+[108] time=9.80, avg_loss=4.1738, train_err=20.8691
+Eval: 64_h1=5.4913, 64_l2=3.9022
+[109] time=9.83, avg_loss=4.1689, train_err=20.8447
+Eval: 64_h1=5.4849, 64_l2=3.9262
+Incre Res Update: change index to 11
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[110] time=10.02, avg_loss=4.1597, train_err=20.7983
+Eval: 64_h1=5.4628, 64_l2=3.8422
+[111] time=9.78, avg_loss=4.1564, train_err=20.7820
+Eval: 64_h1=5.4763, 64_l2=3.8992
+[112] time=9.92, avg_loss=4.1539, train_err=20.7694
+Eval: 64_h1=5.4926, 64_l2=3.8778
+[113] time=9.81, avg_loss=4.1484, train_err=20.7419
+Eval: 64_h1=5.4951, 64_l2=3.9132
+[114] time=9.92, avg_loss=4.1477, train_err=20.7386
+Eval: 64_h1=5.4741, 64_l2=3.8401
+[115] time=9.88, avg_loss=4.1442, train_err=20.7210
+Eval: 64_h1=5.4968, 64_l2=3.9472
+[116] time=9.77, avg_loss=4.1495, train_err=20.7476
+Eval: 64_h1=5.5038, 64_l2=3.8661
+[117] time=9.98, avg_loss=4.1433, train_err=20.7167
+Eval: 64_h1=5.4793, 64_l2=3.8850
+[118] time=9.63, avg_loss=4.1325, train_err=20.6623
+Eval: 64_h1=5.4395, 64_l2=3.8306
+[119] time=9.76, avg_loss=4.1261, train_err=20.6306
+Eval: 64_h1=5.4759, 64_l2=3.9181
+Incre Res Update: change index to 12
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[120] time=9.85, avg_loss=4.1215, train_err=20.6077
+Eval: 64_h1=5.4459, 64_l2=3.8396
+[121] time=9.67, avg_loss=4.1332, train_err=20.6661
+Eval: 64_h1=5.4781, 64_l2=3.8601
+[122] time=9.74, avg_loss=4.1210, train_err=20.6050
+Eval: 64_h1=5.4708, 64_l2=3.8809
+[123] time=9.79, avg_loss=4.1140, train_err=20.5702
+Eval: 64_h1=5.5113, 64_l2=3.9834
+[124] time=9.77, avg_loss=4.1101, train_err=20.5504
+Eval: 64_h1=5.4772, 64_l2=3.8747
+[125] time=9.89, avg_loss=4.1105, train_err=20.5527
+Eval: 64_h1=5.4646, 64_l2=3.8516
+[126] time=10.23, avg_loss=4.1020, train_err=20.5102
+Eval: 64_h1=5.4518, 64_l2=3.8518
+[127] time=10.08, avg_loss=4.1032, train_err=20.5159
+Eval: 64_h1=5.5459, 64_l2=3.9581
+[128] time=10.01, avg_loss=4.1022, train_err=20.5108
+Eval: 64_h1=5.4842, 64_l2=3.9158
+[129] time=10.11, avg_loss=4.0924, train_err=20.4619
+Eval: 64_h1=5.4709, 64_l2=3.8903
+Incre Res Update: change index to 13
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[130] time=9.81, avg_loss=4.0910, train_err=20.4549
+Eval: 64_h1=5.4711, 64_l2=3.9000
+[131] time=10.07, avg_loss=4.0836, train_err=20.4179
+Eval: 64_h1=5.4742, 64_l2=3.9193
+[132] time=9.83, avg_loss=4.0956, train_err=20.4779
+Eval: 64_h1=5.4500, 64_l2=3.8231
+[133] time=10.09, avg_loss=4.0823, train_err=20.4114
+Eval: 64_h1=5.4540, 64_l2=3.8446
+[134] time=10.10, avg_loss=4.0751, train_err=20.3756
+Eval: 64_h1=5.4652, 64_l2=3.8934
+[135] time=9.81, avg_loss=4.0754, train_err=20.3769
+Eval: 64_h1=5.4315, 64_l2=3.7915
+[136] time=10.09, avg_loss=4.0680, train_err=20.3401
+Eval: 64_h1=5.4862, 64_l2=3.9309
+[137] time=9.69, avg_loss=4.0684, train_err=20.3421
+Eval: 64_h1=5.4807, 64_l2=3.8901
+[138] time=9.90, avg_loss=4.0649, train_err=20.3246
+Eval: 64_h1=5.4686, 64_l2=3.8784
+[139] time=9.85, avg_loss=4.0744, train_err=20.3719
+Eval: 64_h1=5.4473, 64_l2=3.8745
+Incre Res Update: change index to 14
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[140] time=9.97, avg_loss=4.0755, train_err=20.3774
+Eval: 64_h1=5.4594, 64_l2=3.8813
+[141] time=9.73, avg_loss=4.0590, train_err=20.2952
+Eval: 64_h1=5.4892, 64_l2=3.8679
+[142] time=10.24, avg_loss=4.0547, train_err=20.2737
+Eval: 64_h1=5.4363, 64_l2=3.8224
+[143] time=9.66, avg_loss=4.0522, train_err=20.2610
+Eval: 64_h1=5.4369, 64_l2=3.8524
+[144] time=9.90, avg_loss=4.0493, train_err=20.2466
+Eval: 64_h1=5.4041, 64_l2=3.7924
+[145] time=9.73, avg_loss=4.0475, train_err=20.2376
+Eval: 64_h1=5.4279, 64_l2=3.8376
+[146] time=9.67, avg_loss=4.0440, train_err=20.2200
+Eval: 64_h1=5.4525, 64_l2=3.8719
+[147] time=9.88, avg_loss=4.0343, train_err=20.1716
+Eval: 64_h1=5.4246, 64_l2=3.8697
+[148] time=9.70, avg_loss=4.0376, train_err=20.1882
+Eval: 64_h1=5.4148, 64_l2=3.8297
+[149] time=9.67, avg_loss=4.0364, train_err=20.1820
+Eval: 64_h1=5.4684, 64_l2=3.8778
+Incre Res Update: change index to 15
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[150] time=9.89, avg_loss=4.0310, train_err=20.1548
+Eval: 64_h1=5.4306, 64_l2=3.8510
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[151] time=9.88, avg_loss=4.0416, train_err=20.2081
+Eval: 64_h1=5.4544, 64_l2=3.8621
+[152] time=9.81, avg_loss=4.0303, train_err=20.1516
+Eval: 64_h1=5.4332, 64_l2=3.8458
+[153] time=9.76, avg_loss=4.0304, train_err=20.1519
+Eval: 64_h1=5.4486, 64_l2=3.9018
+[154] time=9.68, avg_loss=4.0269, train_err=20.1344
+Eval: 64_h1=5.4505, 64_l2=3.9088
+[155] time=9.66, avg_loss=4.0142, train_err=20.0710
+Eval: 64_h1=5.4100, 64_l2=3.8094
+[156] time=10.01, avg_loss=4.0195, train_err=20.0976
+Eval: 64_h1=5.4665, 64_l2=3.9038
+[157] time=9.69, avg_loss=4.0185, train_err=20.0926
+Eval: 64_h1=5.4277, 64_l2=3.8274
+[158] time=9.91, avg_loss=4.0180, train_err=20.0898
+Eval: 64_h1=5.4432, 64_l2=3.8191
+[159] time=9.68, avg_loss=4.0126, train_err=20.0629
+Eval: 64_h1=5.4186, 64_l2=3.8717
+Incre Res Update: change index to 16
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[160] time=10.00, avg_loss=4.0025, train_err=20.0123
+Eval: 64_h1=5.3842, 64_l2=3.7919
+[161] time=9.96, avg_loss=4.0104, train_err=20.0521
+Eval: 64_h1=5.4180, 64_l2=3.8339
+[162] time=10.00, avg_loss=4.0000, train_err=19.9999
+Eval: 64_h1=5.4391, 64_l2=3.8544
+[163] time=10.21, avg_loss=3.9969, train_err=19.9847
+Eval: 64_h1=5.4398, 64_l2=3.8656
+[164] time=10.17, avg_loss=3.9984, train_err=19.9918
+Eval: 64_h1=5.4843, 64_l2=3.8960
+[165] time=9.78, avg_loss=3.9991, train_err=19.9956
+Eval: 64_h1=5.4213, 64_l2=3.8822
+[166] time=10.00, avg_loss=3.9851, train_err=19.9255
+Eval: 64_h1=5.4181, 64_l2=3.8556
+[167] time=9.73, avg_loss=3.9900, train_err=19.9502
+Eval: 64_h1=5.3807, 64_l2=3.7651
+[168] time=9.97, avg_loss=3.9926, train_err=19.9632
+Eval: 64_h1=5.4376, 64_l2=3.8492
+[169] time=9.66, avg_loss=3.9838, train_err=19.9189
+Eval: 64_h1=5.4342, 64_l2=3.8581
+Incre Res Update: change index to 17
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[170] time=10.09, avg_loss=3.9848, train_err=19.9240
+Eval: 64_h1=5.4186, 64_l2=3.8481
+[171] time=9.70, avg_loss=3.9757, train_err=19.8785
+Eval: 64_h1=5.4069, 64_l2=3.8323
+[172] time=9.89, avg_loss=3.9744, train_err=19.8722
+Eval: 64_h1=5.4159, 64_l2=3.8578
+[173] time=9.76, avg_loss=3.9696, train_err=19.8481
+Eval: 64_h1=5.3747, 64_l2=3.8126
+[174] time=9.79, avg_loss=3.9703, train_err=19.8513
+Eval: 64_h1=5.4336, 64_l2=3.8569
+[175] time=9.93, avg_loss=3.9762, train_err=19.8808
+Eval: 64_h1=5.3800, 64_l2=3.7500
+[176] time=9.68, avg_loss=3.9759, train_err=19.8794
+Eval: 64_h1=5.4616, 64_l2=3.9243
+[177] time=9.75, avg_loss=3.9714, train_err=19.8570
+Eval: 64_h1=5.4071, 64_l2=3.8502
+[178] time=10.28, avg_loss=3.9574, train_err=19.7869
+Eval: 64_h1=5.4154, 64_l2=3.8351
+[179] time=9.76, avg_loss=3.9593, train_err=19.7963
+Eval: 64_h1=5.4205, 64_l2=3.8457
+Incre Res Update: change index to 18
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[180] time=10.14, avg_loss=3.9670, train_err=19.8351
+Eval: 64_h1=5.4351, 64_l2=3.8583
+[181] time=9.94, avg_loss=3.9527, train_err=19.7633
+Eval: 64_h1=5.4342, 64_l2=3.8394
+[182] time=9.91, avg_loss=3.9514, train_err=19.7571
+Eval: 64_h1=5.4190, 64_l2=3.8403
+[183] time=9.75, avg_loss=3.9450, train_err=19.7249
+Eval: 64_h1=5.4212, 64_l2=3.8858
+[184] time=10.10, avg_loss=3.9487, train_err=19.7434
+Eval: 64_h1=5.3957, 64_l2=3.8594
+[185] time=10.02, avg_loss=3.9606, train_err=19.8028
+Eval: 64_h1=5.4245, 64_l2=3.9039
+[186] time=10.00, avg_loss=3.9433, train_err=19.7167
+Eval: 64_h1=5.3732, 64_l2=3.7664
+[187] time=9.74, avg_loss=3.9508, train_err=19.7540
+Eval: 64_h1=5.4593, 64_l2=3.9147
+[188] time=10.14, avg_loss=3.9506, train_err=19.7532
+Eval: 64_h1=5.3968, 64_l2=3.7866
+[189] time=10.02, avg_loss=3.9588, train_err=19.7938
+Eval: 64_h1=5.4210, 64_l2=3.8696
+Incre Res Update: change index to 19
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[190] time=9.69, avg_loss=3.9319, train_err=19.6597
+Eval: 64_h1=5.4483, 64_l2=3.8316
+[191] time=10.04, avg_loss=3.9232, train_err=19.6158
+Eval: 64_h1=5.4006, 64_l2=3.8341
+[192] time=9.85, avg_loss=3.9301, train_err=19.6505
+Eval: 64_h1=5.4154, 64_l2=3.8696
+[193] time=9.98, avg_loss=3.9259, train_err=19.6294
+Eval: 64_h1=5.4175, 64_l2=3.8710
+[194] time=9.92, avg_loss=3.9240, train_err=19.6198
+Eval: 64_h1=5.3902, 64_l2=3.8251
+[195] time=9.92, avg_loss=3.9164, train_err=19.5820
+Eval: 64_h1=5.3518, 64_l2=3.7469
+[196] time=9.76, avg_loss=3.9314, train_err=19.6571
+Eval: 64_h1=5.3634, 64_l2=3.7582
+[197] time=10.04, avg_loss=3.9223, train_err=19.6117
+Eval: 64_h1=5.3699, 64_l2=3.7889
+[198] time=9.66, avg_loss=3.9268, train_err=19.6341
+Eval: 64_h1=5.3710, 64_l2=3.7863
+[199] time=10.10, avg_loss=3.9331, train_err=19.6655
+Eval: 64_h1=5.4396, 64_l2=3.8705
+Incre Res Update: change index to 20
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[200] time=9.73, avg_loss=3.8772, train_err=19.3861
+Eval: 64_h1=5.3785, 64_l2=3.8234
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[201] time=10.03, avg_loss=3.8690, train_err=19.3448
+Eval: 64_h1=5.3786, 64_l2=3.8236
+[202] time=10.05, avg_loss=3.8687, train_err=19.3434
+Eval: 64_h1=5.3935, 64_l2=3.8409
+[203] time=10.06, avg_loss=3.8674, train_err=19.3371
+Eval: 64_h1=5.3607, 64_l2=3.7990
+[204] time=9.61, avg_loss=3.8674, train_err=19.3372
+Eval: 64_h1=5.3918, 64_l2=3.8578
+[205] time=9.82, avg_loss=3.8651, train_err=19.3255
+Eval: 64_h1=5.3538, 64_l2=3.7826
+[206] time=9.58, avg_loss=3.8660, train_err=19.3301
+Eval: 64_h1=5.3821, 64_l2=3.8417
+[207] time=9.95, avg_loss=3.8648, train_err=19.3240
+Eval: 64_h1=5.3805, 64_l2=3.8393
+[208] time=9.60, avg_loss=3.8643, train_err=19.3217
+Eval: 64_h1=5.3664, 64_l2=3.8019
+[209] time=10.07, avg_loss=3.8634, train_err=19.3172
+Eval: 64_h1=5.3695, 64_l2=3.8183
+Incre Res Update: change index to 21
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[210] time=9.98, avg_loss=3.8639, train_err=19.3195
+Eval: 64_h1=5.3682, 64_l2=3.8183
+[211] time=10.06, avg_loss=3.8625, train_err=19.3127
+Eval: 64_h1=5.3750, 64_l2=3.8314
+[212] time=9.95, avg_loss=3.8602, train_err=19.3008
+Eval: 64_h1=5.3979, 64_l2=3.8683
+[213] time=9.67, avg_loss=3.8566, train_err=19.2832
+Eval: 64_h1=5.3945, 64_l2=3.8303
+[214] time=10.01, avg_loss=3.8578, train_err=19.2892
+Eval: 64_h1=5.4011, 64_l2=3.8258
+[215] time=10.14, avg_loss=3.8558, train_err=19.2789
+Eval: 64_h1=5.3774, 64_l2=3.8221
+[216] time=10.19, avg_loss=3.8552, train_err=19.2761
+Eval: 64_h1=5.3746, 64_l2=3.8272
+[217] time=9.90, avg_loss=3.8526, train_err=19.2632
+Eval: 64_h1=5.3502, 64_l2=3.7950
+[218] time=9.97, avg_loss=3.8520, train_err=19.2601
+Eval: 64_h1=5.3684, 64_l2=3.8305
+[219] time=10.15, avg_loss=3.8515, train_err=19.2575
+Eval: 64_h1=5.3851, 64_l2=3.8469
+Incre Res Update: change index to 22
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[220] time=10.00, avg_loss=3.8531, train_err=19.2655
+Eval: 64_h1=5.3677, 64_l2=3.8225
+[221] time=9.90, avg_loss=3.8472, train_err=19.2360
+Eval: 64_h1=5.3691, 64_l2=3.8148
+[222] time=9.70, avg_loss=3.8464, train_err=19.2322
+Eval: 64_h1=5.3933, 64_l2=3.8734
+[223] time=9.83, avg_loss=3.8439, train_err=19.2197
+Eval: 64_h1=5.3529, 64_l2=3.7881
+[224] time=9.97, avg_loss=3.8464, train_err=19.2322
+Eval: 64_h1=5.3409, 64_l2=3.7694
+[225] time=9.60, avg_loss=3.8414, train_err=19.2071
+Eval: 64_h1=5.3655, 64_l2=3.8127
+[226] time=9.75, avg_loss=3.8404, train_err=19.2020
+Eval: 64_h1=5.3598, 64_l2=3.7977
+[227] time=9.81, avg_loss=3.8427, train_err=19.2137
+Eval: 64_h1=5.3946, 64_l2=3.8285
+[228] time=9.66, avg_loss=3.8397, train_err=19.1983
+Eval: 64_h1=5.3798, 64_l2=3.8192
+[229] time=9.70, avg_loss=3.8363, train_err=19.1815
+Eval: 64_h1=5.3438, 64_l2=3.7680
+Incre Res Update: change index to 23
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[230] time=10.08, avg_loss=3.8408, train_err=19.2042
+Eval: 64_h1=5.3929, 64_l2=3.8527
+[231] time=9.66, avg_loss=3.8358, train_err=19.1790
+Eval: 64_h1=5.3613, 64_l2=3.8267
+[232] time=9.85, avg_loss=3.8316, train_err=19.1578
+Eval: 64_h1=5.3790, 64_l2=3.8495
+[233] time=9.84, avg_loss=3.8313, train_err=19.1564
+Eval: 64_h1=5.3520, 64_l2=3.7692
+[234] time=9.55, avg_loss=3.8315, train_err=19.1576
+Eval: 64_h1=5.3552, 64_l2=3.7868
+[235] time=9.72, avg_loss=3.8298, train_err=19.1489
+Eval: 64_h1=5.3565, 64_l2=3.8069
+[236] time=9.62, avg_loss=3.8276, train_err=19.1380
+Eval: 64_h1=5.3594, 64_l2=3.8005
+[237] time=9.82, avg_loss=3.8254, train_err=19.1268
+Eval: 64_h1=5.3742, 64_l2=3.8269
+[238] time=9.65, avg_loss=3.8280, train_err=19.1400
+Eval: 64_h1=5.3316, 64_l2=3.7653
+[239] time=9.91, avg_loss=3.8245, train_err=19.1226
+Eval: 64_h1=5.3684, 64_l2=3.8017
+Incre Res Update: change index to 24
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[240] time=9.90, avg_loss=3.8233, train_err=19.1164
+Eval: 64_h1=5.3922, 64_l2=3.8394
+[241] time=9.73, avg_loss=3.8243, train_err=19.1213
+Eval: 64_h1=5.3797, 64_l2=3.8175
+[242] time=9.68, avg_loss=3.8211, train_err=19.1057
+Eval: 64_h1=5.3592, 64_l2=3.7890
+[243] time=9.76, avg_loss=3.8202, train_err=19.1010
+Eval: 64_h1=5.3940, 64_l2=3.8791
+[244] time=9.67, avg_loss=3.8218, train_err=19.1089
+Eval: 64_h1=5.3402, 64_l2=3.7913
+[245] time=9.55, avg_loss=3.8198, train_err=19.0990
+Eval: 64_h1=5.3751, 64_l2=3.8338
+[246] time=9.89, avg_loss=3.8183, train_err=19.0914
+Eval: 64_h1=5.3732, 64_l2=3.8133
+[247] time=10.18, avg_loss=3.8189, train_err=19.0946
+Eval: 64_h1=5.3514, 64_l2=3.7855
+[248] time=9.77, avg_loss=3.8137, train_err=19.0687
+Eval: 64_h1=5.3899, 64_l2=3.8377
+[249] time=9.91, avg_loss=3.8124, train_err=19.0618
+Eval: 64_h1=5.3679, 64_l2=3.8088
+Incre Res Update: change index to 25
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[250] time=9.64, avg_loss=3.8100, train_err=19.0499
+Eval: 64_h1=5.3607, 64_l2=3.8155
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[251] time=10.18, avg_loss=3.8149, train_err=19.0746
+Eval: 64_h1=5.3751, 64_l2=3.8436
+[252] time=10.18, avg_loss=3.8103, train_err=19.0516
+Eval: 64_h1=5.3253, 64_l2=3.7510
+[253] time=10.06, avg_loss=3.8075, train_err=19.0375
+Eval: 64_h1=5.3699, 64_l2=3.8301
+[254] time=10.08, avg_loss=3.8057, train_err=19.0287
+Eval: 64_h1=5.3429, 64_l2=3.7771
+[255] time=10.22, avg_loss=3.8050, train_err=19.0248
+Eval: 64_h1=5.3695, 64_l2=3.8283
+[256] time=10.13, avg_loss=3.8087, train_err=19.0436
+Eval: 64_h1=5.3735, 64_l2=3.8482
+[257] time=10.45, avg_loss=3.8058, train_err=19.0292
+Eval: 64_h1=5.3687, 64_l2=3.8230
+[258] time=10.09, avg_loss=3.8031, train_err=19.0153
+Eval: 64_h1=5.3526, 64_l2=3.8023
+[259] time=9.69, avg_loss=3.7994, train_err=18.9968
+Eval: 64_h1=5.3598, 64_l2=3.8158
+Incre Res Update: change index to 26
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[260] time=10.04, avg_loss=3.7998, train_err=18.9989
+Eval: 64_h1=5.3772, 64_l2=3.8422
+[261] time=9.63, avg_loss=3.7994, train_err=18.9968
+Eval: 64_h1=5.3421, 64_l2=3.7806
+[262] time=9.88, avg_loss=3.7963, train_err=18.9816
+Eval: 64_h1=5.3516, 64_l2=3.7759
+[263] time=9.86, avg_loss=3.7982, train_err=18.9909
+Eval: 64_h1=5.3591, 64_l2=3.7930
+[264] time=9.58, avg_loss=3.7981, train_err=18.9906
+Eval: 64_h1=5.3659, 64_l2=3.8180
+[265] time=9.84, avg_loss=3.7966, train_err=18.9831
+Eval: 64_h1=5.3651, 64_l2=3.8012
+[266] time=9.77, avg_loss=3.7934, train_err=18.9669
+Eval: 64_h1=5.3529, 64_l2=3.8069
+[267] time=9.89, avg_loss=3.7960, train_err=18.9801
+Eval: 64_h1=5.3350, 64_l2=3.7875
+[268] time=10.14, avg_loss=3.7901, train_err=18.9507
+Eval: 64_h1=5.3573, 64_l2=3.8301
+[269] time=9.59, avg_loss=3.7892, train_err=18.9461
+Eval: 64_h1=5.3579, 64_l2=3.8189
+Incre Res Update: change index to 27
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[270] time=9.78, avg_loss=3.7892, train_err=18.9461
+Eval: 64_h1=5.3586, 64_l2=3.8259
+[271] time=9.55, avg_loss=3.7886, train_err=18.9428
+Eval: 64_h1=5.3590, 64_l2=3.8299
+[272] time=9.55, avg_loss=3.7881, train_err=18.9404
+Eval: 64_h1=5.3504, 64_l2=3.7970
+[273] time=9.79, avg_loss=3.7881, train_err=18.9406
+Eval: 64_h1=5.3486, 64_l2=3.7876
+[274] time=9.99, avg_loss=3.7847, train_err=18.9235
+Eval: 64_h1=5.3682, 64_l2=3.8195
+[275] time=9.56, avg_loss=3.7875, train_err=18.9374
+Eval: 64_h1=5.3757, 64_l2=3.8298
+[276] time=9.66, avg_loss=3.7859, train_err=18.9297
+Eval: 64_h1=5.3826, 64_l2=3.8505
+[277] time=10.14, avg_loss=3.7828, train_err=18.9140
+Eval: 64_h1=5.3562, 64_l2=3.8079
+[278] time=10.18, avg_loss=3.7788, train_err=18.8941
+Eval: 64_h1=5.3386, 64_l2=3.7736
+[279] time=9.91, avg_loss=3.7786, train_err=18.8930
+Eval: 64_h1=5.3596, 64_l2=3.7962
+Incre Res Update: change index to 28
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[280] time=10.04, avg_loss=3.7787, train_err=18.8936
+Eval: 64_h1=5.3477, 64_l2=3.7725
+[281] time=9.66, avg_loss=3.7769, train_err=18.8847
+Eval: 64_h1=5.3628, 64_l2=3.8054
+[282] time=10.02, avg_loss=3.7760, train_err=18.8802
+Eval: 64_h1=5.3479, 64_l2=3.7943
+[283] time=9.54, avg_loss=3.7742, train_err=18.8711
+Eval: 64_h1=5.3437, 64_l2=3.8000
+[284] time=9.95, avg_loss=3.7741, train_err=18.8707
+Eval: 64_h1=5.3597, 64_l2=3.7989
+[285] time=9.96, avg_loss=3.7765, train_err=18.8826
+Eval: 64_h1=5.3620, 64_l2=3.8206
+[286] time=10.55, avg_loss=3.7740, train_err=18.8702
+Eval: 64_h1=5.3657, 64_l2=3.8525
+[287] time=9.86, avg_loss=3.7682, train_err=18.8411
+Eval: 64_h1=5.3603, 64_l2=3.8064
+[288] time=9.78, avg_loss=3.7676, train_err=18.8381
+Eval: 64_h1=5.3332, 64_l2=3.7718
+[289] time=9.86, avg_loss=3.7667, train_err=18.8335
+Eval: 64_h1=5.3695, 64_l2=3.8334
+Incre Res Update: change index to 29
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[290] time=10.06, avg_loss=3.7702, train_err=18.8510
+Eval: 64_h1=5.3334, 64_l2=3.7876
+[291] time=9.59, avg_loss=3.7692, train_err=18.8462
+Eval: 64_h1=5.3172, 64_l2=3.7301
+[292] time=9.65, avg_loss=3.7673, train_err=18.8367
+Eval: 64_h1=5.3687, 64_l2=3.8082
+[293] time=9.78, avg_loss=3.7662, train_err=18.8309
+Eval: 64_h1=5.3453, 64_l2=3.8314
+[294] time=9.87, avg_loss=3.7627, train_err=18.8137
+Eval: 64_h1=5.3564, 64_l2=3.8004
+[295] time=9.83, avg_loss=3.7607, train_err=18.8037
+Eval: 64_h1=5.3521, 64_l2=3.8056
+[296] time=10.04, avg_loss=3.7636, train_err=18.8180
+Eval: 64_h1=5.3588, 64_l2=3.8427
+[297] time=10.08, avg_loss=3.7609, train_err=18.8043
+Eval: 64_h1=5.3515, 64_l2=3.8068
+[298] time=9.85, avg_loss=3.7593, train_err=18.7964
+Eval: 64_h1=5.3347, 64_l2=3.7511
+[299] time=9.75, avg_loss=3.7601, train_err=18.8007
+Eval: 64_h1=5.3631, 64_l2=3.8362
+Incre Res Update: change index to 30
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[300] time=9.71, avg_loss=3.7402, train_err=18.7010
+Eval: 64_h1=5.3469, 64_l2=3.8105
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[301] time=9.68, avg_loss=3.7386, train_err=18.6932
+Eval: 64_h1=5.3557, 64_l2=3.8145
+[302] time=10.00, avg_loss=3.7381, train_err=18.6905
+Eval: 64_h1=5.3527, 64_l2=3.8180
+[303] time=9.90, avg_loss=3.7373, train_err=18.6865
+Eval: 64_h1=5.3451, 64_l2=3.8148
+[304] time=9.62, avg_loss=3.7373, train_err=18.6863
+Eval: 64_h1=5.3366, 64_l2=3.7820
+[305] time=9.75, avg_loss=3.7370, train_err=18.6849
+Eval: 64_h1=5.3470, 64_l2=3.8033
+[306] time=9.77, avg_loss=3.7357, train_err=18.6783
+Eval: 64_h1=5.3499, 64_l2=3.8054
+[307] time=10.04, avg_loss=3.7363, train_err=18.6813
+Eval: 64_h1=5.3402, 64_l2=3.7902
+[308] time=10.04, avg_loss=3.7363, train_err=18.6817
+Eval: 64_h1=5.3278, 64_l2=3.7707
+[309] time=9.77, avg_loss=3.7348, train_err=18.6742
+Eval: 64_h1=5.3370, 64_l2=3.7985
+Incre Res Update: change index to 31
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[310] time=9.86, avg_loss=3.7339, train_err=18.6694
+Eval: 64_h1=5.3413, 64_l2=3.7961
+[311] time=9.95, avg_loss=3.7340, train_err=18.6698
+Eval: 64_h1=5.3462, 64_l2=3.8052
+[312] time=9.93, avg_loss=3.7341, train_err=18.6703
+Eval: 64_h1=5.3482, 64_l2=3.8070
+[313] time=9.59, avg_loss=3.7330, train_err=18.6648
+Eval: 64_h1=5.3455, 64_l2=3.8117
+[314] time=10.08, avg_loss=3.7326, train_err=18.6628
+Eval: 64_h1=5.3597, 64_l2=3.8242
+[315] time=9.87, avg_loss=3.7317, train_err=18.6586
+Eval: 64_h1=5.3303, 64_l2=3.7781
+[316] time=9.71, avg_loss=3.7315, train_err=18.6575
+Eval: 64_h1=5.3579, 64_l2=3.8064
+[317] time=9.75, avg_loss=3.7317, train_err=18.6583
+Eval: 64_h1=5.3454, 64_l2=3.7950
+[318] time=9.90, avg_loss=3.7296, train_err=18.6481
+Eval: 64_h1=5.3351, 64_l2=3.7908
+[319] time=9.56, avg_loss=3.7294, train_err=18.6471
+Eval: 64_h1=5.3418, 64_l2=3.7946
+Incre Res Update: change index to 32
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[320] time=10.03, avg_loss=3.7292, train_err=18.6461
+Eval: 64_h1=5.3487, 64_l2=3.7986
+[321] time=10.15, avg_loss=3.7283, train_err=18.6417
+Eval: 64_h1=5.3510, 64_l2=3.8211
+[322] time=10.21, avg_loss=3.7280, train_err=18.6400
+Eval: 64_h1=5.3332, 64_l2=3.7776
+[323] time=9.83, avg_loss=3.7263, train_err=18.6317
+Eval: 64_h1=5.3273, 64_l2=3.7591
+[324] time=9.93, avg_loss=3.7269, train_err=18.6343
+Eval: 64_h1=5.3628, 64_l2=3.8223
+[325] time=9.96, avg_loss=3.7263, train_err=18.6315
+Eval: 64_h1=5.3384, 64_l2=3.7997
+[326] time=9.56, avg_loss=3.7241, train_err=18.6204
+Eval: 64_h1=5.3422, 64_l2=3.7874
+[327] time=9.55, avg_loss=3.7249, train_err=18.6245
+Eval: 64_h1=5.3372, 64_l2=3.8013
+[328] time=9.66, avg_loss=3.7237, train_err=18.6183
+Eval: 64_h1=5.3367, 64_l2=3.7788
+[329] time=10.04, avg_loss=3.7234, train_err=18.6168
+Eval: 64_h1=5.3302, 64_l2=3.7475
+Incre Res Update: change index to 33
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[330] time=9.54, avg_loss=3.7231, train_err=18.6156
+Eval: 64_h1=5.3449, 64_l2=3.7986
+[331] time=9.83, avg_loss=3.7226, train_err=18.6128
+Eval: 64_h1=5.3300, 64_l2=3.7860
+[332] time=9.63, avg_loss=3.7212, train_err=18.6061
+Eval: 64_h1=5.3462, 64_l2=3.7875
+[333] time=9.77, avg_loss=3.7219, train_err=18.6094
+Eval: 64_h1=5.3330, 64_l2=3.7952
+[334] time=9.68, avg_loss=3.7201, train_err=18.6007
+Eval: 64_h1=5.3401, 64_l2=3.7945
+[335] time=9.76, avg_loss=3.7196, train_err=18.5979
+Eval: 64_h1=5.3261, 64_l2=3.7890
+[336] time=9.68, avg_loss=3.7185, train_err=18.5927
+Eval: 64_h1=5.3418, 64_l2=3.8036
+[337] time=9.70, avg_loss=3.7177, train_err=18.5886
+Eval: 64_h1=5.3485, 64_l2=3.8255
+[338] time=9.85, avg_loss=3.7171, train_err=18.5856
+Eval: 64_h1=5.3398, 64_l2=3.8043
+[339] time=9.93, avg_loss=3.7180, train_err=18.5899
+Eval: 64_h1=5.3396, 64_l2=3.7856
+Incre Res Update: change index to 34
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[340] time=9.65, avg_loss=3.7161, train_err=18.5804
+Eval: 64_h1=5.3405, 64_l2=3.7991
+[341] time=10.14, avg_loss=3.7160, train_err=18.5800
+Eval: 64_h1=5.3338, 64_l2=3.7625
+[342] time=9.90, avg_loss=3.7153, train_err=18.5764
+Eval: 64_h1=5.3353, 64_l2=3.7772
+[343] time=9.97, avg_loss=3.7152, train_err=18.5760
+Eval: 64_h1=5.3541, 64_l2=3.8297
+[344] time=9.61, avg_loss=3.7145, train_err=18.5723
+Eval: 64_h1=5.3313, 64_l2=3.7777
+[345] time=9.91, avg_loss=3.7134, train_err=18.5669
+Eval: 64_h1=5.3257, 64_l2=3.7829
+[346] time=9.62, avg_loss=3.7130, train_err=18.5652
+Eval: 64_h1=5.3470, 64_l2=3.8063
+[347] time=9.53, avg_loss=3.7137, train_err=18.5683
+Eval: 64_h1=5.3350, 64_l2=3.7907
+[348] time=9.91, avg_loss=3.7128, train_err=18.5640
+Eval: 64_h1=5.3418, 64_l2=3.7928
+[349] time=9.93, avg_loss=3.7123, train_err=18.5614
+Eval: 64_h1=5.3113, 64_l2=3.7585
+Incre Res Update: change index to 35
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[350] time=9.57, avg_loss=3.7106, train_err=18.5530
+Eval: 64_h1=5.3330, 64_l2=3.7686
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[351] time=9.98, avg_loss=3.7096, train_err=18.5481
+Eval: 64_h1=5.3217, 64_l2=3.7470
+[352] time=9.58, avg_loss=3.7092, train_err=18.5460
+Eval: 64_h1=5.3350, 64_l2=3.7916
+[353] time=9.81, avg_loss=3.7093, train_err=18.5463
+Eval: 64_h1=5.3494, 64_l2=3.8273
+[354] time=9.59, avg_loss=3.7082, train_err=18.5410
+Eval: 64_h1=5.3309, 64_l2=3.7692
+[355] time=9.73, avg_loss=3.7081, train_err=18.5405
+Eval: 64_h1=5.3456, 64_l2=3.8081
+[356] time=9.63, avg_loss=3.7073, train_err=18.5364
+Eval: 64_h1=5.3407, 64_l2=3.8051
+[357] time=9.83, avg_loss=3.7069, train_err=18.5345
+Eval: 64_h1=5.3224, 64_l2=3.7790
+[358] time=9.64, avg_loss=3.7066, train_err=18.5329
+Eval: 64_h1=5.3292, 64_l2=3.7826
+[359] time=10.26, avg_loss=3.7062, train_err=18.5309
+Eval: 64_h1=5.3433, 64_l2=3.8048
+Incre Res Update: change index to 36
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[360] time=10.25, avg_loss=3.7052, train_err=18.5262
+Eval: 64_h1=5.3210, 64_l2=3.7519
+[361] time=9.86, avg_loss=3.7040, train_err=18.5200
+Eval: 64_h1=5.3263, 64_l2=3.7578
+[362] time=9.84, avg_loss=3.7034, train_err=18.5169
+Eval: 64_h1=5.3389, 64_l2=3.7845
+[363] time=10.04, avg_loss=3.7029, train_err=18.5143
+Eval: 64_h1=5.3369, 64_l2=3.7949
+[364] time=9.72, avg_loss=3.7023, train_err=18.5117
+Eval: 64_h1=5.3300, 64_l2=3.7613
+[365] time=9.96, avg_loss=3.7023, train_err=18.5117
+Eval: 64_h1=5.3446, 64_l2=3.8116
+[366] time=10.21, avg_loss=3.7022, train_err=18.5111
+Eval: 64_h1=5.3385, 64_l2=3.7971
+[367] time=9.97, avg_loss=3.7010, train_err=18.5048
+Eval: 64_h1=5.3347, 64_l2=3.8029
+[368] time=10.35, avg_loss=3.7005, train_err=18.5023
+Eval: 64_h1=5.3244, 64_l2=3.7625
+[369] time=10.14, avg_loss=3.6997, train_err=18.4983
+Eval: 64_h1=5.3365, 64_l2=3.7944
+Incre Res Update: change index to 37
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[370] time=9.76, avg_loss=3.6992, train_err=18.4958
+Eval: 64_h1=5.3322, 64_l2=3.7604
+[371] time=9.66, avg_loss=3.6991, train_err=18.4955
+Eval: 64_h1=5.3239, 64_l2=3.7856
+[372] time=9.83, avg_loss=3.6987, train_err=18.4937
+Eval: 64_h1=5.3268, 64_l2=3.7723
+[373] time=9.87, avg_loss=3.6985, train_err=18.4924
+Eval: 64_h1=5.3440, 64_l2=3.7905
+[374] time=9.64, avg_loss=3.6971, train_err=18.4857
+Eval: 64_h1=5.3353, 64_l2=3.7937
+[375] time=9.91, avg_loss=3.6966, train_err=18.4830
+Eval: 64_h1=5.3381, 64_l2=3.8135
+[376] time=9.89, avg_loss=3.6956, train_err=18.4780
+Eval: 64_h1=5.3536, 64_l2=3.8030
+[377] time=9.68, avg_loss=3.6948, train_err=18.4742
+Eval: 64_h1=5.3295, 64_l2=3.7891
+[378] time=9.79, avg_loss=3.6945, train_err=18.4725
+Eval: 64_h1=5.3211, 64_l2=3.7569
+[379] time=10.06, avg_loss=3.6937, train_err=18.4684
+Eval: 64_h1=5.3297, 64_l2=3.7903
+Incre Res Update: change index to 38
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[380] time=10.25, avg_loss=3.6942, train_err=18.4710
+Eval: 64_h1=5.3289, 64_l2=3.7838
+[381] time=9.57, avg_loss=3.6930, train_err=18.4651
+Eval: 64_h1=5.3307, 64_l2=3.7989
+[382] time=9.62, avg_loss=3.6931, train_err=18.4657
+Eval: 64_h1=5.3432, 64_l2=3.8112
+[383] time=9.93, avg_loss=3.6920, train_err=18.4602
+Eval: 64_h1=5.3207, 64_l2=3.7713
+[384] time=9.89, avg_loss=3.6915, train_err=18.4575
+Eval: 64_h1=5.3543, 64_l2=3.8325
+[385] time=10.03, avg_loss=3.6908, train_err=18.4538
+Eval: 64_h1=5.3442, 64_l2=3.7963
+[386] time=10.06, avg_loss=3.6909, train_err=18.4545
+Eval: 64_h1=5.3433, 64_l2=3.7938
+[387] time=9.57, avg_loss=3.6898, train_err=18.4488
+Eval: 64_h1=5.3410, 64_l2=3.8044
+[388] time=9.55, avg_loss=3.6888, train_err=18.4438
+Eval: 64_h1=5.3486, 64_l2=3.8099
+[389] time=9.94, avg_loss=3.6888, train_err=18.4438
+Eval: 64_h1=5.3271, 64_l2=3.7734
+Incre Res Update: change index to 39
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[390] time=9.89, avg_loss=3.6882, train_err=18.4410
+Eval: 64_h1=5.3299, 64_l2=3.7716
+[391] time=9.98, avg_loss=3.6874, train_err=18.4369
+Eval: 64_h1=5.3291, 64_l2=3.7811
+[392] time=10.05, avg_loss=3.6871, train_err=18.4354
+Eval: 64_h1=5.3295, 64_l2=3.7572
+[393] time=9.56, avg_loss=3.6858, train_err=18.4289
+Eval: 64_h1=5.3411, 64_l2=3.8045
+[394] time=9.68, avg_loss=3.6854, train_err=18.4268
+Eval: 64_h1=5.3359, 64_l2=3.7858
+[395] time=9.66, avg_loss=3.6858, train_err=18.4290
+Eval: 64_h1=5.3320, 64_l2=3.7744
+[396] time=9.56, avg_loss=3.6854, train_err=18.4270
+Eval: 64_h1=5.3284, 64_l2=3.7720
+[397] time=9.98, avg_loss=3.6845, train_err=18.4223
+Eval: 64_h1=5.3123, 64_l2=3.7539
+[398] time=9.84, avg_loss=3.6846, train_err=18.4231
+Eval: 64_h1=5.3421, 64_l2=3.8092
+[399] time=9.86, avg_loss=3.6837, train_err=18.4186
+Eval: 64_h1=5.3318, 64_l2=3.7876
+Incre Res Update: change index to 40
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[400] time=10.04, avg_loss=3.6750, train_err=18.3748
+Eval: 64_h1=5.3293, 64_l2=3.7842
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[401] time=9.76, avg_loss=3.6739, train_err=18.3696
+Eval: 64_h1=5.3241, 64_l2=3.7842
+[402] time=9.60, avg_loss=3.6734, train_err=18.3670
+Eval: 64_h1=5.3223, 64_l2=3.7824
+[403] time=9.78, avg_loss=3.6733, train_err=18.3664
+Eval: 64_h1=5.3228, 64_l2=3.7730
+[404] time=9.56, avg_loss=3.6731, train_err=18.3657
+Eval: 64_h1=5.3331, 64_l2=3.7927
+[405] time=9.59, avg_loss=3.6729, train_err=18.3644
+Eval: 64_h1=5.3267, 64_l2=3.7862
+[406] time=9.91, avg_loss=3.6726, train_err=18.3631
+Eval: 64_h1=5.3256, 64_l2=3.7750
+[407] time=9.56, avg_loss=3.6728, train_err=18.3642
+Eval: 64_h1=5.3236, 64_l2=3.7897
+[408] time=9.79, avg_loss=3.6722, train_err=18.3609
+Eval: 64_h1=5.3291, 64_l2=3.7950
+[409] time=9.94, avg_loss=3.6720, train_err=18.3601
+Eval: 64_h1=5.3213, 64_l2=3.7724
+Incre Res Update: change index to 41
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[410] time=10.00, avg_loss=3.6713, train_err=18.3565
+Eval: 64_h1=5.3397, 64_l2=3.7976
+[411] time=9.87, avg_loss=3.6712, train_err=18.3561
+Eval: 64_h1=5.3217, 64_l2=3.7640
+[412] time=9.61, avg_loss=3.6711, train_err=18.3555
+Eval: 64_h1=5.3135, 64_l2=3.7616
+[413] time=9.75, avg_loss=3.6710, train_err=18.3548
+Eval: 64_h1=5.3122, 64_l2=3.7634
+[414] time=9.64, avg_loss=3.6705, train_err=18.3526
+Eval: 64_h1=5.3065, 64_l2=3.7376
+[415] time=9.77, avg_loss=3.6705, train_err=18.3523
+Eval: 64_h1=5.3170, 64_l2=3.7683
+[416] time=9.62, avg_loss=3.6702, train_err=18.3509
+Eval: 64_h1=5.3427, 64_l2=3.8138
+[417] time=9.68, avg_loss=3.6695, train_err=18.3474
+Eval: 64_h1=5.3430, 64_l2=3.8160
+[418] time=9.56, avg_loss=3.6696, train_err=18.3478
+Eval: 64_h1=5.3330, 64_l2=3.7980
+[419] time=10.11, avg_loss=3.6692, train_err=18.3459
+Eval: 64_h1=5.3226, 64_l2=3.7736
+Incre Res Update: change index to 42
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[420] time=9.91, avg_loss=3.6688, train_err=18.3441
+Eval: 64_h1=5.3219, 64_l2=3.7602
+[421] time=9.74, avg_loss=3.6685, train_err=18.3425
+Eval: 64_h1=5.3267, 64_l2=3.7879
+[422] time=9.73, avg_loss=3.6683, train_err=18.3415
+Eval: 64_h1=5.3369, 64_l2=3.7907
+[423] time=11.60, avg_loss=3.6675, train_err=18.3374
+Eval: 64_h1=5.3249, 64_l2=3.7818
+[424] time=25.49, avg_loss=3.6674, train_err=18.3371
+Eval: 64_h1=5.3248, 64_l2=3.7745
+[425] time=27.18, avg_loss=3.6674, train_err=18.3368
+Eval: 64_h1=5.3242, 64_l2=3.7738
+[426] time=22.28, avg_loss=3.6670, train_err=18.3352
+Eval: 64_h1=5.3296, 64_l2=3.7776
+[427] time=9.88, avg_loss=3.6668, train_err=18.3339
+Eval: 64_h1=5.3198, 64_l2=3.7691
+[428] time=9.75, avg_loss=3.6664, train_err=18.3320
+Eval: 64_h1=5.3337, 64_l2=3.7880
+[429] time=9.63, avg_loss=3.6659, train_err=18.3293
+Eval: 64_h1=5.3335, 64_l2=3.7999
+Incre Res Update: change index to 43
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[430] time=9.68, avg_loss=3.6657, train_err=18.3286
+Eval: 64_h1=5.3181, 64_l2=3.7753
+[431] time=9.77, avg_loss=3.6654, train_err=18.3268
+Eval: 64_h1=5.3197, 64_l2=3.7737
+[432] time=9.72, avg_loss=3.6651, train_err=18.3257
+Eval: 64_h1=5.3150, 64_l2=3.7573
+[433] time=9.57, avg_loss=3.6648, train_err=18.3238
+Eval: 64_h1=5.3303, 64_l2=3.7997
+[434] time=9.58, avg_loss=3.6647, train_err=18.3236
+Eval: 64_h1=5.3272, 64_l2=3.7802
+[435] time=9.86, avg_loss=3.6642, train_err=18.3211
+Eval: 64_h1=5.3244, 64_l2=3.7826
+[436] time=9.78, avg_loss=3.6640, train_err=18.3202
+Eval: 64_h1=5.3235, 64_l2=3.7710
+[437] time=9.86, avg_loss=3.6637, train_err=18.3186
+Eval: 64_h1=5.3127, 64_l2=3.7552
+[438] time=9.79, avg_loss=3.6631, train_err=18.3154
+Eval: 64_h1=5.3240, 64_l2=3.7600
+[439] time=9.69, avg_loss=3.6628, train_err=18.3141
+Eval: 64_h1=5.3295, 64_l2=3.7917
+Incre Res Update: change index to 44
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[440] time=9.58, avg_loss=3.6625, train_err=18.3125
+Eval: 64_h1=5.3367, 64_l2=3.8091
+[441] time=9.79, avg_loss=3.6625, train_err=18.3127
+Eval: 64_h1=5.3301, 64_l2=3.7965
+[442] time=9.63, avg_loss=3.6622, train_err=18.3108
+Eval: 64_h1=5.3143, 64_l2=3.7677
+[443] time=9.41, avg_loss=3.6620, train_err=18.3098
+Eval: 64_h1=5.3367, 64_l2=3.7903
+[444] time=9.56, avg_loss=3.6618, train_err=18.3090
+Eval: 64_h1=5.3205, 64_l2=3.7661
+[445] time=9.83, avg_loss=3.6608, train_err=18.3042
+Eval: 64_h1=5.3314, 64_l2=3.7867
+[446] time=9.56, avg_loss=3.6608, train_err=18.3042
+Eval: 64_h1=5.3182, 64_l2=3.7731
+[447] time=9.89, avg_loss=3.6604, train_err=18.3021
+Eval: 64_h1=5.3170, 64_l2=3.7648
+[448] time=9.74, avg_loss=3.6602, train_err=18.3011
+Eval: 64_h1=5.3162, 64_l2=3.7511
+[449] time=9.82, avg_loss=3.6600, train_err=18.3000
+Eval: 64_h1=5.3247, 64_l2=3.7747
+Incre Res Update: change index to 45
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[450] time=9.79, avg_loss=3.6597, train_err=18.2987
+Eval: 64_h1=5.3384, 64_l2=3.8127
+[Rank 0]: saved training state to save/3d_navier_stoke/hno/
+[451] time=9.74, avg_loss=3.6596, train_err=18.2981
+Eval: 64_h1=5.3072, 64_l2=3.7468
+[452] time=9.61, avg_loss=3.6589, train_err=18.2946
+Eval: 64_h1=5.3316, 64_l2=3.7825
+[453] time=9.39, avg_loss=3.6586, train_err=18.2932
+Eval: 64_h1=5.3206, 64_l2=3.7719
+[454] time=9.75, avg_loss=3.6586, train_err=18.2932
+Eval: 64_h1=5.3348, 64_l2=3.7997
+[455] time=9.39, avg_loss=3.6582, train_err=18.2909
+Eval: 64_h1=5.3359, 64_l2=3.8009
+[456] time=9.40, avg_loss=3.6576, train_err=18.2878
+Eval: 64_h1=5.3280, 64_l2=3.7802
+[457] time=9.75, avg_loss=3.6576, train_err=18.2880
+Eval: 64_h1=5.3351, 64_l2=3.8050
+[458] time=9.65, avg_loss=3.6576, train_err=18.2880
+Eval: 64_h1=5.3213, 64_l2=3.7731
+[459] time=9.60, avg_loss=3.6570, train_err=18.2849
+Eval: 64_h1=5.3329, 64_l2=3.7965
+Incre Res Update: change index to 46
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[460] time=9.72, avg_loss=3.6564, train_err=18.2821
+Eval: 64_h1=5.3045, 64_l2=3.7315
+[461] time=9.55, avg_loss=3.6566, train_err=18.2830
+Eval: 64_h1=5.3292, 64_l2=3.7947
+[462] time=9.53, avg_loss=3.6559, train_err=18.2795
+Eval: 64_h1=5.3259, 64_l2=3.7923
+[463] time=9.52, avg_loss=3.6558, train_err=18.2791
+Eval: 64_h1=5.3237, 64_l2=3.7689
+[464] time=9.45, avg_loss=3.6556, train_err=18.2781
+Eval: 64_h1=5.3196, 64_l2=3.7582
+[465] time=9.66, avg_loss=3.6550, train_err=18.2750
+Eval: 64_h1=5.3294, 64_l2=3.7764
+[466] time=9.61, avg_loss=3.6552, train_err=18.2759
+Eval: 64_h1=5.3268, 64_l2=3.7936
+[467] time=9.42, avg_loss=3.6545, train_err=18.2724
+Eval: 64_h1=5.3231, 64_l2=3.7613
+[468] time=9.59, avg_loss=3.6541, train_err=18.2705
+Eval: 64_h1=5.3357, 64_l2=3.7845
+[469] time=9.34, avg_loss=3.6543, train_err=18.2713
+Eval: 64_h1=5.3258, 64_l2=3.7705
+Incre Res Update: change index to 47
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[470] time=9.60, avg_loss=3.6540, train_err=18.2700
+Eval: 64_h1=5.3155, 64_l2=3.7664
+[471] time=9.49, avg_loss=3.6533, train_err=18.2663
+Eval: 64_h1=5.3271, 64_l2=3.7865
+[472] time=9.47, avg_loss=3.6530, train_err=18.2652
+Eval: 64_h1=5.3306, 64_l2=3.7864
+[473] time=9.49, avg_loss=3.6532, train_err=18.2659
+Eval: 64_h1=5.3216, 64_l2=3.7706
+[474] time=9.35, avg_loss=3.6527, train_err=18.2636
+Eval: 64_h1=5.3234, 64_l2=3.7713
+[475] time=9.56, avg_loss=3.6525, train_err=18.2627
+Eval: 64_h1=5.3314, 64_l2=3.7845
+[476] time=9.36, avg_loss=3.6520, train_err=18.2598
+Eval: 64_h1=5.3327, 64_l2=3.7947
+[477] time=9.46, avg_loss=3.6517, train_err=18.2584
+Eval: 64_h1=5.3234, 64_l2=3.7783
+[478] time=9.41, avg_loss=3.6513, train_err=18.2566
+Eval: 64_h1=5.3209, 64_l2=3.7634
+[479] time=9.33, avg_loss=3.6510, train_err=18.2550
+Eval: 64_h1=5.3310, 64_l2=3.7849
+Incre Res Update: change index to 48
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[480] time=9.33, avg_loss=3.6512, train_err=18.2559
+Eval: 64_h1=5.3226, 64_l2=3.7768
+[481] time=9.36, avg_loss=3.6507, train_err=18.2535
+Eval: 64_h1=5.3248, 64_l2=3.7682
+[482] time=9.68, avg_loss=3.6501, train_err=18.2506
+Eval: 64_h1=5.3005, 64_l2=3.7296
+[483] time=9.43, avg_loss=3.6498, train_err=18.2488
+Eval: 64_h1=5.3167, 64_l2=3.7627
+[484] time=9.46, avg_loss=3.6497, train_err=18.2486
+Eval: 64_h1=5.3355, 64_l2=3.7928
+[485] time=9.53, avg_loss=3.6492, train_err=18.2459
+Eval: 64_h1=5.3152, 64_l2=3.7685
+[486] time=9.59, avg_loss=3.6494, train_err=18.2470
+Eval: 64_h1=5.3215, 64_l2=3.7769
+[487] time=9.60, avg_loss=3.6488, train_err=18.2442
+Eval: 64_h1=5.3229, 64_l2=3.7749
+[488] time=9.45, avg_loss=3.6486, train_err=18.2429
+Eval: 64_h1=5.3159, 64_l2=3.7603
+[489] time=9.49, avg_loss=3.6485, train_err=18.2426
+Eval: 64_h1=5.3359, 64_l2=3.7971
+Incre Res Update: change index to 49
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 64
+[490] time=9.50, avg_loss=3.6477, train_err=18.2387
+Eval: 64_h1=5.3142, 64_l2=3.7636
+[491] time=9.81, avg_loss=3.6477, train_err=18.2387
+Eval: 64_h1=5.3361, 64_l2=3.7914
+[492] time=10.35, avg_loss=3.6475, train_err=18.2376
+Eval: 64_h1=5.3227, 64_l2=3.7825
+[493] time=10.07, avg_loss=3.6471, train_err=18.2357
+Eval: 64_h1=5.3168, 64_l2=3.7712
+[494] time=10.33, avg_loss=3.6468, train_err=18.2338
+Eval: 64_h1=5.3233, 64_l2=3.7769
+[495] time=9.83, avg_loss=3.6466, train_err=18.2328
+Eval: 64_h1=5.3119, 64_l2=3.7479
+[496] time=9.77, avg_loss=3.6461, train_err=18.2303
+Eval: 64_h1=5.3285, 64_l2=3.7827
+[497] time=9.52, avg_loss=3.6459, train_err=18.2297
+Eval: 64_h1=5.3165, 64_l2=3.7629
+[498] time=9.88, avg_loss=3.6456, train_err=18.2282
+Eval: 64_h1=5.3330, 64_l2=3.7897
+[499] time=9.39, avg_loss=3.6455, train_err=18.2276
+Eval: 64_h1=5.3112, 64_l2=3.7465
+{'train_err': 18.227578654289246, 'avg_loss': 3.645515730857849, 'avg_lasso_loss': None, 'epoch_train_time': 9.394676460884511, '64_h1': tensor(5.3112, device='cuda:0'), '64_l2': tensor(3.7465, device='cuda:0')}

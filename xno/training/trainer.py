@@ -216,7 +216,7 @@ class Trainer:
             return_output = False
             # Decide about saving evaluation data on each ever_ epoch
             if self.save_every is not None and self.save_testing:
-                if epoch % self.save_every == 0:
+                if epoch % self.save_every == 0 or epoch == self.n_epochs - 1:
                     return_output = True
             
             if epoch % self.eval_interval == 0:
@@ -389,7 +389,8 @@ class Trainer:
         first_batch = next(iter(data_loader))
         x_shape = first_batch["x"].shape[1:]  # Exclude batch dimension
         y_shape = first_batch["y"].shape[1:]
-        pred_shape = self.model(**first_batch).shape[1:]
+        # pred_shape = self.model(**first_batch).shape[1:]
+        pred_shape = y_shape
         # Tensor initialization for the outputs testing results
         if saving:
             x_tensor = torch.empty((dataset_size, *x_shape), device=self.device)

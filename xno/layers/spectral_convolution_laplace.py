@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
 from .shape_enforcer import ShapeEnforcer
+from .base_spectral_conv import BaseSpectralConv
 
 Number = Union[int, float]
 
@@ -60,7 +61,7 @@ def _compute_dt(
 # ====================================
 #  Laplace layer: pole-residue operation is used to calculate the poles and residues of the output
 # ====================================
-class SpectralConvLaplace1D(nn.Module):
+class SpectralConvLaplace1D(BaseSpectralConv):
     def __init__(
         self, 
         in_channels, 
@@ -85,7 +86,7 @@ class SpectralConvLaplace1D(nn.Module):
         linspace_endpoints=None, 
         
         ):
-        super(SpectralConvLaplace1D, self).__init__()
+        super(SpectralConvLaplace1D, self).__init__(device=device)
         
         
         self.linspace_steps = linspace_steps
@@ -111,7 +112,7 @@ class SpectralConvLaplace1D(nn.Module):
                 in_channels, 
                 out_channels, 
                 total_modes, 
-                dtype=torch.cfloat
+                dtype=torch.cfloat, 
                 )
         )
         
@@ -160,7 +161,7 @@ class SpectralConvLaplace1D(nn.Module):
         term1=torch.div(1,
                         torch.sub(lambda1,
                                   weights_pole
-                                  )
+                        )
                         )
 
         Hw=weights_residue*term1
@@ -200,10 +201,11 @@ class SpectralConvLaplace1D(nn.Module):
         )
         
         t = shape[0]
+        t = t.to(x.device)
         dt = dt_list[0]        
         
         alpha = torch.fft.fft(x, dim=-1)
-        lambda0=torch.fft.fftfreq(t.shape[0], dt)*2*np.pi*1j
+        lambda0=torch.fft.fftfreq(t.shape[0], dt, device=alpha.device)*2*np.pi*1j
         # lambda1=lambda0[:modes1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         lambda1=lambda0.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         
@@ -257,7 +259,7 @@ class SpectralConvLaplace1D(nn.Module):
         return x
 
 
-class SpectralConvLaplace2D(nn.Module):
+class SpectralConvLaplace2D(BaseSpectralConv):
     def __init__(
         self, 
         in_channels, 
@@ -282,7 +284,7 @@ class SpectralConvLaplace2D(nn.Module):
         linspace_endpoints=None
         ):
         
-        super(SpectralConvLaplace2D, self).__init__()
+        super(SpectralConvLaplace2D, self).__init__(device=device)
         
         self.linspace_steps = linspace_steps
         self.linspace_startpoints = linspace_startpoints
@@ -406,14 +408,16 @@ class SpectralConvLaplace2D(nn.Module):
 
         ty = shape[0]
         tx = shape[1]
+        ty = ty.to(x.device)
+        tx = tx.to(x.device)
         dty = dt_list[0]
         dtx = dt_list[1]
                 
         alpha = torch.fft.fft2(x, dim=[-2, -1])
 
         # Compute frequency grids
-        omega1 = torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j
-        omega2 = torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j
+        omega1 = torch.fft.fftfreq(ty.shape[0], dty, device=alpha.device)*2*np.pi*1j
+        omega2 = torch.fft.fftfreq(tx.shape[0], dtx, device=alpha.device)*2*np.pi*1j
 
         # Slice frequencies to match the chosen modes
         # omega1 = omega1[:modes1]
@@ -479,7 +483,7 @@ class SpectralConvLaplace2D(nn.Module):
             
         return x
 
-class SpectralConvLaplace3D(nn.Module):
+class SpectralConvLaplace3D(BaseSpectralConv):
     def __init__(
         self, 
         in_channels, 
@@ -503,7 +507,7 @@ class SpectralConvLaplace3D(nn.Module):
         linspace_startpoints=None, 
         linspace_endpoints=None
         ):
-        super(SpectralConvLaplace3D, self).__init__()
+        super(SpectralConvLaplace3D, self).__init__(device=device)
         
         self.linspace_steps = linspace_steps
         self.linspace_startpoints = linspace_startpoints
@@ -625,6 +629,9 @@ class SpectralConvLaplace3D(nn.Module):
         tz = shape[0]
         tx = shape[1]
         ty = shape[2]
+        tz = tz.to(x.device)
+        tx = tx.to(x.device)
+        ty = ty.to(x.device)
         # #Compute input poles and resudes by FFT
         dtz = dt_list[0] # this can be time dimension, instead of Z dimension
         dtx = dt_list[1]
@@ -633,9 +640,9 @@ class SpectralConvLaplace3D(nn.Module):
         alpha = torch.fft.fftn(x, dim=[-3,-2,-1])
         
         # Frequency grids
-        omega1=torch.fft.fftfreq(tz.shape[0], dtz)*2*np.pi*1j   
-        omega2=torch.fft.fftfreq(tx.shape[0], dtx)*2*np.pi*1j   
-        omega3=torch.fft.fftfreq(ty.shape[0], dty)*2*np.pi*1j   
+        omega1=torch.fft.fftfreq(tz.shape[0], dtz, device=alpha.device)*2*np.pi*1j   
+        omega2=torch.fft.fftfreq(tx.shape[0], dtx, device=alpha.device)*2*np.pi*1j   
+        omega3=torch.fft.fftfreq(ty.shape[0], dty, device=alpha.device)*2*np.pi*1j   
         
         # Slice frequencies to match the chosen modes
         omega1 = omega1[:modes1]

@@ -4,6 +4,8 @@
 neuraloperator/
 toolbox/
 use_cases/save/
+use_cases/data/
+
 
 # File type ignore
 *.mat 
@@ -14,6 +16,7 @@ use_cases/save/
 *.npz
 *.npz
 *.tgz
+*.sh 
 
 # Specific file ignore
 pytest.ini
