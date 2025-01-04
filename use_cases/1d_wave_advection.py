@@ -2,8 +2,6 @@
 # coding: utf-8
 
 # In[1]:
-
-
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 import torch.nn.functional as F
@@ -11,10 +9,9 @@ import matplotlib.pyplot as plt
 import sys
 from utils import MatReader
 from pathlib import Path
-
+import numpy as np
 
 # In[2]:
-
 import sys
 import os
 sys.path.append(os.path.abspath(".."))
@@ -27,10 +24,7 @@ from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
 
-
 # In[3]:
-
-
 # Define the custom Dataset
 class DictDataset(Dataset):
     def __init__(self, x, y):
@@ -43,7 +37,6 @@ class DictDataset(Dataset):
     def __getitem__(self, idx):
         return {'x': self.x[idx], 'y': self.y[idx]}
 
-
 # # Loading Burgers 1D dataset
 
 # ## Settings
@@ -52,22 +45,21 @@ class DictDataset(Dataset):
 
 # In[4]:
 
-
-ntrain = 1000
+ntrain = 900
 ntest = 100
-sub = 2**3 #subsampling rate
-h = 2**13 // sub #total grid size divided by the subsampling rate
-s = h
 
-
+h = 40           # total grid size divided by the subsampling rate
+grid_range = 1
+in_channel = 2   # (a(x), x) for this case
 # ### Model and Trainer Settings
 
 # In[5]:
 
 
-data_path = 'data/burgers_data_R10.mat'
+data_path = 'data/1d_wave_advection.npz'
+data_name = '1d_wave_advection'
 batch_size = 20
-dataset_resolution = 1024
+dataset_resolution = 40
 
 # XNO (model) 
 max_modes = (16, )
@@ -75,10 +67,10 @@ n_modes = (16, )
 in_channels = 1
 out_channels = 1
 n_layers = 4
-hidden_channels = 64
+hidden_channels = 96
 transformation = "lno"
 kwargs = {
-    "wavelet_level": 6, 
+    "wavelet_level": 3, 
     "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
 } if transformation.lower() == "wno" else {}
 
@@ -90,11 +82,11 @@ match transformation.lower():
         conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "wno":
-        conv_non_linearity = F.mish
+        conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "lno":
         conv_non_linearity = torch.sin
-        mlp_non_linearity = F.gelu
+        mlp_non_linearity = torch.tanh
 
 # AdamW (optimizer) 
 learning_rate = 1e-3
@@ -111,24 +103,33 @@ dataset_indices = [2]
 n_epochs = 500 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/1d_burgers/{transformation.lower()}/"
+save_dir = f"save/{data_name}/{transformation.lower()}/"
+
+
+# Open the file at the start of the script
+output_file = open(f"{data_name}_{transformation.lower()}.txt", "w")
+sys.stdout = output_file  # Redirect stdout to the file
 
 
 # In[6]:
 
+# Data is of the shape (number of samples, grid size)
+data = np.load(data_path)
+x, t, u_train = data["x"], data["t"], data["u"]  # N x nt x nx
 
-dataloader = MatReader(data_path)
-x_data = dataloader.read_field('a')[:,::sub]
-y_data = dataloader.read_field('u')[:,::sub]
+x_data = u_train[:, 0, :]  # N x nx, initial solution
+y_data = u_train[:, -2, :]  # N x nx, final solution
+
+x_data = torch.tensor(x_data)
+y_data = torch.tensor(y_data)
 
 x_train = x_data[:ntrain,:]
 y_train = y_data[:ntrain,:]
 x_test = x_data[-ntest:,:]
 y_test = y_data[-ntest:,:]
 
-x_train = x_train.reshape(ntrain,s,1)
-x_test = x_test.reshape(ntest,s,1)
-
+x_train = x_train[:, :, None]
+x_test = x_test[:, :, None]
 
 # In[ ]:
 
@@ -252,7 +253,7 @@ data_transform = data_transform.to(device)
 # In[ ]:
 
 
-l2loss = LpLoss(d=2, p=2)
+l2loss = LpLoss(d=2, p=2,)
 h1loss = H1Loss(d=2)
 train_loss = h1loss
 eval_losses = {"h1": h1loss, "l2": l2loss}
@@ -304,4 +305,9 @@ mess = trainer.train(
 
 print(mess)
 
+# %%
+
+# At the end of the script
+sys.stdout = sys.__stdout__  # Restore original stdout
+output_file.close()  # Close the file
 # %%

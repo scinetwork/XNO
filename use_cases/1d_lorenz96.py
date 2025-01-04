@@ -2,8 +2,6 @@
 # coding: utf-8
 
 # In[1]:
-
-
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 import torch.nn.functional as F
@@ -11,10 +9,9 @@ import matplotlib.pyplot as plt
 import sys
 from utils import MatReader
 from pathlib import Path
-
+import numpy as np
 
 # In[2]:
-
 import sys
 import os
 sys.path.append(os.path.abspath(".."))
@@ -27,10 +24,7 @@ from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
 
-
 # In[3]:
-
-
 # Define the custom Dataset
 class DictDataset(Dataset):
     def __init__(self, x, y):
@@ -43,7 +37,6 @@ class DictDataset(Dataset):
     def __getitem__(self, idx):
         return {'x': self.x[idx], 'y': self.y[idx]}
 
-
 # # Loading Burgers 1D dataset
 
 # ## Settings
@@ -52,22 +45,20 @@ class DictDataset(Dataset):
 
 # In[4]:
 
-
-ntrain = 1000
-ntest = 100
-sub = 2**3 #subsampling rate
-h = 2**13 // sub #total grid size divided by the subsampling rate
-s = h
-
+ntrain = 1600
+ntest = 400
 
 # ### Model and Trainer Settings
 
 # In[5]:
 
 
-data_path = 'data/burgers_data_R10.mat'
-batch_size = 20
-dataset_resolution = 1024
+data_path = 'data/1d_lorenz96.mat'
+data_name = '1d_lorenz96'
+time_step_mode = "s"
+
+batch_size = 16
+dataset_resolution = 40
 
 # XNO (model) 
 max_modes = (16, )
@@ -75,10 +66,10 @@ n_modes = (16, )
 in_channels = 1
 out_channels = 1
 n_layers = 4
-hidden_channels = 64
-transformation = "lno"
+hidden_channels = 32
+transformation = "hno"
 kwargs = {
-    "wavelet_level": 6, 
+    "wavelet_level": 3, 
     "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
 } if transformation.lower() == "wno" else {}
 
@@ -90,11 +81,11 @@ match transformation.lower():
         conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "wno":
-        conv_non_linearity = F.mish
+        conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "lno":
         conv_non_linearity = torch.sin
-        mlp_non_linearity = F.gelu
+        mlp_non_linearity = torch.tanh
 
 # AdamW (optimizer) 
 learning_rate = 1e-3
@@ -111,23 +102,47 @@ dataset_indices = [2]
 n_epochs = 500 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/1d_burgers/{transformation.lower()}/"
+save_dir = f"save/{data_name}/{transformation.lower()}/"
+
+
+# Open the file at the start of the script
+output_file = open(f"{data_name}_{transformation.lower()}.txt", "w")
+sys.stdout = output_file  # Redirect stdout to the file
 
 
 # In[6]:
 
+# 1) Load dataset
+reader = MatReader(data_path)
+X = reader.read_field("X")  # shape [T, D], e.g. [2001, 40]
 
-dataloader = MatReader(data_path)
-x_data = dataloader.read_field('a')[:,::sub]
-y_data = dataloader.read_field('u')[:,::sub]
+# 2) Next-step: (X[t], X[t+1]) pairs
+x_ns = X[:-1]    # all but last
+y_ns = X[1:]     # all but first
 
-x_train = x_data[:ntrain,:]
-y_train = y_data[:ntrain,:]
-x_test = x_data[-ntest:,:]
-y_test = y_data[-ntest:,:]
+# 3) Multi-step example: window=5 in, horizon=10 out
+window, horizon = 5, 10
+X_in, X_out = [], []
+for i in range(len(X) - window - horizon + 1):
+    X_in.append(X[i : i + window])
+    X_out.append(X[i + window : i + window + horizon])
+X_in = np.array(X_in)   # shape [N, window, D]
+X_out = np.array(X_out) # shape [N, horizon, D]
 
-x_train = x_train.reshape(ntrain,s,1)
-x_test = x_test.reshape(ntest,s,1)
+# 4) Simple train/test split (80/20) for both tasks
+if time_step_mode == 's':
+    print('Step mode is: Single')
+    split = ntrain
+    x_train, x_test = x_ns[:split], x_ns[split:]
+    y_train, y_test = y_ns[:split], y_ns[split:]
+else:
+    print('Step mode is: Multiple')
+    split = int(0.8 * len(X_in))
+    x_train, x_test = X_in[:split], X_in[split:]
+    y_train, y_test = X_out[:split], X_out[split:]
+
+# 5) Print shapes to verify
+print("Sshapes:", x_train.shape, y_train.shape, x_test.shape, y_test.shape)
 
 
 # In[ ]:
@@ -143,9 +158,11 @@ print(f"Y_Test Shape: {y_test.shape}")
 # In[8]:
 
 
-x_train = x_train.permute(0, 2, 1)
+# x_train = x_train.permute(0, 2, 1)
+x_train = x_train.unsqueeze(1)
 y_train = y_train.unsqueeze(1)
-x_test = x_test.permute(0, 2, 1)
+# x_test = x_test.permute(0, 2, 1)
+x_test = x_test.unsqueeze(1)
 y_test = y_test.unsqueeze(1)
 
 
@@ -252,7 +269,7 @@ data_transform = data_transform.to(device)
 # In[ ]:
 
 
-l2loss = LpLoss(d=2, p=2)
+l2loss = LpLoss(d=2, p=2,)
 h1loss = H1Loss(d=2)
 train_loss = h1loss
 eval_losses = {"h1": h1loss, "l2": l2loss}
@@ -304,4 +321,9 @@ mess = trainer.train(
 
 print(mess)
 
+# %%
+
+# At the end of the script
+sys.stdout = sys.__stdout__  # Restore original stdout
+output_file.close()  # Close the file
 # %%

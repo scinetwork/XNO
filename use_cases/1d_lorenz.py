@@ -2,8 +2,6 @@
 # coding: utf-8
 
 # In[1]:
-
-
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 import torch.nn.functional as F
@@ -12,9 +10,7 @@ import sys
 from utils import MatReader
 from pathlib import Path
 
-
 # In[2]:
-
 import sys
 import os
 sys.path.append(os.path.abspath(".."))
@@ -27,10 +23,7 @@ from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
 
-
 # In[3]:
-
-
 # Define the custom Dataset
 class DictDataset(Dataset):
     def __init__(self, x, y):
@@ -43,7 +36,6 @@ class DictDataset(Dataset):
     def __getitem__(self, idx):
         return {'x': self.x[idx], 'y': self.y[idx]}
 
-
 # # Loading Burgers 1D dataset
 
 # ## Settings
@@ -52,34 +44,29 @@ class DictDataset(Dataset):
 
 # In[4]:
 
-
-ntrain = 1000
-ntest = 100
-sub = 2**3 #subsampling rate
-h = 2**13 // sub #total grid size divided by the subsampling rate
-s = h
-
+s = 2048
 
 # ### Model and Trainer Settings
 
 # In[5]:
 
 
-data_path = 'data/burgers_data_R10.mat'
-batch_size = 20
-dataset_resolution = 1024
+data_path = 'data/1D_Lorenz_rho10.mat'
+data_name = '1d_lorenz'
+batch_size = 10
+dataset_resolution = 2048
 
 # XNO (model) 
-max_modes = (16, )
-n_modes = (16, )
+max_modes = (84, )
+n_modes = (84, )
 in_channels = 1
 out_channels = 1
 n_layers = 4
-hidden_channels = 64
-transformation = "lno"
+hidden_channels = 4
+transformation = "wno"
 kwargs = {
-    "wavelet_level": 6, 
-    "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
+    "wavelet_level": 3, 
+    "wavelet_size": [dataset_resolution], "wavelet_filter": ['db4']
 } if transformation.lower() == "wno" else {}
 
 conv_non_linearity = None
@@ -94,10 +81,10 @@ match transformation.lower():
         mlp_non_linearity = F.gelu
     case "lno":
         conv_non_linearity = torch.sin
-        mlp_non_linearity = F.gelu
+        mlp_non_linearity = torch.tanh
 
 # AdamW (optimizer) 
-learning_rate = 1e-3
+learning_rate = 2e-3
 weight_decay = 1e-4
 # CosineAnnealingLR (scheduler) 
 step_size = 100 if transformation.lower() == "lno" else 50
@@ -111,23 +98,27 @@ dataset_indices = [2]
 n_epochs = 500 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/1d_burgers/{transformation.lower()}/"
+save_dir = f"save/{data_name}/{transformation.lower()}/"
+
+
+# Open the file at the start of the script
+output_file = open(f"{data_name}_{transformation.lower()}.txt", "w")
+sys.stdout = output_file  # Redirect stdout to the file
 
 
 # In[6]:
 
+reader = MatReader(data_path)
+x_train = reader.read_field('f_train')
+y_train = reader.read_field('u_train')
+grid_x_train = reader.read_field('x_train')
 
-dataloader = MatReader(data_path)
-x_data = dataloader.read_field('a')[:,::sub]
-y_data = dataloader.read_field('u')[:,::sub]
+x_test = reader.read_field('f_vali')
+y_test = reader.read_field('u_vali')
+grid_x_test = reader.read_field('x_vali')
 
-x_train = x_data[:ntrain,:]
-y_train = y_data[:ntrain,:]
-x_test = x_data[-ntest:,:]
-y_test = y_data[-ntest:,:]
-
-x_train = x_train.reshape(ntrain,s,1)
-x_test = x_test.reshape(ntest,s,1)
+x_train = x_train.reshape(x_train.shape[0],s,1)
+x_test = x_test.reshape(x_test.shape[0],s,1)
 
 
 # In[ ]:
@@ -252,7 +243,7 @@ data_transform = data_transform.to(device)
 # In[ ]:
 
 
-l2loss = LpLoss(d=2, p=2)
+l2loss = LpLoss(d=2, p=2,)
 h1loss = H1Loss(d=2)
 train_loss = h1loss
 eval_losses = {"h1": h1loss, "l2": l2loss}
@@ -305,3 +296,7 @@ mess = trainer.train(
 print(mess)
 
 # %%
+
+# At the end of the script
+sys.stdout = sys.__stdout__  # Restore original stdout
+output_file.close()  # Close the file

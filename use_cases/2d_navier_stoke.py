@@ -2,8 +2,6 @@
 # coding: utf-8
 
 # In[1]:
-
-
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 import torch.nn.functional as F
@@ -11,10 +9,9 @@ import matplotlib.pyplot as plt
 import sys
 from utils import MatReader
 from pathlib import Path
-
+import numpy as np
 
 # In[2]:
-
 import sys
 import os
 sys.path.append(os.path.abspath(".."))
@@ -22,15 +19,13 @@ sys.path.append(os.path.abspath(".."))
 from xno.models import XNO
 from xno.data.datasets import Burgers1dTimeDataset
 from xno.utils import count_model_params
+from xno.data.datasets import load_navier_stokes_pt
 from xno.training import AdamW
 from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
 
-
 # In[3]:
-
-
 # Define the custom Dataset
 class DictDataset(Dataset):
     def __init__(self, x, y):
@@ -43,7 +38,6 @@ class DictDataset(Dataset):
     def __getitem__(self, idx):
         return {'x': self.x[idx], 'y': self.y[idx]}
 
-
 # # Loading Burgers 1D dataset
 
 # ## Settings
@@ -53,33 +47,27 @@ class DictDataset(Dataset):
 # In[4]:
 
 
-ntrain = 1000
-ntest = 100
-sub = 2**3 #subsampling rate
-h = 2**13 // sub #total grid size divided by the subsampling rate
-s = h
-
-
 # ### Model and Trainer Settings
 
 # In[5]:
 
 
-data_path = 'data/burgers_data_R10.mat'
-batch_size = 20
-dataset_resolution = 1024
+data_path = ''
+data_name = '2d_navier_stoke'
+batch_size = 8
+dataset_resolution = 128
 
 # XNO (model) 
-max_modes = (16, )
-n_modes = (16, )
+max_modes = (8, 8)
+n_modes = (8, 8)
 in_channels = 1
 out_channels = 1
 n_layers = 4
-hidden_channels = 64
-transformation = "lno"
+hidden_channels = 8
+transformation = "wno"
 kwargs = {
-    "wavelet_level": 6, 
-    "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
+    "wavelet_level": 3, 
+    "wavelet_size": [dataset_resolution, dataset_resolution], "wavelet_filter": ['db4']
 } if transformation.lower() == "wno" else {}
 
 conv_non_linearity = None
@@ -90,94 +78,64 @@ match transformation.lower():
         conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "wno":
-        conv_non_linearity = F.mish
+        conv_non_linearity = F.gelu
         mlp_non_linearity = F.gelu
     case "lno":
         conv_non_linearity = torch.sin
-        mlp_non_linearity = F.gelu
+        mlp_non_linearity = torch.tanh
 
 # AdamW (optimizer) 
-learning_rate = 1e-3
+learning_rate = 8e-3
 weight_decay = 1e-4
 # CosineAnnealingLR (scheduler) 
-step_size = 100 if transformation.lower() == "lno" else 50
-gamma = 0.5
+# step_size = 100 if transformation.lower() == "lno" else 50
+# gamma = 0.5
+T_max = 30
 
 # IncrementalDataProcessor (data_transform) 
 dataset_resolution = dataset_resolution
-dataset_indices = [2]
+dataset_indices = [2, 3]
 
 # IncrementalXNOTrainer (trainer) 
 n_epochs = 500 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/1d_burgers/{transformation.lower()}/"
+save_dir = f"save/{data_name}/{transformation.lower()}/"
+
+
+# Open the file at the start of the script
+output_file = open(f"{data_name}_{transformation.lower()}.txt", "w")
+sys.stdout = output_file  # Redirect stdout to the file
 
 
 # In[6]:
 
-
-dataloader = MatReader(data_path)
-x_data = dataloader.read_field('a')[:,::sub]
-y_data = dataloader.read_field('u')[:,::sub]
-
-x_train = x_data[:ntrain,:]
-y_train = y_data[:ntrain,:]
-x_test = x_data[-ntest:,:]
-y_test = y_data[-ntest:,:]
-
-x_train = x_train.reshape(ntrain,s,1)
-x_test = x_test.reshape(ntest,s,1)
-
+# Data is of the shape (number of samples, grid size)
+train_loader, test_loader, output_encoder = load_navier_stokes_pt(
+    n_train=200,
+    batch_size=batch_size,
+    test_resolutions=[128],
+    n_tests=[100,50],
+    test_batch_sizes=[16, 16],
+)
 
 # In[ ]:
-
-
-print("\n=== Data shape after importing from raw dataset ===\n")
-print(f"X_Train Shape: {x_train.shape}")
-print(f"Y_Train Shape: {y_train.shape}")
-print(f"X_Test Shape: {x_test.shape}")
-print(f"Y_Test Shape: {y_test.shape}")
 
 
 # In[8]:
 
 
-x_train = x_train.permute(0, 2, 1)
-y_train = y_train.unsqueeze(1)
-x_test = x_test.permute(0, 2, 1)
-y_test = y_test.unsqueeze(1)
-
-
 # In[ ]:
-
-
-print("\n=== Data shape after reshaping based on [Batch, Channel, D1, D2, ...] ===\n")
-print(f"X_Train Shape: {x_train.shape}")
-print(f"Y_Train Shape: {y_train.shape}")
-print(f"X_Test Shape: {x_test.shape}")
-print(f"Y_Test Shape: {y_test.shape}")
 
 
 # In[10]:
 
 
-train_loader = DictDataset(x_train, y_train)
-test_loader = DictDataset(x_test, y_test)
-
-
 # In[11]:
 
 
-train_loader = DataLoader(train_loader, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_loader, batch_size=batch_size, shuffle=True)
-test_loader = {
-    dataset_resolution: test_loader
-}
-
 
 # In[ ]:
-
 
 print("\n=== One batch of the Train Loader ===\n")
 batch = next(iter(train_loader))
@@ -212,7 +170,8 @@ model = XNO(
     transformation_kwargs=kwargs,
     conv_non_linearity=conv_non_linearity, 
     mlp_non_linearity=mlp_non_linearity,
-    n_layers=n_layers
+    n_layers=n_layers,
+    norm="group_norm"
 )
 model = model.to(device)
 n_params = count_model_params(model)
@@ -226,12 +185,10 @@ optimizer = AdamW(
     lr=learning_rate, 
     weight_decay=weight_decay
 )
-scheduler = torch.optim.lr_scheduler.StepLR(
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, 
-    step_size=step_size, # default=30
-    gamma=gamma # default=0.1
+    T_max=T_max
 )
-
 
 # In[ ]:
 
@@ -252,7 +209,7 @@ data_transform = data_transform.to(device)
 # In[ ]:
 
 
-l2loss = LpLoss(d=2, p=2)
+l2loss = LpLoss(d=2, p=2,)
 h1loss = H1Loss(d=2)
 train_loss = h1loss
 eval_losses = {"h1": h1loss, "l2": l2loss}
@@ -304,4 +261,9 @@ mess = trainer.train(
 
 print(mess)
 
+# %%
+
+# At the end of the script
+sys.stdout = sys.__stdout__  # Restore original stdout
+output_file.close()  # Close the file
 # %%
