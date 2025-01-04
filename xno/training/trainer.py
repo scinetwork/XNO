@@ -216,7 +216,7 @@ class Trainer:
             return_output = False
             # Decide about saving evaluation data on each ever_ epoch
             if self.save_every is not None and self.save_testing:
-                if epoch % self.save_every == 0:
+                if epoch % self.save_every == 0 or epoch == self.n_epochs - 1:
                     return_output = True
             
             if epoch % self.eval_interval == 0:
