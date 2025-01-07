@@ -169,7 +169,15 @@ class XYNO(BaseModel, name='XYNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
-        transformation: str="FNO",
+        
+        
+        # transformation: str="FNO",
+        mix_mode: str='parallel',
+        parallel_kernels: List=['fno'], 
+        pure_kernels_order: List=['fno', 'fno', 'fno', 'fno'],
+        
+        
+        
         transformation_kwargs: dict=None,
         n_layers: int=4,
         lifting_channel_ratio: int=2,
@@ -212,8 +220,11 @@ class XYNO(BaseModel, name='XYNO'):
         self.out_channels = out_channels
         self.n_layers = n_layers
 
-        # Define the kernel transformaiton 
-        self.transformation = transformation
+        # Define the kernel formation
+        self.mix_mode = mix_mode
+        self.parallel_kernels_list = [item.lower() for item in parallel_kernels]
+        self.pure_kernels_order = [item.lower() for item in pure_kernels_order]
+        self.kernels = []        
         self.transformation_kwargs = transformation_kwargs
 
         # init lifting and projection channels using ratios w.r.t hidden channels
@@ -236,6 +247,21 @@ class XYNO(BaseModel, name='XYNO'):
         self.preactivation = preactivation
         self.complex_data = complex_data
         self.xno_block_precision = xno_block_precision
+        
+        
+        acceptable_kernels = ['hno', 'fno', 'lno', 'wno']
+        
+        if mix_mode == 'parallel':
+            valid = all(item in acceptable_kernels for item in parallel_kernels)
+            if not valid: 
+                raise ValueError(f'In XYNO parallel method, accepted kernels are fno, hno, lno, and wno. Carefully select these kernel identifier for parallelization in convolution layer. ')
+        elif mix_mode == 'pure':
+            valid = all(item in acceptable_kernels for item in pure_kernels_order)
+            if not valid: 
+                raise ValueError(f'In XYNO pure method, accepted kernels are fno, hno, lno, and wno. Carefully select and order these kernel identifiers for ordering convolutional layers. ')
+        else:
+            raise ValueError(f'In XYNO method, you need to specify mixing mehod weather parallel or pure. Just these 2 values are acceptable for mix_mode.')
+        
         
         if positional_embedding == "grid":
             spatial_grid_boundaries = [[0., 1.]] * self.n_dim
