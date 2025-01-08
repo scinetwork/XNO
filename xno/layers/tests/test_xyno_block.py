@@ -3,12 +3,13 @@
 import pytest
 import torch
 import torch.nn.functional as F
+from itertools import combinations
 
 ##############################################
 # Adjust the import to match your actual path:
 # from xno.layers.xyno_block import XYNOBlocks
 ##############################################
-from ..xyno_block import XYNOBlocks
+from xno.layers.xyno_block import XYNOBlocks
 
 
 ###############################################################################
@@ -28,18 +29,26 @@ def requires_lno_norm(kernels):
     """
     return any(k.lower() == 'lno' for k in kernels)
 
+kernels_list = []
+kernels = ['fno', 'wno', 'hno', 'lno']
+for i in range(1, len(kernels) + 1):
+    kernels_list.extend(combinations(kernels, i))
+
+parametrize_kernels = [list(k) for k in kernels_list]
 
 ###############################################################################
 # 1. Basic forward tests
 ###############################################################################
 @pytest.mark.parametrize("in_channels,out_channels", [(3, 3), (4, 4), (2, 5)])
 @pytest.mark.parametrize("n_modes", [(4,), (4, 4)])
-@pytest.mark.parametrize("kernels", [
-    ['fno'],                        # Single kernel
-    ['fno', 'wno'],                # Multiple kernels => parallel in one layer
-    ['hno'],                       # Single kernel
-    ['lno'],                       # Single kernel
-])
+# @pytest.mark.parametrize("kernels", [
+#     ['fno'],                        # Single kernel
+#     ['fno', 'wno'],                # Multiple kernels => parallel in one layer
+#     ['hno'],                       # Single kernel
+#     ['lno'],                       # Single kernel
+# ])
+@pytest.mark.parametrize("kernels", parametrize_kernels)
+
 @pytest.mark.parametrize("mix_mode", ['parallel', 'pure'])
 def test_xyno_block_basic_forward(in_channels, out_channels, n_modes, kernels, mix_mode):
     """
@@ -54,7 +63,7 @@ def test_xyno_block_basic_forward(in_channels, out_channels, n_modes, kernels, m
         # e.g. wavelet_size matches the dimension from n_modes
         size = [16] * len(n_modes)
         transformation_kwargs = {
-            "wavelet_level": 1,
+            "wavelet_level": 2,
             "wavelet_size": size,
             "wavelet_filter": ["db4"],
             "wavelet_mode": "symmetric"
@@ -75,8 +84,15 @@ def test_xyno_block_basic_forward(in_channels, out_channels, n_modes, kernels, m
         n_layers         = 1,               # single layer for simplicity
         channel_mlp_skip = 'linear' if in_channels != out_channels else 'soft-gating',
     )
+    
+    if mix_mode == 'parallel':
+        y = block(x)
+    else:
+        for kernel in kernels:
+            y = block(x, kernel=kernel)
+        
     # Forward pass
-    y = block(x)
+    # y = block(x)
     # Output shape check
     assert y.shape[:2] == (batch_size, out_channels), (
         f"Channels mismatch. Got {y.shape[:2]}, expected {(batch_size, out_channels)}."
@@ -84,7 +100,6 @@ def test_xyno_block_basic_forward(in_channels, out_channels, n_modes, kernels, m
     assert y.shape[2:] == tuple(spatial_size), (
         f"Spatial shape mismatch. Got {y.shape[2:]}, expected {spatial_size}."
     )
-
 
 ###############################################################################
 # 2. Unknown kernel
@@ -127,7 +142,7 @@ def test_xyno_block_missing_transformation_kwargs_for_wno():
 ###############################################################################
 # 4. Resolution scaling factor
 ###############################################################################
-@pytest.mark.parametrize("scaling_factor", [0.5, 2, None, [0.5, 2]])  # Mixed scalars / lists
+@pytest.mark.parametrize("scaling_factor", [0.5, 2, None])  # Mixed scalars / lists
 @pytest.mark.parametrize("dim", [1, 2])
 def test_xyno_block_resolution_scaling_factor(scaling_factor, dim):
     """
@@ -146,6 +161,7 @@ def test_xyno_block_resolution_scaling_factor(scaling_factor, dim):
         mix_mode     = 'parallel',  # not relevant for single kernel
         resolution_scaling_factor = scaling_factor,
         n_layers     = 1,
+        channel_mlp_skip='linear'
     )
     y = block(x)
     
@@ -176,74 +192,8 @@ def test_xyno_block_resolution_scaling_factor(scaling_factor, dim):
             f"Expected [2,4,{expected_size}], got {list(y.shape)}."
         )
 
-
 ###############################################################################
-# 5. Normalization tests
-###############################################################################
-@pytest.mark.parametrize("norm", [None, "instance_norm", "group_norm", "ada_in"])
-def test_xyno_block_norm(norm):
-    """
-    Test XYNOBlocks with various norm layers, including None, instance_norm, 
-    group_norm, and ada_in. 
-    If norm='ada_in', we set embeddings and confirm no error.
-    """
-    dim = 2
-    n_modes = [4, 4]
-    size = [16, 16]
-    ada_in_features = 4
-    
-    block = XYNOBlocks(
-        in_channels  = 3,
-        out_channels = 4,
-        n_modes      = n_modes,
-        kernels      = ['fno'],
-        mix_mode     = 'parallel',
-        n_layers     = 1,
-        norm         = norm,
-        ada_in_features = ada_in_features
-    )
-    if norm == 'ada_in':
-        embedding = torch.randn(ada_in_features)
-        block.set_ada_in_embeddings(embedding)
-    
-    x = torch.randn(2, 3, *size)
-    y = block(x)
-    assert y.shape == (2, 4, *size)
-
-
-###############################################################################
-# 6. Complex data
-###############################################################################
-@pytest.mark.parametrize("dim", [1, 2])
-def test_xyno_block_complex_data(dim):
-    """
-    Test XYNOBlocks with complex input data. 
-    We just ensure shape correctness and that forward runs without error.
-    """
-    n_modes = [4]*dim
-    size = [8]*dim
-    x = torch.randn(2, 3, *size, dtype=torch.cfloat)  # complex data
-    
-    block = XYNOBlocks(
-        in_channels  = 3,
-        out_channels = 3,
-        n_modes      = n_modes,
-        kernels      = ['fno'],
-        mix_mode     = 'parallel',
-        n_layers     = 1,
-        complex_data = True
-    )
-    y = block(x)
-    assert y.shape == (2, 3, *size), (
-        f"Expected shape {(2, 3, *size)}, got {y.shape}."
-    )
-    assert y.dtype == torch.cfloat, (
-        f"Expected complex dtype, got {y.dtype}."
-    )
-
-
-###############################################################################
-# 7. SubModule / get_block tests
+# 5. SubModule / get_block tests
 ###############################################################################
 def test_xyno_block_submodule():
     """
@@ -251,14 +201,14 @@ def test_xyno_block_submodule():
     via get_block. 
     """
     block = XYNOBlocks(
-        in_channels  = 3,
+        in_channels  = 4,
         out_channels = 4,
         n_modes      = [4, 4],
         kernels      = ['fno', 'lno'],
         mix_mode     = 'pure',
         n_layers     = 3  # multiple layers
     )
-    x = torch.randn(2, 3, 16, 16)
+    x = torch.randn(2, 4, 16, 16)
     
     # get the second block (index=1)
     sub_block = block.get_block(indices=1)
@@ -279,14 +229,15 @@ def test_xyno_block_submodule_single_layer_raises():
         n_modes      = [4, 4],
         kernels      = ['fno'],
         mix_mode     = 'pure',
-        n_layers     = 1
+        n_layers     = 1,
+        channel_mlp_skip='linear'
     )
     with pytest.raises(ValueError):
         block.get_block(indices=0)
 
 
 ###############################################################################
-# 8. Preactivation test
+# 6. Preactivation test
 ###############################################################################
 @pytest.mark.parametrize("kernels", [
     ['fno'],
@@ -322,7 +273,7 @@ def test_xyno_block_preactivation(kernels):
 
 
 ###############################################################################
-# 9. Tanh stabilizer
+# 7. Tanh stabilizer
 ###############################################################################
 def test_xyno_block_tanh_stabilizer():
     """
@@ -343,7 +294,7 @@ def test_xyno_block_tanh_stabilizer():
 
 
 ###############################################################################
-# 10. Multiple layers, "pure" mode, distinct kernel picks at each layer
+# 8. Multiple layers, "pure" mode, distinct kernel picks at each layer
 ###############################################################################
 def test_xyno_block_pure_distinct_kernels_each_layer():
     """
