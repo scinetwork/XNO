@@ -40,9 +40,12 @@ class XYNOBlocks(nn.Module):
         in frequency space. Can either be specified as
         an int (for all dimensions) or an iterable with one
         number per dimension
-    transformation : str
-        The mathematical transformation ("X..") option as the convolution kernel. 
-        This is what X stands on XNO. 
+    kernels : List[str]
+    
+    
+    mix_mode : str
+         
+         
     transformation_kwargs : dict
         For extra keyword prompting where the spectral convolution kernel needs more tailored configuration. 
     resolution_scaling_factor : Optional[Union[Number, List[Number]]], optional
@@ -107,7 +110,9 @@ class XYNOBlocks(nn.Module):
         in_channels,
         out_channels,
         n_modes,
-        transformation="FNO",
+        # transformation="FNO",
+        mix_mode='parallel', 
+        kernels=['fno'],
         transformation_kwargs=None,
         resolution_scaling_factor=None,
         n_layers=1,
@@ -115,7 +120,7 @@ class XYNOBlocks(nn.Module):
         xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
-        conv_non_linearity=None,
+        conv_non_linearity=F.gelu,
         stabilizer=None,
         norm=None,
         ada_in_features=None,
@@ -144,7 +149,9 @@ class XYNOBlocks(nn.Module):
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
         
-        self.transformation = transformation
+        # self.transformation = transformation
+        self.kernels = kernels
+        self.mix_mode = mix_mode
         self.transformation_kwargs = transformation_kwargs
 
         self.max_n_modes = max_n_modes
@@ -247,31 +254,65 @@ class XYNOBlocks(nn.Module):
         
         
          # Decide if we are auto-selecting the spectral conv or using a user-supplied one
-        if conv_module is None:
-            # Use the new OOP factory
-            factory = SpectralConvFactory(
-                in_channels = in_channels, 
-                out_channels = out_channels,
-                transformation=self.transformation,
-                n_modes=self._n_modes,
-                norm=norm,
-                transformation_kwargs=self.transformation_kwargs,
-                complex_data = self.complex_data
-            )
-            sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
-            sub_factory.validate()
-            conv_module = sub_factory.select_conv_class()
-            extra_args = sub_factory.get_extra_args()
-            # Possibly update 'norm' if needed
-            norm = sub_factory.update_norm()
-            # Retrieve transformation specifc non-linearity 
-            if self.conv_non_linearity is None:
-                self.conv_non_linearity = sub_factory.non_linearity()
-        else:
-            # user manually gave a conv, so no special logic
-            conv_module = conv_module
-            extra_args = {}
+        # if conv_module is None:
+        #     # Use the new OOP factory
+        #     factory = SpectralConvFactory(
+        #         in_channels = in_channels, 
+        #         out_channels = out_channels,
+        #         transformation=self.transformation,
+        #         n_modes=self._n_modes,
+        #         norm=norm,
+        #         transformation_kwargs=self.transformation_kwargs,
+        #         complex_data = self.complex_data
+        #     )
+        #     sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+        #     sub_factory.validate()
+        #     conv_module = sub_factory.select_conv_class()
+        #     extra_args = sub_factory.get_extra_args()
+        #     # Possibly update 'norm' if needed
+        #     norm = sub_factory.update_norm()
+        #     # Retrieve transformation specifc non-linearity 
+        #     if self.conv_non_linearity is None:
+        #         self.conv_non_linearity = sub_factory.non_linearity()
+        # else:
+        #     # user manually gave a conv, so no special logic
+        #     conv_module = conv_module
+        #     extra_args = {}
+        
+        conv_classses = {}
 
+        for kernel in self.kernels: 
+            if conv_module in None: 
+                factory = SpectralConvFactory(
+                in_channels    = in_channels, 
+                out_channels   = out_channels,
+                transformation = kernel,
+                n_modes        = self._n_modes,
+                norm           = norm,
+                transformation_kwargs = self.transformation_kwargs,
+                complex_data   = self.complex_data
+                )
+                
+                sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+                sub_factory.validate()
+                conv_module = sub_factory.select_conv_class()
+                extra_args = sub_factory.get_extra_args()
+                # Possibly update 'norm' if needed
+                kernel_norm = sub_factory.update_norm()
+                # Retrieve transformation specifc non-linearity 
+                if self.conv_non_linearity is None:
+                    conv_non_linearity = sub_factory.non_linearity()    
+            else:
+                # user manually gave a conv, so no special logic needed
+                conv_classses = {}
+                
+            # Store results for each transformation in a dictionary
+            conv_classses[kernel] = {
+                "conv_module": conv_module,
+                "extra_args": extra_args,
+                "norm": kernel_norm,
+                "non_linearity": conv_non_linearity
+            }
 
         # apply real nonlin if data is real, otherwise CGELU
         # if self.complex_data:
@@ -279,24 +320,64 @@ class XYNOBlocks(nn.Module):
         # else:
         #     self.non_linearity = non_linearity
                     
-        self.convs = nn.ModuleList([
-                conv_module(
-                in_channels=self.in_channels,
-                out_channels=self.out_channels,
-                n_modes=self.n_modes,
-                resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
-                max_n_modes=max_n_modes,
-                rank=rank,
-                fixed_rank_modes=fixed_rank_modes,
-                implementation=implementation,
-                separable=separable,
-                factorization=factorization,
-                xno_block_precision=xno_block_precision,
-                decomposition_kwargs=decomposition_kwargs,
-                complex_data=complex_data,
-                **extra_args
-            ) 
-            for i in range(n_layers)])
+        # self.convs = nn.ModuleList([
+        #         conv_module(
+        #         in_channels=self.in_channels,
+        #         out_channels=self.out_channels,
+        #         n_modes=self.n_modes,
+        #         resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
+        #         max_n_modes=max_n_modes,
+        #         rank=rank,
+        #         fixed_rank_modes=fixed_rank_modes,
+        #         implementation=implementation,
+        #         separable=separable,
+        #         factorization=factorization,
+        #         xno_block_precision=xno_block_precision,
+        #         decomposition_kwargs=decomposition_kwargs,
+        #         complex_data=complex_data,
+        #         **extra_args
+        #     ) 
+        #     for i in range(n_layers)])
+        
+        # Initiate a dictionary of differnt convlutional classes for each individual layer
+        self.convs = nn.ModuleList()
+        for i in range(n_layers):
+            layer_dict = nn.ModuleDict()
+            for kernel, data in conv_classses.items():
+                conv_cls = data['conv_module']
+                extra_args = data['extra_args']
+                norm_info = data['norm']
+                non_linearity = data['non_linearity']
+                
+                # Creat the conv instance for each kernel in the current layer
+                conv_instance = conv_cls(
+                    in_channels=self.in_channels,
+                    out_channels=self.out_channels,
+                    n_modes=self.n_modes,
+                    resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
+                    max_n_modes=max_n_modes,
+                    rank=rank,
+                    fixed_rank_modes=fixed_rank_modes,
+                    implementation=implementation,
+                    separable=separable,
+                    factorization=factorization,
+                    xno_block_precision=xno_block_precision,
+                    decomposition_kwargs=decomposition_kwargs,
+                    complex_data=complex_data,
+                    **extra_args
+                )
+                
+                # collect the conv x at layer i in dictionary form
+                layer_dict[kernel] = nn.ModuleDict({
+                    "conv": conv_instance,
+                    # separate norm module for each conv instance
+                    "norm": nn.Identity() if norm_info is None else norm_info,
+                    # non_linearity function  for each conv instance
+                    "non_linearity": nn.Identity() if non_linearity is None else non_linearity
+                })
+            
+            # append the dictionary of instances for layer #i
+            self.convs.append(layer_dict)
 
         self.xno_skips = nn.ModuleList(
             [
@@ -394,19 +475,24 @@ class XYNOBlocks(nn.Module):
             for norm, embedding in zip(self.norm, embeddings):
                 norm.set_embedding(embedding)
 
-    def forward(self, x, index=0, output_shape=None):
+    def forward(self, x, index=0, output_shape=None, kernel='fno'):
         if self.preactivation:
-            return self.forward_with_preactivation(x, index, output_shape)
+            return self.forward_with_preactivation(x, index, output_shape, kernel)
         else:
-            return self.forward_with_postactivation(x, index, output_shape)
+            return self.forward_with_postactivation(x, index, output_shape, kernel)
 
-    def forward_with_postactivation(self, x, index=0, output_shape=None):
+    def forward_with_postactivation(self, x, index=0, output_shape=None, kernel='fno'):
+        
         x_skip_xno = self.xno_skips[index](x)
         
-        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
+        # x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
+        x_skip_xno = next(iter(self.convs[index].values()))['conv'].transform(x_skip_xno, output_shape=output_shape)
+        
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        
+        # x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        x_skip_channel_mlp = next(iter(self.convs[index].values()))['conv'].transform(x_skip_channel_mlp, output_shape=output_shape)
 
         if self.stabilizer == "tanh":
             if self.complex_data:
@@ -416,9 +502,15 @@ class XYNOBlocks(nn.Module):
 
         x_xno = self.convs[index](x, output_shape=output_shape)
         #self.convs(x, index, output_shape=output_shape)
-
         if self.norm is not None:
             x_xno = self.norm[self.n_norms * index](x_xno)
+
+        if self.mix_mode == 'parallel':
+            pass
+        elif self.mix_mode == 'pure':
+            pass
+        else:
+            pass
 
         x = x_xno + x_skip_xno
 
@@ -435,7 +527,7 @@ class XYNOBlocks(nn.Module):
 
         return x
 
-    def forward_with_preactivation(self, x, index=0, output_shape=None):
+    def forward_with_preactivation(self, x, index=0, output_shape=None, kernel='fno'):
         # Apply non-linear activation (and norm)
         # before this block's convolution/forward pass:
         x = self.conv_non_linearity(x)
