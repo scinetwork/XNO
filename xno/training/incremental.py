@@ -6,7 +6,7 @@ from torch import nn
 
 from .trainer import Trainer
 # from ..models import FNO, TFNO, HNO, XNO, LNO, WNO
-from ..models import FNO, TFNO, XNO
+from ..models import FNO, TFNO, XNO, XYNO
 from ..utils import compute_explained_variance
 
 class IncrementalXNOTrainer(Trainer):
@@ -46,7 +46,8 @@ class IncrementalXNOTrainer(Trainer):
         assert (
             isinstance(model, FNO) or 
             isinstance(self.model, TFNO) or 
-            isinstance(self.model, XNO) 
+            isinstance(self.model, XNO) or 
+            isinstance(self.model, XYNO)
             # isinstance(self.model, HNO) or 
             # isinstance(self.model, LNO) or 
             # isinstance(self.model, WNO)

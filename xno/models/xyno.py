@@ -169,22 +169,17 @@ class XYNO(BaseModel, name='XYNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
-        
-        
         # transformation: str="FNO",
         mix_mode: str='parallel',
         parallel_kernels: List=['fno'], 
         pure_kernels_order: List=['fno', 'fno', 'fno', 'fno'],
-        
-        
-        
         transformation_kwargs: dict=None,
         n_layers: int=4,
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
         positional_embedding: Union[str, nn.Module]="grid",
-        conv_non_linearity: nn.Module=None,
-        mlp_non_linearity: nn.Module=F.gelu,
+        conv_non_linearity: nn.Module=nn.GELU(),
+        mlp_non_linearity: nn.Module=nn.GELU(),
         norm: str=None,
         complex_data: bool=False,
         channel_mlp_dropout: float=0,
@@ -251,14 +246,24 @@ class XYNO(BaseModel, name='XYNO'):
         
         acceptable_kernels = ['hno', 'fno', 'lno', 'wno']
         
+        # mixing mode branch to specify weather parallel or pure convolution in each layer. 
         if mix_mode == 'parallel':
             valid = all(item in acceptable_kernels for item in parallel_kernels)
             if not valid: 
                 raise ValueError(f'In XYNO parallel method, accepted kernels are fno, hno, lno, and wno. Carefully select these kernel identifier for parallelization in convolution layer. ')
+            
+            # list of distinct kernel in the model. 
+            self.kernels = list(set(self.parallel_kernels_list))
+            
         elif mix_mode == 'pure':
             valid = all(item in acceptable_kernels for item in pure_kernels_order)
             if not valid: 
                 raise ValueError(f'In XYNO pure method, accepted kernels are fno, hno, lno, and wno. Carefully select and order these kernel identifiers for ordering convolutional layers. ')
+            # list of distinct kernel in the model. 
+            self.kernels = list(set(self.pure_kernels_order))
+            # same number of layers as the specified kernel orders. 
+            self.n_layers = len(self.pure_kernels_order)
+
         else:
             raise ValueError(f'In XYNO method, you need to specify mixing mehod weather parallel or pure. Just these 2 values are acceptable for mix_mode.')
         
@@ -304,7 +309,9 @@ class XYNO(BaseModel, name='XYNO'):
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
-            transformation=transformation,
+            # transformation=transformation,
+            mix_mode = self.mix_mode,
+            kernels = self.kernels,
             transformation_kwargs=transformation_kwargs,
             resolution_scaling_factor=resolution_scaling_factor,
             channel_mlp_dropout=channel_mlp_dropout,
@@ -409,7 +416,6 @@ class XYNO(BaseModel, name='XYNO'):
 
             * If tuple list, specifies the exact output-shape of each XYNO Block
         """
-        
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
@@ -422,10 +428,16 @@ class XYNO(BaseModel, name='XYNO'):
         x = self.lifting(x)
         
         if self.domain_padding is not None:
-            x = self.domain_padding.pad(x)
-        
-        for layer_idx in range(self.n_layers):
-            x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+            x = self.domain_padding.pad(x)        
+            
+        if self.mix_mode == 'parallel': 
+            for layer_idx in range(self.n_layers):
+                x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+        elif self.mix_mode == 'pure': 
+            for kernel in self.pure_kernels_order:
+                x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx], kernel=kernel)
+        else:
+            raise ValueError('Only acceptable values for mix_mode argument in XYNO class are: parallel & pure')
 
         if self.domain_padding is not None:
             x = self.domain_padding.unpad(x)
@@ -459,7 +471,9 @@ class XYNO1d(XYNO):
         self,
         n_modes_height,
         hidden_channels,
-        transformation="FNO",
+        mix_mode='parallel',
+        parallel_kernels=['fno'], 
+        pure_kernels_order=['fno', 'fno', 'fno', 'fno'],
         transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
@@ -493,7 +507,10 @@ class XYNO1d(XYNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            transformation=transformation,
+            # transformation=transformation,
+            mix_mode=mix_mode, 
+            parallel_kernels=parallel_kernels,
+            pure_kernels_order=pure_kernels_order,
             transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
@@ -540,7 +557,10 @@ class XYNO2d(XYNO):
         n_modes_height,
         n_modes_width,
         hidden_channels,
-        transformation="FNO",
+        # transformation="FNO",
+        mix_mode='parallel',
+        parallel_kernels=['fno'], 
+        pure_kernels_order=['fno', 'fno', 'fno', 'fno'],
         transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
@@ -574,7 +594,10 @@ class XYNO2d(XYNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            transformation=transformation,
+            # transformation=transformation,
+            mix_mode=mix_mode, 
+            parallel_kernels=parallel_kernels,
+            pure_kernels_order=pure_kernels_order,
             transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
@@ -625,7 +648,10 @@ class XYNO3d(XYNO):
         n_modes_width,
         n_modes_depth,
         hidden_channels,
-        transformation="FNO",
+        # transformation="FNO",
+        mix_mode='parallel',
+        parallel_kernels=['fno'], 
+        pure_kernels_order=['fno', 'fno', 'fno', 'fno'],
         transformation_kwargs=None,
         in_channels=3,
         out_channels=1,
@@ -659,7 +685,10 @@ class XYNO3d(XYNO):
             hidden_channels=hidden_channels,
             in_channels=in_channels,
             out_channels=out_channels,
-            transformation=transformation,
+            # transformation=transformation,
+            mix_mode=mix_mode, 
+            parallel_kernels=parallel_kernels,
+            pure_kernels_order=pure_kernels_order,
             transformation_kwargs=transformation_kwargs,
             lifting_channels=lifting_channels,
             projection_channels=projection_channels,
