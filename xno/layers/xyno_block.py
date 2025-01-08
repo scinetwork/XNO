@@ -27,6 +27,54 @@ import inspect
 Number = Union[int, float]
 
 
+
+
+def _get_norm(norm, n_layers, n_norms=2, out_channels=None, ada_in_features=None):
+    """
+    Returns a normalization object based on the provided norm type.
+    
+    Parameters:
+        norm (str): The type of normalization ('instance_norm', 'group_norm', 'ada_in', or None).
+        n_layers (int): Number of layers.
+        n_norms (int): Multiplicative factor for the number of norms per layer.
+        out_channels (int, optional): Number of output channels (required for group_norm and ada_in).
+        ada_in_features (int, optional): Additional features for AdaIN (required for ada_in).
+    
+    Returns:
+        nn.ModuleList: A list of normalization layers.
+    """
+    if norm is None:
+        return None
+    elif norm == "instance_norm":
+        return nn.ModuleList(
+            [
+                InstanceNorm() for _ in range(n_layers * n_norms)
+            ]
+        )
+    elif norm == "group_norm":
+        if out_channels is None:
+            raise ValueError("`out_channels` must be provided for group_norm.")
+        return nn.ModuleList(
+            [
+                nn.GroupNorm(
+                    num_groups=1, 
+                    num_channels=out_channels
+                ) for _ in range(n_layers * n_norms)
+            ]
+        )
+    elif norm == "ada_in":
+        if ada_in_features is None or out_channels is None:
+            raise ValueError("`ada_in_features` and `out_channels` must be provided for ada_in.")
+        return nn.ModuleList(
+            [
+                AdaIN(ada_in_features, out_channels) for _ in range(n_layers * n_norms)
+            ]
+        )
+    else:
+        raise ValueError(
+            f"Got norm={norm} but expected None or one of [instance_norm, group_norm, ada_in]."
+        )
+
 class XYNOBlocks(nn.Module):
     """XNOBlocks
     Parameters
@@ -429,35 +477,12 @@ class XYNOBlocks(nn.Module):
 
         # Each block will have 2 norms if we also use a ChannelMLP
         self.n_norms = 2
-        if norm is None:
-            self.norm = None
-        elif norm == "instance_norm":
-            self.norm = nn.ModuleList(
-                    [
-                        InstanceNorm()
-                        for _ in range(n_layers * self.n_norms)
-                    ]
-                )
-        elif norm == "group_norm":
-            self.norm = nn.ModuleList(
-                [
-                    nn.GroupNorm(num_groups=1, num_channels=self.out_channels)
-                    for _ in range(n_layers * self.n_norms)
-                ]
-            )
-        
-        elif norm == "ada_in":
-            self.norm = nn.ModuleList(
-                [
-                    AdaIN(ada_in_features, out_channels)
-                    for _ in range(n_layers * self.n_norms)
-                ]
-            )
-        else:
-            raise ValueError(
-                f"Got norm={norm} but expected None or one of "
-                "[instance_norm, group_norm, ada_in]"
-            )
+        self.norm = _get_norm(
+            norm = norm, 
+            n_layers = self.n_layers, 
+            n_norms = self.n_norms,
+            out_channels = self.out_channels, ada_in_features=ada_in_features
+        )
 
     def set_ada_in_embeddings(self, *embeddings):
         """Sets the embeddings of each Ada-IN norm layers
