@@ -526,16 +526,16 @@ class XYNOBlocks(nn.Module):
                 x = torch.tanh(x)
 
         x_xno = self.convs[index](x, output_shape=output_shape)
-        #self.convs(x, index, output_shape=output_shape)
-        if self.norm is not None:
-            x_xno = self.norm[self.n_norms * index](x_xno)
-
         if self.mix_mode == 'parallel':
             pass
         elif self.mix_mode == 'pure':
             pass
         else:
             pass
+        
+        #self.convs(x, index, output_shape=output_shape)
+        if self.norm is not None:
+            x_xno = self.norm[self.n_norms * index](x_xno)
 
         x = x_xno + x_skip_xno
 
@@ -561,10 +561,12 @@ class XYNOBlocks(nn.Module):
             x = self.norm[self.n_norms * index](x)
 
         x_skip_xno = self.xno_skips[index](x)
-        x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
+        # x_skip_xno = self.convs[index].transform(x_skip_xno, output_shape=output_shape)
+        x_skip_xno = next(iter(self.convs[index].values()))['conv'].transform(x_skip_xno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        # x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        x_skip_channel_mlp = next(iter(self.convs[index].values()))['conv'].transform(x_skip_channel_mlp, output_shape=output_shape)
 
         if self.stabilizer == "tanh":
             if self.complex_data:
@@ -573,6 +575,12 @@ class XYNOBlocks(nn.Module):
                 x = torch.tanh(x)
 
         x_xno = self.convs[index](x, output_shape=output_shape)
+        if self.mix_mode == 'parallel':
+            pass
+        elif self.mix_mode == 'pure':
+            pass
+        else:
+            pass
 
         x = x_xno + x_skip_xno
 
