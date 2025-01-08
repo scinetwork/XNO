@@ -330,30 +330,26 @@ class XYNOBlocks(nn.Module):
         conv_classses = {}
 
         for kernel in self.kernels: 
-            if conv_module is None: 
-                factory = SpectralConvFactory(
-                in_channels    = in_channels, 
-                out_channels   = out_channels,
-                transformation = kernel,
-                n_modes        = self._n_modes,
-                norm           = norm,
-                transformation_kwargs = self.transformation_kwargs,
-                complex_data   = self.complex_data
-                )
-                
-                sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
-                sub_factory.validate()
-                conv_module = sub_factory.select_conv_class()
-                extra_args = sub_factory.get_extra_args()
-                # Possibly update 'norm' if needed
-                kernel_norm = sub_factory.update_norm()
-                # Retrieve transformation specifc non-linearity 
-                if self.conv_non_linearity is None:
-                    conv_non_linearity = sub_factory.non_linearity()    
-            else:
-                # user manually gave a conv, so no special logic needed
-                conv_classses = {}
-                
+            factory = SpectralConvFactory(
+            in_channels    = in_channels, 
+            out_channels   = out_channels,
+            transformation = kernel,
+            n_modes        = self._n_modes,
+            norm           = norm,
+            transformation_kwargs = self.transformation_kwargs,
+            complex_data   = self.complex_data
+            )
+            
+            sub_factory = factory.create_factory()  # e.g. WNOConvFactory, LNOConvFactory, ...
+            sub_factory.validate()
+            conv_module = sub_factory.select_conv_class()
+            extra_args = sub_factory.get_extra_args()
+            # Possibly update 'norm' if needed
+            kernel_norm = sub_factory.update_norm()
+            # Retrieve transformation specifc non-linearity 
+            if self.conv_non_linearity is None:
+                conv_non_linearity = sub_factory.non_linearity()    
+            
             # Store results for each transformation in a dictionary
             conv_classses[kernel] = {
                 "conv_module": conv_module,
@@ -361,7 +357,7 @@ class XYNOBlocks(nn.Module):
                 "norm": kernel_norm,
                 "non_linearity": conv_non_linearity
             }
-
+            
         # apply real nonlin if data is real, otherwise CGELU
         # if self.complex_data:
         #     self.non_linearity = CGELU
@@ -394,7 +390,7 @@ class XYNOBlocks(nn.Module):
             for kernel, data in conv_classses.items():
                 conv_cls = data['conv_module']
                 extra_args = data['extra_args']
-                norm_info = data['norm']
+                norm_type = data['norm']
                 non_linearity = data['non_linearity']
                 
                 # Creat the conv instance for each kernel in the current layer
@@ -414,16 +410,18 @@ class XYNOBlocks(nn.Module):
                     complex_data=complex_data,
                     **extra_args
                 )
-                
                 # collect the conv x at layer i in dictionary form
                 layer_dict[kernel] = nn.ModuleDict({
                     "conv": conv_instance,
                     # separate norm module for each conv instance
-                    "norm": norm_info,
+                    "norm": None if norm_type is None else nn.Identity(),
                     # non_linearity function  for each conv instance
                     "non_linearity": nn.GELU() if non_linearity is None else non_linearity
                 })
-            
+                
+                if norm_type is not None:
+                    layer_dict[kernel]["norm"].norm_type = norm_type
+    
             # append the dictionary of instances for layer #i
             self.convs.append(layer_dict)
 
@@ -523,18 +521,17 @@ class XYNOBlocks(nn.Module):
                 x = ctanh(x)
             else:
                 x = torch.tanh(x)
-
+        
         # x_xno = self.convs[index](x, output_shape=output_shape)
         x_xno = None
         if self.mix_mode == 'parallel':
             for kernel, module in self.convs[index].items():
                 conv = module['conv']
                 x_xno_t = conv(x, output_shape=output_shape)
-                
                 # Normalize the convolution output, only if the specific normaliztion is specified. 
                 if module['norm'] is not None and self.norm is None:
                     norm = _get_norm(
-                        norm=module['norm'],
+                        norm=module['norm'].norm_type,
                         n_layers=1, 
                         n_norms=1, 
                         out_channels=self.out_channels, 
@@ -554,7 +551,7 @@ class XYNOBlocks(nn.Module):
             # Normalize the convolution output, only if the specific normaliztion is specified. 
             if self.convs[index][kernel]['norm'] is not None and self.norm is None:
                 norm = _get_norm(
-                    norm=self.convs[index][kernel]['norm'],
+                    norm=self.convs[index][kernel]['norm'].norm_type,
                     n_layers=1, 
                     n_norms=1, 
                     out_channels=self.out_channels, 
@@ -604,18 +601,18 @@ class XYNOBlocks(nn.Module):
                 x = ctanh(x)
             else:
                 x = torch.tanh(x)
-
+        
         # x_xno = self.convs[index](x, output_shape=output_shape)
         x_xno = None
         if self.mix_mode == 'parallel':
-            for conv_dict in iter(self.convs[index]):
-                conv = conv_dict['conv']
+            for kernel, module in self.convs[index].items():
+                conv = module['conv']
                 x_xno_t = conv(x, output_shape=output_shape)
                 
                 # Normalize the convolution output, only if the specific normaliztion is specified. 
-                if conv_dict['norm'] is not None and self.norm is None:
+                if module['norm'] is not None and self.norm is None:
                     norm = _get_norm(
-                        norm=conv_dict['norm'],
+                        norm=module['norm'].norm_type,
                         n_layers=1, 
                         n_norms=1, 
                         out_channels=self.out_channels, 
@@ -633,9 +630,9 @@ class XYNOBlocks(nn.Module):
             conv = self.convs[index][kernel]['conv']
             x_xno = conv(x, output_shape=output_shape)
             # Normalize the convolution output, only if the specific normaliztion is specified. 
-            if conv_dict['norm'] is not None and self.norm is None:
+            if self.convs[index][kernel]['norm'] is not None and self.norm is None:
                 norm = _get_norm(
-                    norm=conv_dict['norm'],
+                    norm=self.convs[index][kernel]['norm'].norm_type,
                     n_layers=1, 
                     n_norms=1, 
                     out_channels=self.out_channels, 
