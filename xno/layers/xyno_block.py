@@ -626,7 +626,7 @@ class XYNOBlocks(nn.Module):
                 if x_xno is None:
                     x_xno = x_xno_t
                 else:
-                    x_xno += x_xno_t
+                    x_xno = x_xno + x_xno_t
                  
         elif self.mix_mode == 'pure':
             conv = self.convs[index][kernel]['conv']
