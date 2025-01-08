@@ -12,6 +12,7 @@ from .channel_mlp import ChannelMLP
 from .complex import CGELU, apply_complex, ctanh, ComplexValued
 from .normalization_layers import AdaIN, InstanceNorm
 from .skip_connections import skip_connection
+from .activation_func_wrapper import ActivationWrapper
 
 # from .spectral_convolution_x import SpectralConv
 # from .spectral_convolution_fourier import SpectralConvFourier
@@ -392,7 +393,8 @@ class XYNOBlocks(nn.Module):
                 extra_args = data['extra_args']
                 norm_type = data['norm']
                 non_linearity = data['non_linearity']
-                
+                non_linearity = ActivationWrapper(non_linearity) if non_linearity is not None else None
+
                 # Creat the conv instance for each kernel in the current layer
                 conv_instance = conv_cls(
                     in_channels=self.in_channels,
@@ -543,7 +545,7 @@ class XYNOBlocks(nn.Module):
                 if x_xno is None:
                     x_xno = x_xno_t
                 else:
-                    x_xno += x_xno_t
+                    x_xno = x_xno + x_xno_t
                  
         elif self.mix_mode == 'pure':
             conv = self.convs[index][kernel]['conv']
@@ -624,7 +626,7 @@ class XYNOBlocks(nn.Module):
                 if x_xno is None:
                     x_xno = x_xno_t
                 else:
-                    x_xno += x_xno_t
+                    x_xno = x_xno + x_xno_t
                  
         elif self.mix_mode == 'pure':
             conv = self.convs[index][kernel]['conv']

@@ -434,7 +434,7 @@ class XYNO(BaseModel, name='XYNO'):
             for layer_idx in range(self.n_layers):
                 x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
         elif self.mix_mode == 'pure': 
-            for kernel in self.pure_kernels_order:
+            for layer_idx, kernel in enumerate(self.pure_kernels_order):
                 x = self.xno_blocks(x, layer_idx, output_shape=output_shape[layer_idx], kernel=kernel)
         else:
             raise ValueError('Only acceptable values for mix_mode argument in XYNO class are: parallel & pure')
