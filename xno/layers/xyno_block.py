@@ -481,7 +481,7 @@ class XYNOBlocks(nn.Module):
             norm = norm, 
             n_layers = self.n_layers, 
             n_norms = self.n_norms,
-            out_channels = self.out_channels, ada_in_features=ada_in_features
+            out_channels = self.out_channels, ada_in_features=self.ada_in_features
         )
 
     def set_ada_in_embeddings(self, *embeddings):
@@ -515,7 +515,6 @@ class XYNOBlocks(nn.Module):
         
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        
         # x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
         x_skip_channel_mlp = next(iter(self.convs[index].values()))['conv'].transform(x_skip_channel_mlp, output_shape=output_shape)
 
@@ -525,11 +524,43 @@ class XYNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_xno = self.convs[index](x, output_shape=output_shape)
+        # x_xno = self.convs[index](x, output_shape=output_shape)
+        x_xno = None
         if self.mix_mode == 'parallel':
-            pass
+            for conv_dict in iter(self.convs[index]):
+                conv = conv_dict['conv']
+                x_xno_t = conv(x, output_shape=output_shape)
+                
+                # Normalize the convolution output, only if the specific normaliztion is specified. 
+                if conv_dict['norm'] is not None and self.norm is None:
+                    norm = _get_norm(
+                        norm=conv_dict['norm'],
+                        n_layers=1, 
+                        n_norms=1, 
+                        out_channels=self.out_channels, 
+                        ada_in_features=self.ada_in_features
+                        )
+                    x_xno_t = norm[0](x_xno_t)
+                
+                # Add the current convoluted result to tohers
+                if x_xno is None:
+                    x_xno = x_xno_t
+                else:
+                    x_xno += x_xno_t
+                 
         elif self.mix_mode == 'pure':
-            pass
+            conv = self.convs[index][kernel]['conv']
+            x_xno = conv(x, output_shape=output_shape)
+            # Normalize the convolution output, only if the specific normaliztion is specified. 
+            if conv_dict['norm'] is not None and self.norm is None:
+                norm = _get_norm(
+                    norm=conv_dict['norm'],
+                    n_layers=1, 
+                    n_norms=1, 
+                    out_channels=self.out_channels, 
+                    ada_in_features=self.ada_in_features
+                    )
+                x_xno = norm[0](x_xno)
         else:
             pass
         
@@ -574,11 +605,43 @@ class XYNOBlocks(nn.Module):
             else:
                 x = torch.tanh(x)
 
-        x_xno = self.convs[index](x, output_shape=output_shape)
+        # x_xno = self.convs[index](x, output_shape=output_shape)
+        x_xno = None
         if self.mix_mode == 'parallel':
-            pass
+            for conv_dict in iter(self.convs[index]):
+                conv = conv_dict['conv']
+                x_xno_t = conv(x, output_shape=output_shape)
+                
+                # Normalize the convolution output, only if the specific normaliztion is specified. 
+                if conv_dict['norm'] is not None and self.norm is None:
+                    norm = _get_norm(
+                        norm=conv_dict['norm'],
+                        n_layers=1, 
+                        n_norms=1, 
+                        out_channels=self.out_channels, 
+                        ada_in_features=self.ada_in_features
+                        )
+                    x_xno_t = norm[0](x_xno_t)
+                
+                # Add the current convoluted result to tohers
+                if x_xno is None:
+                    x_xno = x_xno_t
+                else:
+                    x_xno += x_xno_t
+                 
         elif self.mix_mode == 'pure':
-            pass
+            conv = self.convs[index][kernel]['conv']
+            x_xno = conv(x, output_shape=output_shape)
+            # Normalize the convolution output, only if the specific normaliztion is specified. 
+            if conv_dict['norm'] is not None and self.norm is None:
+                norm = _get_norm(
+                    norm=conv_dict['norm'],
+                    n_layers=1, 
+                    n_norms=1, 
+                    out_channels=self.out_channels, 
+                    ada_in_features=self.ada_in_features
+                    )
+                x_xno = norm[0](x_xno)
         else:
             pass
 
