@@ -5,6 +5,7 @@ neuraloperator/
 toolbox/
 use_cases/save/
 use_cases/data/
+use_cases/lorenz96/
 
 
 # File type ignore
