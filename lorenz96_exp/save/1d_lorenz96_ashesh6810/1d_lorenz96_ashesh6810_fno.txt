@@ -1,0 +1,546 @@
+Sshapes: torch.Size([495000, 8]) torch.Size([495000, 8]) torch.Size([5000, 8]) torch.Size([5000, 8])
+
+=== Data shape after importing from raw dataset ===
+
+X_Train Shape: torch.Size([495000, 8])
+Y_Train Shape: torch.Size([495000, 8])
+X_Test Shape: torch.Size([5000, 8])
+Y_Test Shape: torch.Size([5000, 8])
+
+=== Data shape after reshaping based on [Batch, Channel, D1, D2, ...] ===
+
+X_Train Shape: torch.Size([495000, 1, 8])
+Y_Train Shape: torch.Size([495000, 1, 8])
+X_Test Shape: torch.Size([5000, 1, 8])
+Y_Test Shape: torch.Size([5000, 1, 8])
+
+=== One batch of the Train Loader ===
+
+Loader Type: <class 'torch.utils.data.dataloader.DataLoader'>
+Batch Type: <class 'dict'>
+Batch['x'].shape: torch.Size([1024, 1, 8])
+Batch['y'].shape: torch.Size([1024, 1, 8])
+
+=== One batch of the Test Loader ===
+
+Loader Type: <class 'torch.utils.data.dataloader.DataLoader'>
+Batch Type: <class 'dict'>
+Batch['x'].shape: torch.Size([1024, 1, 8])
+Batch['y'].shape: torch.Size([1024, 1, 8])
+
+=== Device: cuda ===
+
+======== Selected Kernel Description =======
+Dimentionality: 1D
+Transformation: [ Fourier Neural Operator (FNO) Kernel ]
+>>> Overview:
+The FNO leverages Fourier Transform to map input data into the spectral domain, where
+convolutional operations are performed by truncating high-frequency modes.
+
+>>> Key Features:
+- Effective for parameterized Partial Differential Equations (PDEs).
+- Reduces computational complexity by retaining only significant modes.
+
+>>> Reference:
+Li, Z. et al. 'Fourier Neural Operator for Parametric Partial Differential Equations' (ICLR 2021).
+Link: https://arxiv.org/pdf/2010.08895
+============================================
+
+================== Config ==================
+>>> Normaliztion: None
+>>> Activation Function: 
+============================================
+
+Original Incre Res: change index to 0
+Original Incre Res: change sub to 2
+Original Incre Res: change res to 4
+
+### N PARAMS ###
+ 78625
+
+### OPTIMIZER ###
+ AdamW (
+Parameter Group 0
+    betas: (0.9, 0.999)
+    correct_bias: True
+    eps: 1e-06
+    initial_lr: 0.001
+    lr: 0.001
+    weight_decay: 0.0001
+)
+
+### SCHEDULER ###
+ <torch.optim.lr_scheduler.StepLR object at 0x7fcbaec11df0>
+
+### LOSSES ###
+
+### INCREMENTAL RESOLUTION + GRADIENT EXPLAINED ###
+
+ * Train: <xno.losses.data_losses.H1Loss object at 0x7fcb627cebd0>
+
+ * Test: {'h1': <xno.losses.data_losses.H1Loss object at 0x7fcb627cebd0>, 'l2': <xno.losses.data_losses.LpLoss object at 0x7fcbb0f90860>}
+Training on 495000 samples
+Testing on [5000] samples         on resolutions [8].
+Raw outputs of shape torch.Size([1024, 1, 4])
+[0] time=12.41, avg_loss=0.9004, train_err=920.8385
+Eval: 8_h1=0.9251, 8_l2=0.9168
+[Rank 0]: saved training state to save/1d_lorenz96_ashesh6810/fno/
+[1] time=12.09, avg_loss=0.8511, train_err=870.4595
+Eval: 8_h1=0.9246, 8_l2=0.9116
+[2] time=11.83, avg_loss=0.8360, train_err=854.9864
+Eval: 8_h1=0.9308, 8_l2=0.9129
+[3] time=11.85, avg_loss=0.8266, train_err=845.3469
+Eval: 8_h1=0.9039, 8_l2=0.8992
+[4] time=12.03, avg_loss=0.8202, train_err=838.7993
+Eval: 8_h1=0.8987, 8_l2=0.8894
+[5] time=11.84, avg_loss=0.8149, train_err=833.4517
+Eval: 8_h1=0.8770, 8_l2=0.8734
+[6] time=12.00, avg_loss=0.8101, train_err=828.4605
+Eval: 8_h1=0.8794, 8_l2=0.8728
+[7] time=11.83, avg_loss=0.8060, train_err=824.3153
+Eval: 8_h1=0.8732, 8_l2=0.8777
+[8] time=11.87, avg_loss=0.8024, train_err=820.6202
+Eval: 8_h1=0.8640, 8_l2=0.8621
+[9] time=12.08, avg_loss=0.7991, train_err=817.2225
+Eval: 8_h1=0.8578, 8_l2=0.8607
+Incre Res Update: change index to 1
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[10] time=11.69, avg_loss=0.0808, train_err=82.6376
+Eval: 8_h1=0.0251, 8_l2=0.0485
+[11] time=11.96, avg_loss=0.0233, train_err=23.8686
+Eval: 8_h1=0.0200, 8_l2=0.0327
+[12] time=11.82, avg_loss=0.0216, train_err=22.0499
+Eval: 8_h1=0.0152, 8_l2=0.0260
+[13] time=11.89, avg_loss=0.0161, train_err=16.4840
+Eval: 8_h1=0.0179, 8_l2=0.0247
+[14] time=11.89, avg_loss=0.0198, train_err=20.2665
+Eval: 8_h1=0.0253, 8_l2=0.0380
+[15] time=11.66, avg_loss=0.0122, train_err=12.4932
+Eval: 8_h1=0.0099, 8_l2=0.0171
+[16] time=11.94, avg_loss=0.0117, train_err=11.9925
+Eval: 8_h1=0.0130, 8_l2=0.0186
+[17] time=11.91, avg_loss=0.0174, train_err=17.8108
+Eval: 8_h1=0.0213, 8_l2=0.0247
+[18] time=11.78, avg_loss=0.0110, train_err=11.2780
+Eval: 8_h1=0.0098, 8_l2=0.0147
+[19] time=11.92, avg_loss=0.0118, train_err=12.0750
+Eval: 8_h1=0.0121, 8_l2=0.0162
+Incre Res Update: change index to 2
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[20] time=11.80, avg_loss=0.0130, train_err=13.2719
+Eval: 8_h1=0.0151, 8_l2=0.0175
+[21] time=11.85, avg_loss=0.0156, train_err=15.9643
+Eval: 8_h1=0.0104, 8_l2=0.0142
+[22] time=11.94, avg_loss=0.0147, train_err=15.0782
+Eval: 8_h1=0.0205, 8_l2=0.0320
+[23] time=11.83, avg_loss=0.0090, train_err=9.2271
+Eval: 8_h1=0.0081, 8_l2=0.0129
+[24] time=11.95, avg_loss=0.0141, train_err=14.4664
+Eval: 8_h1=0.0081, 8_l2=0.0180
+[25] time=11.79, avg_loss=0.0128, train_err=13.1230
+Eval: 8_h1=0.0057, 8_l2=0.0116
+[26] time=11.86, avg_loss=0.0103, train_err=10.5066
+Eval: 8_h1=0.0114, 8_l2=0.0212
+[27] time=12.05, avg_loss=0.0153, train_err=15.6368
+Eval: 8_h1=0.0266, 8_l2=0.0282
+[28] time=11.68, avg_loss=0.0141, train_err=14.3973
+Eval: 8_h1=0.0057, 8_l2=0.0098
+[29] time=11.93, avg_loss=0.0081, train_err=8.2455
+Eval: 8_h1=0.0092, 8_l2=0.0121
+Incre Res Update: change index to 3
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[30] time=11.79, avg_loss=0.0128, train_err=13.0643
+Eval: 8_h1=0.0069, 8_l2=0.0104
+[31] time=11.83, avg_loss=0.0135, train_err=13.8134
+Eval: 8_h1=0.0249, 8_l2=0.0273
+[32] time=11.95, avg_loss=0.0115, train_err=11.8068
+Eval: 8_h1=0.0127, 8_l2=0.0364
+[33] time=11.67, avg_loss=0.0072, train_err=7.3188
+Eval: 8_h1=0.0093, 8_l2=0.0117
+[34] time=11.89, avg_loss=0.0130, train_err=13.3183
+Eval: 8_h1=0.0255, 8_l2=0.0258
+[35] time=11.93, avg_loss=0.0127, train_err=12.9393
+Eval: 8_h1=0.0070, 8_l2=0.0098
+[36] time=11.79, avg_loss=0.0088, train_err=9.0230
+Eval: 8_h1=0.0083, 8_l2=0.0110
+[37] time=11.95, avg_loss=0.0120, train_err=12.2503
+Eval: 8_h1=0.0167, 8_l2=0.0238
+[38] time=11.80, avg_loss=0.0083, train_err=8.4959
+Eval: 8_h1=0.0088, 8_l2=0.0131
+[39] time=11.82, avg_loss=0.0127, train_err=13.0329
+Eval: 8_h1=0.0082, 8_l2=0.0189
+Incre Res Update: change index to 4
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[40] time=11.97, avg_loss=0.0101, train_err=10.3206
+Eval: 8_h1=0.0098, 8_l2=0.0294
+[41] time=11.82, avg_loss=0.0122, train_err=12.4857
+Eval: 8_h1=0.0213, 8_l2=0.0235
+[42] time=11.94, avg_loss=0.0097, train_err=9.9598
+Eval: 8_h1=0.0071, 8_l2=0.0094
+[43] time=11.86, avg_loss=0.0123, train_err=12.6001
+Eval: 8_h1=0.0212, 8_l2=0.0228
+[44] time=11.83, avg_loss=0.0082, train_err=8.4129
+Eval: 8_h1=0.0082, 8_l2=0.0104
+[45] time=12.18, avg_loss=0.0118, train_err=12.0234
+Eval: 8_h1=0.0047, 8_l2=0.0077
+[46] time=11.74, avg_loss=0.0112, train_err=11.4591
+Eval: 8_h1=0.0045, 8_l2=0.0089
+[47] time=11.97, avg_loss=0.0076, train_err=7.8007
+Eval: 8_h1=0.0088, 8_l2=0.0110
+[48] time=11.80, avg_loss=0.0112, train_err=11.4640
+Eval: 8_h1=0.0164, 8_l2=0.0185
+[49] time=11.85, avg_loss=0.0073, train_err=7.4470
+Eval: 8_h1=0.0068, 8_l2=0.0099
+Incre Res Update: change index to 5
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[50] time=11.94, avg_loss=0.0060, train_err=6.1019
+Eval: 8_h1=0.0069, 8_l2=0.0089
+[Rank 0]: saved training state to save/1d_lorenz96_ashesh6810/fno/
+[51] time=11.71, avg_loss=0.0048, train_err=4.9448
+Eval: 8_h1=0.0038, 8_l2=0.0088
+[52] time=11.83, avg_loss=0.0040, train_err=4.0697
+Eval: 8_h1=0.0044, 8_l2=0.0068
+[53] time=12.00, avg_loss=0.0071, train_err=7.2386
+Eval: 8_h1=0.0123, 8_l2=0.0148
+[54] time=11.76, avg_loss=0.0060, train_err=6.1846
+Eval: 8_h1=0.0077, 8_l2=0.0093
+[55] time=11.94, avg_loss=0.0039, train_err=4.0163
+Eval: 8_h1=0.0047, 8_l2=0.0077
+[56] time=11.86, avg_loss=0.0069, train_err=7.0724
+Eval: 8_h1=0.0117, 8_l2=0.0128
+[57] time=11.87, avg_loss=0.0064, train_err=6.5930
+Eval: 8_h1=0.0039, 8_l2=0.0060
+[58] time=12.04, avg_loss=0.0058, train_err=5.9087
+Eval: 8_h1=0.0036, 8_l2=0.0074
+[59] time=11.78, avg_loss=0.0042, train_err=4.2845
+Eval: 8_h1=0.0063, 8_l2=0.0147
+Incre Res Update: change index to 6
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[60] time=12.01, avg_loss=0.0069, train_err=7.0345
+Eval: 8_h1=0.0045, 8_l2=0.0065
+[61] time=11.85, avg_loss=0.0049, train_err=5.0052
+Eval: 8_h1=0.0072, 8_l2=0.0102
+[62] time=11.84, avg_loss=0.0039, train_err=3.9611
+Eval: 8_h1=0.0048, 8_l2=0.0066
+[63] time=11.95, avg_loss=0.0067, train_err=6.8915
+Eval: 8_h1=0.0113, 8_l2=0.0127
+[64] time=11.69, avg_loss=0.0043, train_err=4.3719
+Eval: 8_h1=0.0043, 8_l2=0.0061
+[65] time=11.97, avg_loss=0.0058, train_err=5.8811
+Eval: 8_h1=0.0088, 8_l2=0.0124
+[66] time=11.94, avg_loss=0.0044, train_err=4.4995
+Eval: 8_h1=0.0045, 8_l2=0.0065
+[67] time=11.88, avg_loss=0.0066, train_err=6.8002
+Eval: 8_h1=0.0114, 8_l2=0.0127
+[68] time=11.99, avg_loss=0.0067, train_err=6.8503
+Eval: 8_h1=0.0030, 8_l2=0.0051
+[69] time=11.80, avg_loss=0.0034, train_err=3.4433
+Eval: 8_h1=0.0043, 8_l2=0.0063
+Incre Res Update: change index to 7
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[70] time=11.85, avg_loss=0.0063, train_err=6.4159
+Eval: 8_h1=0.0030, 8_l2=0.0050
+[71] time=11.92, avg_loss=0.0040, train_err=4.0934
+Eval: 8_h1=0.0055, 8_l2=0.0069
+[72] time=11.81, avg_loss=0.0063, train_err=6.3968
+Eval: 8_h1=0.0082, 8_l2=0.0092
+[73] time=11.88, avg_loss=0.0048, train_err=4.9101
+Eval: 8_h1=0.0029, 8_l2=0.0055
+[74] time=11.86, avg_loss=0.0038, train_err=3.8533
+Eval: 8_h1=0.0040, 8_l2=0.0058
+[75] time=11.83, avg_loss=0.0065, train_err=6.6501
+Eval: 8_h1=0.0030, 8_l2=0.0050
+[76] time=12.09, avg_loss=0.0034, train_err=3.4843
+Eval: 8_h1=0.0036, 8_l2=0.0082
+[77] time=11.75, avg_loss=0.0036, train_err=3.6635
+Eval: 8_h1=0.0038, 8_l2=0.0070
+[78] time=11.94, avg_loss=0.0057, train_err=5.8428
+Eval: 8_h1=0.0044, 8_l2=0.0058
+[79] time=11.83, avg_loss=0.0040, train_err=4.1332
+Eval: 8_h1=0.0046, 8_l2=0.0062
+Incre Res Update: change index to 8
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[80] time=11.79, avg_loss=0.0066, train_err=6.7167
+Eval: 8_h1=0.0118, 8_l2=0.0129
+[81] time=11.97, avg_loss=0.0055, train_err=5.5893
+Eval: 8_h1=0.0029, 8_l2=0.0057
+[82] time=11.71, avg_loss=0.0037, train_err=3.8315
+Eval: 8_h1=0.0040, 8_l2=0.0055
+[83] time=11.96, avg_loss=0.0065, train_err=6.5985
+Eval: 8_h1=0.0114, 8_l2=0.0127
+[84] time=11.96, avg_loss=0.0062, train_err=6.3435
+Eval: 8_h1=0.0101, 8_l2=0.0113
+[85] time=11.90, avg_loss=0.0054, train_err=5.4905
+Eval: 8_h1=0.0038, 8_l2=0.0056
+[86] time=12.02, avg_loss=0.0060, train_err=6.0968
+Eval: 8_h1=0.0107, 8_l2=0.0124
+[87] time=11.84, avg_loss=0.0042, train_err=4.3411
+Eval: 8_h1=0.0031, 8_l2=0.0061
+[88] time=11.85, avg_loss=0.0034, train_err=3.4964
+Eval: 8_h1=0.0032, 8_l2=0.0049
+[89] time=12.05, avg_loss=0.0062, train_err=6.3592
+Eval: 8_h1=0.0028, 8_l2=0.0046
+Incre Res Update: change index to 9
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[90] time=11.84, avg_loss=0.0034, train_err=3.4398
+Eval: 8_h1=0.0042, 8_l2=0.0070
+[91] time=11.93, avg_loss=0.0055, train_err=5.5754
+Eval: 8_h1=0.0076, 8_l2=0.0100
+[92] time=11.85, avg_loss=0.0046, train_err=4.6655
+Eval: 8_h1=0.0063, 8_l2=0.0165
+[93] time=11.86, avg_loss=0.0066, train_err=6.7980
+Eval: 8_h1=0.0119, 8_l2=0.0131
+[94] time=12.10, avg_loss=0.0051, train_err=5.2626
+Eval: 8_h1=0.0075, 8_l2=0.0113
+[95] time=11.67, avg_loss=0.0036, train_err=3.7109
+Eval: 8_h1=0.0041, 8_l2=0.0062
+[96] time=11.91, avg_loss=0.0061, train_err=6.2707
+Eval: 8_h1=0.0111, 8_l2=0.0119
+[97] time=11.81, avg_loss=0.0041, train_err=4.1628
+Eval: 8_h1=0.0035, 8_l2=0.0050
+[98] time=11.76, avg_loss=0.0057, train_err=5.8394
+Eval: 8_h1=0.0049, 8_l2=0.0060
+[99] time=11.95, avg_loss=0.0059, train_err=6.0547
+Eval: 8_h1=0.0079, 8_l2=0.0090
+Incre Res Update: change index to 10
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[100] time=11.70, avg_loss=0.0024, train_err=2.5026
+Eval: 8_h1=0.0024, 8_l2=0.0041
+[Rank 0]: saved training state to save/1d_lorenz96_ashesh6810/fno/
+[101] time=11.83, avg_loss=0.0024, train_err=2.4440
+Eval: 8_h1=0.0025, 8_l2=0.0043
+[102] time=11.98, avg_loss=0.0025, train_err=2.5537
+Eval: 8_h1=0.0030, 8_l2=0.0045
+[103] time=11.79, avg_loss=0.0026, train_err=2.6975
+Eval: 8_h1=0.0025, 8_l2=0.0042
+[104] time=11.99, avg_loss=0.0026, train_err=2.6571
+Eval: 8_h1=0.0035, 8_l2=0.0050
+[105] time=11.82, avg_loss=0.0038, train_err=3.9175
+Eval: 8_h1=0.0039, 8_l2=0.0098
+[106] time=11.82, avg_loss=0.0025, train_err=2.5081
+Eval: 8_h1=0.0029, 8_l2=0.0046
+[107] time=12.11, avg_loss=0.0040, train_err=4.1242
+Eval: 8_h1=0.0064, 8_l2=0.0072
+[108] time=11.66, avg_loss=0.0026, train_err=2.6547
+Eval: 8_h1=0.0026, 8_l2=0.0043
+[109] time=11.90, avg_loss=0.0024, train_err=2.4895
+Eval: 8_h1=0.0028, 8_l2=0.0044
+Incre Res Update: change index to 11
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[110] time=11.86, avg_loss=0.0030, train_err=3.0466
+Eval: 8_h1=0.0028, 8_l2=0.0050
+[111] time=11.80, avg_loss=0.0026, train_err=2.6384
+Eval: 8_h1=0.0022, 8_l2=0.0038
+[112] time=11.96, avg_loss=0.0025, train_err=2.5630
+Eval: 8_h1=0.0030, 8_l2=0.0047
+[113] time=11.72, avg_loss=0.0026, train_err=2.6469
+Eval: 8_h1=0.0026, 8_l2=0.0041
+[114] time=11.95, avg_loss=0.0025, train_err=2.5513
+Eval: 8_h1=0.0030, 8_l2=0.0042
+[115] time=11.92, avg_loss=0.0036, train_err=3.6477
+Eval: 8_h1=0.0047, 8_l2=0.0070
+[116] time=11.79, avg_loss=0.0025, train_err=2.5476
+Eval: 8_h1=0.0026, 8_l2=0.0041
+[117] time=11.99, avg_loss=0.0029, train_err=2.9968
+Eval: 8_h1=0.0027, 8_l2=0.0043
+[118] time=11.80, avg_loss=0.0025, train_err=2.5181
+Eval: 8_h1=0.0028, 8_l2=0.0041
+[119] time=11.86, avg_loss=0.0040, train_err=4.0478
+Eval: 8_h1=0.0062, 8_l2=0.0070
+Incre Res Update: change index to 12
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[120] time=12.01, avg_loss=0.0032, train_err=3.2520
+Eval: 8_h1=0.0022, 8_l2=0.0039
+[121] time=11.79, avg_loss=0.0023, train_err=2.3456
+Eval: 8_h1=0.0030, 8_l2=0.0042
+[122] time=11.97, avg_loss=0.0039, train_err=3.9743
+Eval: 8_h1=0.0056, 8_l2=0.0063
+[123] time=11.77, avg_loss=0.0024, train_err=2.4941
+Eval: 8_h1=0.0026, 8_l2=0.0041
+[124] time=11.82, avg_loss=0.0036, train_err=3.6344
+Eval: 8_h1=0.0043, 8_l2=0.0063
+[125] time=12.08, avg_loss=0.0025, train_err=2.5887
+Eval: 8_h1=0.0030, 8_l2=0.0042
+[126] time=11.67, avg_loss=0.0039, train_err=3.9547
+Eval: 8_h1=0.0064, 8_l2=0.0073
+[127] time=11.96, avg_loss=0.0030, train_err=3.0732
+Eval: 8_h1=0.0036, 8_l2=0.0047
+[128] time=11.90, avg_loss=0.0023, train_err=2.3172
+Eval: 8_h1=0.0023, 8_l2=0.0040
+[129] time=11.86, avg_loss=0.0024, train_err=2.4043
+Eval: 8_h1=0.0029, 8_l2=0.0041
+Incre Res Update: change index to 13
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[130] time=12.00, avg_loss=0.0024, train_err=2.4526
+Eval: 8_h1=0.0027, 8_l2=0.0048
+[131] time=11.70, avg_loss=0.0033, train_err=3.3508
+Eval: 8_h1=0.0046, 8_l2=0.0075
+[132] time=11.94, avg_loss=0.0040, train_err=4.0614
+Eval: 8_h1=0.0063, 8_l2=0.0077
+[133] time=11.96, avg_loss=0.0036, train_err=3.7033
+Eval: 8_h1=0.0021, 8_l2=0.0035
+[134] time=11.87, avg_loss=0.0021, train_err=2.1918
+Eval: 8_h1=0.0024, 8_l2=0.0040
+[135] time=11.98, avg_loss=0.0023, train_err=2.3062
+Eval: 8_h1=0.0026, 8_l2=0.0041
+[136] time=11.82, avg_loss=0.0032, train_err=3.2393
+Eval: 8_h1=0.0023, 8_l2=0.0036
+[137] time=11.88, avg_loss=0.0024, train_err=2.4433
+Eval: 8_h1=0.0027, 8_l2=0.0039
+[138] time=11.96, avg_loss=0.0038, train_err=3.9374
+Eval: 8_h1=0.0063, 8_l2=0.0071
+[139] time=11.89, avg_loss=0.0024, train_err=2.5018
+Eval: 8_h1=0.0024, 8_l2=0.0038
+Incre Res Update: change index to 14
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[140] time=11.98, avg_loss=0.0023, train_err=2.3156
+Eval: 8_h1=0.0025, 8_l2=0.0037
+[141] time=11.80, avg_loss=0.0036, train_err=3.6557
+Eval: 8_h1=0.0042, 8_l2=0.0059
+[142] time=11.87, avg_loss=0.0023, train_err=2.3336
+Eval: 8_h1=0.0025, 8_l2=0.0039
+[143] time=12.08, avg_loss=0.0038, train_err=3.8889
+Eval: 8_h1=0.0061, 8_l2=0.0071
+[144] time=11.66, avg_loss=0.0027, train_err=2.7595
+Eval: 8_h1=0.0020, 8_l2=0.0036
+[145] time=11.96, avg_loss=0.0022, train_err=2.2717
+Eval: 8_h1=0.0021, 8_l2=0.0036
+[146] time=11.84, avg_loss=0.0023, train_err=2.3677
+Eval: 8_h1=0.0020, 8_l2=0.0034
+[147] time=11.86, avg_loss=0.0023, train_err=2.3912
+Eval: 8_h1=0.0024, 8_l2=0.0041
+[148] time=11.97, avg_loss=0.0023, train_err=2.4021
+Eval: 8_h1=0.0027, 8_l2=0.0038
+[149] time=11.71, avg_loss=0.0037, train_err=3.8084
+Eval: 8_h1=0.0039, 8_l2=0.0091
+Incre Res Update: change index to 15
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[150] time=11.85, avg_loss=0.0019, train_err=1.9830
+Eval: 8_h1=0.0019, 8_l2=0.0033
+[Rank 0]: saved training state to save/1d_lorenz96_ashesh6810/fno/
+[151] time=12.03, avg_loss=0.0019, train_err=1.9663
+Eval: 8_h1=0.0020, 8_l2=0.0037
+[152] time=11.83, avg_loss=0.0019, train_err=1.9876
+Eval: 8_h1=0.0020, 8_l2=0.0033
+[153] time=11.96, avg_loss=0.0020, train_err=2.0274
+Eval: 8_h1=0.0020, 8_l2=0.0034
+[154] time=11.84, avg_loss=0.0020, train_err=2.0519
+Eval: 8_h1=0.0020, 8_l2=0.0034
+[155] time=11.86, avg_loss=0.0020, train_err=2.0419
+Eval: 8_h1=0.0023, 8_l2=0.0036
+[156] time=12.05, avg_loss=0.0020, train_err=2.0535
+Eval: 8_h1=0.0021, 8_l2=0.0035
+[157] time=11.71, avg_loss=0.0020, train_err=2.0428
+Eval: 8_h1=0.0019, 8_l2=0.0033
+[158] time=12.01, avg_loss=0.0020, train_err=2.0223
+Eval: 8_h1=0.0020, 8_l2=0.0034
+[159] time=11.77, avg_loss=0.0020, train_err=2.0369
+Eval: 8_h1=0.0019, 8_l2=0.0032
+Incre Res Update: change index to 16
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[160] time=11.81, avg_loss=0.0020, train_err=2.0293
+Eval: 8_h1=0.0024, 8_l2=0.0035
+[161] time=11.93, avg_loss=0.0020, train_err=2.0516
+Eval: 8_h1=0.0020, 8_l2=0.0033
+[162] time=11.76, avg_loss=0.0020, train_err=2.0129
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[163] time=11.93, avg_loss=0.0020, train_err=2.0116
+Eval: 8_h1=0.0020, 8_l2=0.0035
+[164] time=12.00, avg_loss=0.0020, train_err=2.0154
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[165] time=11.87, avg_loss=0.0020, train_err=2.0113
+Eval: 8_h1=0.0020, 8_l2=0.0033
+[166] time=12.43, avg_loss=0.0020, train_err=1.9973
+Eval: 8_h1=0.0020, 8_l2=0.0032
+[167] time=14.47, avg_loss=0.0020, train_err=1.9957
+Eval: 8_h1=0.0022, 8_l2=0.0034
+[168] time=14.37, avg_loss=0.0020, train_err=1.9959
+Eval: 8_h1=0.0021, 8_l2=0.0041
+[169] time=14.49, avg_loss=0.0020, train_err=1.9971
+Eval: 8_h1=0.0020, 8_l2=0.0033
+Incre Res Update: change index to 17
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[170] time=14.40, avg_loss=0.0019, train_err=1.9786
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[171] time=14.01, avg_loss=0.0019, train_err=1.9897
+Eval: 8_h1=0.0019, 8_l2=0.0032
+[172] time=11.87, avg_loss=0.0019, train_err=1.9738
+Eval: 8_h1=0.0020, 8_l2=0.0032
+[173] time=11.73, avg_loss=0.0019, train_err=1.9806
+Eval: 8_h1=0.0019, 8_l2=0.0031
+[174] time=12.11, avg_loss=0.0019, train_err=1.9669
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[175] time=11.87, avg_loss=0.0019, train_err=1.9753
+Eval: 8_h1=0.0020, 8_l2=0.0032
+[176] time=12.13, avg_loss=0.0019, train_err=1.9699
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[177] time=11.84, avg_loss=0.0019, train_err=1.9681
+Eval: 8_h1=0.0024, 8_l2=0.0035
+[178] time=11.98, avg_loss=0.0025, train_err=2.5708
+Eval: 8_h1=0.0020, 8_l2=0.0039
+[179] time=12.05, avg_loss=0.0018, train_err=1.8747
+Eval: 8_h1=0.0019, 8_l2=0.0031
+Incre Res Update: change index to 18
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[180] time=11.88, avg_loss=0.0019, train_err=1.9209
+Eval: 8_h1=0.0019, 8_l2=0.0031
+[181] time=12.07, avg_loss=0.0019, train_err=1.9346
+Eval: 8_h1=0.0020, 8_l2=0.0033
+[182] time=12.04, avg_loss=0.0019, train_err=1.9490
+Eval: 8_h1=0.0019, 8_l2=0.0031
+[183] time=11.86, avg_loss=0.0019, train_err=1.9396
+Eval: 8_h1=0.0021, 8_l2=0.0033
+[184] time=11.95, avg_loss=0.0019, train_err=1.9541
+Eval: 8_h1=0.0019, 8_l2=0.0034
+[185] time=11.85, avg_loss=0.0019, train_err=1.9379
+Eval: 8_h1=0.0019, 8_l2=0.0031
+[186] time=11.84, avg_loss=0.0019, train_err=1.9386
+Eval: 8_h1=0.0022, 8_l2=0.0034
+[187] time=12.04, avg_loss=0.0022, train_err=2.2654
+Eval: 8_h1=0.0020, 8_l2=0.0032
+[188] time=13.12, avg_loss=0.0019, train_err=1.8998
+Eval: 8_h1=0.0019, 8_l2=0.0031
+[189] time=14.52, avg_loss=0.0019, train_err=1.9110
+Eval: 8_h1=0.0020, 8_l2=0.0034
+Incre Res Update: change index to 19
+Incre Res Update: change sub to 1
+Incre Res Update: change res to 8
+[190] time=14.32, avg_loss=0.0019, train_err=1.9237
+Eval: 8_h1=0.0021, 8_l2=0.0035
+[191] time=14.31, avg_loss=0.0019, train_err=1.9283
+Eval: 8_h1=0.0018, 8_l2=0.0030
+[192] time=12.21, avg_loss=0.0019, train_err=1.9214
+Eval: 8_h1=0.0020, 8_l2=0.0035
+[193] time=11.72, avg_loss=0.0019, train_err=1.9233
+Eval: 8_h1=0.0022, 8_l2=0.0033
+[194] time=11.98, avg_loss=0.0025, train_err=2.5121
+Eval: 8_h1=0.0025, 8_l2=0.0037
+[195] time=11.88, avg_loss=0.0018, train_err=1.8438
+Eval: 8_h1=0.0018, 8_l2=0.0031
+[196] time=11.81, avg_loss=0.0018, train_err=1.8786
+Eval: 8_h1=0.0019, 8_l2=0.0030
+[197] time=12.05, avg_loss=0.0019, train_err=1.9013
+Eval: 8_h1=0.0019, 8_l2=0.0033
+[198] time=11.68, avg_loss=0.0019, train_err=1.9058
+Eval: 8_h1=0.0018, 8_l2=0.0030
+[199] time=11.87, avg_loss=0.0019, train_err=1.9064
+Eval: 8_h1=0.0019, 8_l2=0.0031
+{'train_err': 1.9064117189773844, 'avg_loss': 0.0018640470141112202, 'avg_lasso_loss': None, 'epoch_train_time': 11.870116765610874, '8_h1': tensor(0.0019, device='cuda:0'), '8_l2': tensor(0.0031, device='cuda:0')}
