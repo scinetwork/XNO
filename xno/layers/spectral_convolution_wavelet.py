@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
 from .shape_enforcer import ShapeEnforcer
+import warnings
 
 
 Number = Union[int, float]
@@ -256,7 +257,7 @@ class SpectralConvWavelet1D(nn.Module):
         batchsize, channels, *mode_sizes = x.shape
         
         if mode_sizes[0] < self.wavelet_size:
-            raise ValueError(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
         
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
@@ -519,7 +520,7 @@ class SpectralConvWavelet2D(nn.Module):
         batchsize, channels, *mode_sizes = x.shape
         
         if mode_sizes[0] * mode_sizes[1] < self.wavelet_size[0] * self.wavelet_size[1]:
-            raise ValueError(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
         
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
@@ -1101,7 +1102,7 @@ class SpectralConvWavelet3D(nn.Module):
         batchsize, channels, *mode_sizes = x.shape
         
         if mode_sizes[0] * mode_sizes[1] * mode_sizes[2] < self.wavelet_size[0] * self.wavelet_size[1] * self.wavelet_size[2]:
-            raise ValueError(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
             
         xr = torch.zeros(
             batchsize,
