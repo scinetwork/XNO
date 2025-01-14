@@ -18,7 +18,7 @@ use_cases_xyno/save/
 *.npz
 *.npz
 *.tgz
-*.sh 
+# *.sh 
 
 # Specific file ignore
 pytest.ini
