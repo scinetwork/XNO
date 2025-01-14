@@ -2,6 +2,7 @@ from utils import MatReader
 from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 from xno.data.datasets import load_darcy_flow_small
 from xno.data.datasets import load_navier_stokes_pt
+from xno.data.transforms.normalizers import UnitGaussianNormalizer
 
 # Define the custom Dataset
 class DictDataset(Dataset):
@@ -73,7 +74,7 @@ def _2d_darcy(data_path, batch_size=16, resolution=32, ntrain=200, ntest=100):
     
     return train_loader, test_loader
 
-def _2d_navier_soke(data_path, batch_size=16, resolution=128, ntrain=200, ntest=100):
+def _2d_navier_stoke(data_path, batch_size=16, resolution=128, ntrain=200, ntest=100):
     train_loader, test_loader, output_encoder = load_navier_stokes_pt(
     n_train=ntrain,
     batch_size=batch_size,
@@ -81,5 +82,58 @@ def _2d_navier_soke(data_path, batch_size=16, resolution=128, ntrain=200, ntest=
     n_tests=[ntest],
     test_batch_sizes=[batch_size],
     )
+    
+    return train_loader, test_loader
+
+def _3d_navier_stoke(data_path, batch_size=16, resolution=64, ntrain=1000, ntest=200, regularization=False):
+    
+    sub = 1
+    S = 64 // sub
+    T_in = 10
+    T = 10
+    
+    reader = MatReader(data_path)
+    train_a = reader.read_field('u')[:ntrain,::sub,::sub,:T_in]
+    train_u = reader.read_field('u')[:ntrain,::sub,::sub,T_in:T+T_in]
+
+    reader = MatReader(data_path)
+    test_a = reader.read_field('u')[-ntest:,::sub,::sub,:T_in]
+    test_u = reader.read_field('u')[-ntest:,::sub,::sub,T_in:T+T_in]
+
+    assert (S == train_u.shape[-2])
+    assert (T == train_u.shape[-1])
+
+    if regularization:
+        a_normalizer = UnitGaussianNormalizer(dim=[0, 1, 2, 3])
+        a_normalizer.fit(train_a)
+        train_a = a_normalizer.transform(train_a)
+        test_a = a_normalizer.transform(test_a)
+
+        y_normalizer = UnitGaussianNormalizer(dim=[0, 1, 2, 3]) 
+        y_normalizer.fit(train_u)  
+        train_u = y_normalizer.transform(train_u) 
+
+    train_a = train_a.reshape(ntrain,S,S,1,T_in).repeat([1,1,1,T,1])
+    test_a = test_a.reshape(ntest,S,S,1,T_in).repeat([1,1,1,T,1])
+
+    _shape_printer('Pure data structure', train_a, train_u, test_a, test_u)
+    
+    x_train = train_a.permute(0, 4, 3, 2, 1)
+    y_train = train_u.unsqueeze(1)
+    y_train = y_train.permute(0, 1, 4, 3, 2)
+    x_test = test_a.permute(0, 4, 3, 2, 1)
+    y_test = test_u.unsqueeze(1)
+    y_test = y_test.permute(0, 1, 4, 3, 2)
+    
+    _shape_printer('Reshape data structure', x_train, y_train, x_test, y_test)
+    
+    train_loader = DictDataset(x_train, y_train)
+    test_loader = DictDataset(x_test, y_test)
+
+    train_loader = DataLoader(train_loader, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_loader, batch_size=batch_size, shuffle=True)
+    test_loader = {
+        resolution: test_loader
+    }
     
     return train_loader, test_loader
