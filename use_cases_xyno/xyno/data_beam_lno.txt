@@ -1,0 +1,7 @@
+
+=== Data shape after importing from raw dataset ===
+
+X_Train Shape: torch.Size([200, 50, 50])
+Y_Train Shape: torch.Size([200, 50, 50])
+X_Test Shape: torch.Size([10, 50, 50])
+Y_Test Shape: torch.Size([10, 50, 50])

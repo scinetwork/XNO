@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple, Union
 from .resample import resample
 from ..utils import validate_scaling_factor
 from .shape_enforcer import ShapeEnforcer
+import warnings
 
 
 Number = Union[int, float]
@@ -175,7 +176,7 @@ class SpectralConvWavelet1D(nn.Module):
         self.n_modes = (self.modes1, )
         self.max_n_modes = self.n_modes
         
-        self.order = self.n_modes
+        self.order = len(self.n_modes)
         self.resolution_scaling_factor: Union[
             None, List[List[float]]
         ] = validate_scaling_factor(resolution_scaling_factor, self.order)
@@ -254,6 +255,9 @@ class SpectralConvWavelet1D(nn.Module):
         """
         
         batchsize, channels, *mode_sizes = x.shape
+        
+        if mode_sizes[0] < self.wavelet_size:
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
         
         if x.shape[-1] > self.wavelet_size:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size))
@@ -512,7 +516,11 @@ class SpectralConvWavelet2D(nn.Module):
         ------------------
         x : tensor, shape-[Batch * Channel * x * y]
         """
+        
         batchsize, channels, *mode_sizes = x.shape
+        
+        if mode_sizes[0] * mode_sizes[1] < self.wavelet_size[0] * self.wavelet_size[1]:
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
         
         if x.shape[-1] > self.wavelet_size[-1]:
             factor = int(np.log2(x.shape[-1] // self.wavelet_size[-1]))
@@ -563,10 +571,12 @@ class SpectralConvWavelet2D(nn.Module):
                 device= x.device
             ) for coeffs in x_coeff
         ]
+        
                    
         # Dynamic modes handeling for different input x shpaes
         H_FT, W_FT = x_ft.shape[-2], x_ft.shape[-1]
         H_COE, W_COE = x_coeff[-1].shape[-2], x_coeff[-1].shape[-1]
+        
         
         modes1_ft = min(self.modes1, H_FT)
         modes2_ft = min(self.modes2, W_FT)
@@ -1090,6 +1100,9 @@ class SpectralConvWavelet3D(nn.Module):
         output_shape: Optional[Tuple[int]] = None
     ):
         batchsize, channels, *mode_sizes = x.shape
+        
+        if mode_sizes[0] * mode_sizes[1] * mode_sizes[2] < self.wavelet_size[0] * self.wavelet_size[1] * self.wavelet_size[2]:
+            warnings.warn(f"Input resolution in the forward method is {mode_sizes} which is less than the defined wavelet_size: {self.wavelet_size}. Input resolution shold be equal or bigger than defined resolution in wavelet_size. Caution: scaling_factor could raise this erro!")
             
         xr = torch.zeros(
             batchsize,

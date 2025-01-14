@@ -416,7 +416,6 @@ class Trainer:
                     y_tensor[start_idx:end_idx] = sample["y"]
                     pred_tensor[start_idx:end_idx] = outs
             
-        
         if saving:
             save_path = f"{self.save_dir}/test_results_res_{log_prefix}.pt"
             torch.save(
@@ -556,6 +555,8 @@ class Trainer:
         for loss_name, loss in eval_losses.items():
             val_loss = loss(out, **sample)
             eval_step_losses[loss_name] = val_loss
+        
+        
         
         if return_output:
             return eval_step_losses, out

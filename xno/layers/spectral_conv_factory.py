@@ -7,6 +7,7 @@ from typing import Dict, List, Union
 from . import get_spectral_convolution_class
 import torch.nn.functional as F
 import torch
+import torch.nn as nn
 from .complex import CGELU
 
 class BaseConvFactory(abc.ABC):
@@ -81,7 +82,7 @@ class FNOConvFactory(BaseConvFactory):
     def non_linearity(self):
         # apply real nonlin if data is real, otherwise CGELU
         if self.complex_data: return CGELU
-        else: return F.gelu
+        else: return nn.GELU()
     
 class HNOConvFactory(BaseConvFactory):
     """Factory for Hilbert-based Convolutions (HNO)."""
@@ -96,7 +97,7 @@ class HNOConvFactory(BaseConvFactory):
     
     def non_linearity(self):
         # apply real nonlin if data is real, otherwise CGELU
-        return F.gelu
+        return nn.GELU()
 
 
 class LNOConvFactory(BaseConvFactory):

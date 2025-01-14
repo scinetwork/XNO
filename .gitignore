@@ -5,7 +5,9 @@ neuraloperator/
 toolbox/
 use_cases/save/
 use_cases/data/
-
+use_cases/lorenz96/
+use_cases/xyno/
+use_cases_xyno/save/
 
 # File type ignore
 *.mat 

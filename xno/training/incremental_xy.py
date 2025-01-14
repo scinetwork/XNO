@@ -9,7 +9,7 @@ from .trainer import Trainer
 from ..models import FNO, TFNO, XNO, XYNO
 from ..utils import compute_explained_variance
 
-class IncrementalXNOTrainer(Trainer):
+class IncrementalXYNOTrainer(Trainer):
     """IncrementalXNOTrainer subclasses the Trainer 
     to implement specific logic for the Incremental-FNO
     as described in [1]_.
