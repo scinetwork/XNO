@@ -5,7 +5,7 @@ neuraloperator/
 toolbox/
 
 # File type ignore
-*.mat 
+# *.mat 
 *.ipynb
 */.DS_Store
 *.pt
