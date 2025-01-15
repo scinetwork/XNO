@@ -3,6 +3,8 @@
 .idea/
 neuraloperator/
 toolbox/
+use_cases/
+use_cases_xyno/
 
 # File type ignore
 # *.mat 
