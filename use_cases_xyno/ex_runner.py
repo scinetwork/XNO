@@ -28,8 +28,8 @@ parser.add_argument('--data_path', type=str, help="Input data path")
 parser.add_argument('--dataset', type=str, help="Name of the dataset")
 parser.add_argument('--mix_mode', type=str, help="How to mix different kernels, Parallel or Peure.")
 parser.add_argument('--scenario', type=str, help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--parallel_kernels', nargs='+', help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--pure_kernels_order', nargs='+', help="The order of individual convolution in each layer.")
+parser.add_argument('--parallel_kernels', nargs='+', default='fno',help="Variation of kernels, participate in parallel convolution in each layer.")
+parser.add_argument('--pure_kernels_order', nargs='+', default='fno', help="The order of individual convolution in each layer.")
 parser.add_argument('--save_out', type=lambda x: x.lower() == 'true', default=True, help="Name of the dataset")
 
 
@@ -41,6 +41,7 @@ scenario = args.scenario.lower()
 parallel_kernels = [kernel.lower() for kernel in args.parallel_kernels]
 pure_kernels_order = [kernel.lower() for kernel in args.pure_kernels_order]
 save_out = args.save_out # save terminal output as a text file
+
 
 batch_size = 16
 dataset_resolution = 1024
@@ -67,7 +68,7 @@ gamma = 0.5
 # IncrementalDataProcessor (data_transform) 
 dataset_resolution = dataset_resolution
 # IncrementalXNOTrainer (trainer) 
-n_epochs = 500 # 500
+n_epochs = 250 # 500
 save_every = 50
 save_testing = True
 save_dir = f"save/{dataset}/{mix_mode}/{scenario}"
