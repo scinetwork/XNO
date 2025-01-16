@@ -10,8 +10,8 @@ use_cases_xyno/
 # *.mat 
 *.ipynb
 */.DS_Store
-*.pt
-*.pkl
+# *.pt
+# *.pkl
 *.npz
 *.npz
 *.tgz
