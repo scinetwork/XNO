@@ -99,7 +99,7 @@ dataset_resolution = dataset_resolution
 dataset_indices = [2]
 
 # IncrementalXNOTrainer (trainer) 
-n_epochs = 500 # 500
+n_epochs = 250 # 500
 save_every = 50
 save_testing = True
 save_dir = f"save/{data_name}/{transformation.lower()}/"
