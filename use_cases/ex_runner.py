@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="Accept arguments in Python.")
 
 parser.add_argument('--data_path', type=str, help="Input data path")
 parser.add_argument('--dataset', type=str, help="Name of the dataset")
-parser.add_argument('--method', type=str, default='xno',help="Method of neural operating: XNO/XYNO")
+parser.add_argument('--method', type=str, default='single',help="Method of neural operating: XNO/XYNO")
 parser.add_argument('--transformation', type=str, default='fno',help="Transformation, for XNO method only. E.g. fno, wno, etc.")
 parser.add_argument('--mix_mode', type=str, default="parallel", help="How to mix different kernels, Parallel or Peure.")
 parser.add_argument('--scenario', type=str, default=None, help="Variation of kernels, participate in parallel convolution in each layer.")
@@ -43,7 +43,7 @@ if not os.path.exists(args.data_path):
     raise ValueError(f"Invalid data path: {args.data_path}. Please provide a valid path.")
 
 # Validate method
-valid_methods = {'xno', 'xyno'}
+valid_methods = {'single', 'parallel', 'pure'}
 if args.method not in valid_methods:
     raise ValueError(f"Invalid method: {args.method}. Valid options are: {valid_methods}")
 
@@ -115,7 +115,7 @@ dataset_resolution = dataset_resolution
 n_epochs = 250 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/{dataset}/{mix_mode}/{scenario}"
+save_dir = f"save/{dataset}/{method}/{scenario}"
 
 match transformation.lower():
     case "fno" | "hno":
@@ -131,7 +131,7 @@ match transformation.lower():
 
 if save_out:
     # Open the file at the start of the script
-    output_file = open(f"save/{dataset}/{dataset}_{mix_mode}_{scenario}.txt", "w")
+    output_file = open(f"save/{dataset}/{dataset}_{method}_{scenario}.txt", "w")
     sys.stdout = output_file  # Redirect stdout to the file
 
 
@@ -155,7 +155,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"\n=== Device: {device} ===\n")
 
 disable_incremental = False
-if method == 'xno':
+if method == 'single':
     model = XNO(
     max_n_modes=max_modes,
     n_modes=n_modes,
@@ -170,7 +170,7 @@ if method == 'xno':
     # norm="group_norm"
     )
     disable_incremental = True
-elif method == 'xyno': 
+elif method == 'pure' or method == 'parallel': 
     model = XYNO(
     max_n_modes=max_modes,
     n_modes=n_modes,
