@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from .pt_dataset import PTDataset
 from .web_utils import download_from_zenodo_record
 
-from neuralop.utils import get_project_root
+from xno.utils import get_project_root
 
 logger = logging.Logger(logging.root.level)
 
@@ -17,7 +17,7 @@ class DarcyDataset(PTDataset):
     DarcyDataset stores data generated according to Darcy's Law.
     Input is a coefficient function and outputs describe flow. 
 
-    Data source: https://zenodo.org/records/10994262
+    Data source: https://zenodo.org/records/12784353
 
     Attributes
     ----------
@@ -86,7 +86,7 @@ class DarcyDataset(PTDataset):
             root_dir.mkdir(parents=True)
 
         # Zenodo record ID for Darcy-Flow dataset
-        zenodo_record_id = "10994262"
+        zenodo_record_id = "12784353"
 
         # List of resolutions needed for dataset object
         resolutions = set(test_resolutions + [train_resolution])
@@ -125,7 +125,7 @@ class DarcyDataset(PTDataset):
                        output_subsampling_rate=subsampling_rate)
         
 # legacy Small Darcy Flow example
-example_data_root = get_project_root() / "neuralop/data/datasets/data"
+example_data_root = get_project_root() / "xno/data/datasets/data"
 def load_darcy_flow_small(n_train,
     n_tests,
     batch_size,
@@ -173,7 +173,7 @@ def load_darcy_pt(n_train,
                   n_tests,
                   batch_size,
                   test_batch_sizes,
-                  data_root = "./neuralop/data/datasets/data",
+                  data_root = "./xno/data/datasets/data",
                   train_resolution=16,
                   test_resolutions=[16, 32],
                   encode_input=False,

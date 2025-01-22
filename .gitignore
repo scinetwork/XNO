@@ -1,10 +1,33 @@
-neuraloperator/
-*.ipynb
-*/.DS_Store
-
+# Folder ignore
 .vscode
 .idea/
+neuraloperator/
+toolbox/
+use_cases/save/
+use_cases/data/
+use_cases/lorenz96/
+use_cases/xyno/
+use_cases_xyno/save/
+use_cases_xyno/data/
+
+
+# File type ignore
+*.mat 
+*.ipynb
+*/.DS_Store
+*.pt
+*.pkl
+*.npz
+*.npz
+*.tgz
+# *.sh 
+
+# Specific file ignore
 pytest.ini
+
+# EXCEPTIONS
+!use_cases/
+!use_cases/*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

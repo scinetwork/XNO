@@ -1,0 +1,30 @@
+{ 
+    combination_type = 'pure'/'parallel',
+    if pure -> order = e.g. ['fno', 'lno', 'fno', 'wno', ...] -> 4 layers (len(order)) of hidden layers, specific convolution type per each. in each layer, we have one linear convolution plus the specified convolution (e.g. laplace in the second layer.)
+
+    if parallel -> kernels = ['fno', 'wno'] -> n layers (n_layer) which in each we hav one linear convolution, one conv in fourier space, and one convolution in wavelet space. 
+}
+
+## Arguemnts:
+
+- mix_mode: str='parallel' -> options: 'parallel' or 'pure'
+- parallel_kernels: List=['fno'] -> can be combination of 4 - 11 possible scenarios
+- pure_kernels_order: List=['fno', 'fno', 'fno', 'fno'] -> can be any combinaiton of fno, lno, wno, and lno in parallel.
+
+## Conditions: 
+
+### If mix_mode = 'parallel'
+
+    - extract name of convolutions from list
+    - Initialize the conv_module for each (loop on the list, assign object of each class to a var name on a dictionary)
+        variables = {}
+        for i, value in enumerate(my_list):
+            variables[f'var_{i+1}'] = value
+
+    - Loop on forward method (at xyno_block) to conv each of them
+
+### IF mix_mode = 'pure'
+
+    - n_layers is equal to the:
+         len(pure_kernels_order)
+    - 

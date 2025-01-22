@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..layers.embeddings import GridEmbeddingND, GridEmbedding2D
-from ..layers.spectral_convolution_x import SpectralConv
+# from ...toolbox.spectral_convolution_x import SpectralConv
 from ..layers.padding import DomainPadding
 from ..layers.xno_block import XNOBlocks
 from ..layers.channel_mlp import ChannelMLP
@@ -68,8 +68,10 @@ class XNO(BaseModel, name='XNO'):
 
         * If None, does nothing
 
-    non_linearity : nn.Module, optional
-        Non-Linear activation function module to use, by default None -> Default specified for different transformations at BaseConvFactory
+    conv_non_linearity : torch.nn.F module, optional
+        nonlinear activation function to use between Convolutional layers, by default None -> Default specified for different transformations at BaseConvFactory
+    mlp_non_linearity : torch.nn.F module, optional
+        nonlinear activation function to use between MLP layers, by default F.gelu 
     norm : str {"ada_in", "group_norm", "instance_norm"}, optional
         Normalization layer to use, by default None
     complex_data : bool, optional
@@ -160,8 +162,7 @@ class XNO(BaseModel, name='XNO'):
     Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
         Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
 
-    """
-
+    """        
     def __init__(
         self,
         n_modes: Tuple[int],
@@ -174,7 +175,8 @@ class XNO(BaseModel, name='XNO'):
         lifting_channel_ratio: int=2,
         projection_channel_ratio: int=2,
         positional_embedding: Union[str, nn.Module]="grid",
-        non_linearity: nn.Module=None,
+        conv_non_linearity: nn.Module=None,
+        mlp_non_linearity: nn.Module=F.gelu,
         norm: str=None,
         complex_data: bool=False,
         channel_mlp_dropout: float=0,
@@ -221,7 +223,8 @@ class XNO(BaseModel, name='XNO'):
         self.projection_channel_ratio = projection_channel_ratio
         self.projection_channels = projection_channel_ratio * self.hidden_channels
 
-        self.non_linearity = non_linearity
+        self.conv_non_linearity = conv_non_linearity
+        self.mlp_non_linearity = mlp_non_linearity
         self.rank = rank
         self.factorization = factorization
         self.fixed_rank_modes = fixed_rank_modes
@@ -263,7 +266,6 @@ class XNO(BaseModel, name='XNO'):
             )
         else:
             self.domain_padding = None
-
         self.domain_padding_mode = domain_padding_mode
         self.complex_data = self.complex_data
 
@@ -281,7 +283,8 @@ class XNO(BaseModel, name='XNO'):
             resolution_scaling_factor=resolution_scaling_factor,
             channel_mlp_dropout=channel_mlp_dropout,
             channel_mlp_expansion=channel_mlp_expansion,
-            non_linearity=non_linearity,
+            conv_non_linearity=conv_non_linearity,
+            mlp_non_linearity = mlp_non_linearity,
             stabilizer=stabilizer,
             norm=norm,
             preactivation=preactivation,
@@ -302,11 +305,11 @@ class XNO(BaseModel, name='XNO'):
             **kwargs
         )
         
-        if non_linearity is None: 
+        if mlp_non_linearity is None: 
             mlp_non_linearity = F.gelu
         else: 
-            mlp_non_linearity = non_linearity
-        
+            mlp_non_linearity = mlp_non_linearity
+
         # if adding a positional embedding, add those channels to lifting
         lifting_in_channels = self.in_channels
         if self.positional_embedding is not None:
@@ -439,7 +442,8 @@ class XNO1d(XNO):
         max_n_modes=None,
         n_layers=4,
         resolution_scaling_factor=None,
-        non_linearity=None,
+        conv_non_linearity=None,
+        mlp_non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
@@ -469,7 +473,8 @@ class XNO1d(XNO):
             projection_channels=projection_channels,
             n_layers=n_layers,
             resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            conv_non_linearity=conv_non_linearity,
+            mlp_non_linearity=mlp_non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
             xno_block_precision=xno_block_precision,
@@ -518,7 +523,8 @@ class XNO2d(XNO):
         n_layers=4,
         resolution_scaling_factor=None,
         max_n_modes=None,
-        non_linearity=None,
+        conv_non_linearity=None,
+        mlp_non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
@@ -548,7 +554,8 @@ class XNO2d(XNO):
             projection_channels=projection_channels,
             n_layers=n_layers,
             resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            conv_non_linearity=conv_non_linearity,
+            mlp_non_linearity=mlp_non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
             xno_block_precision=xno_block_precision,
@@ -601,7 +608,8 @@ class XNO3d(XNO):
         n_layers=4,
         resolution_scaling_factor=None,
         max_n_modes=None,
-        non_linearity=None,
+        conv_non_linearity=None,
+        mlp_non_linearity=F.gelu,
         stabilizer=None,
         complex_data=False,
         xno_block_precision="full",
@@ -631,7 +639,8 @@ class XNO3d(XNO):
             projection_channels=projection_channels,
             n_layers=n_layers,
             resolution_scaling_factor=resolution_scaling_factor,
-            non_linearity=non_linearity,
+            conv_non_linearity=conv_non_linearity,
+            mlp_non_linearity=mlp_non_linearity,
             stabilizer=stabilizer,
             complex_data=complex_data,
             xno_block_precision=xno_block_precision,

@@ -57,8 +57,8 @@ class XNOBlocks(nn.Module):
         dropout parameter for self.channel_mlp, by default 0
     channel_mlp_expansion : float, optional
         expansion parameter for self.channel_mlp, by default 0.5
-    non_linearity : torch.nn.F module, optional
-        nonlinear activation function to use between layers, by default None -> Default specified for different transformations at BaseConvFactory
+    conv_non_linearity : torch.nn.F module, optional
+        nonlinear activation function to use between Convolutional layers, by default None -> Default specified for different transformations at BaseConvFactory 
     stabilizer : Literal["tanh"], optional
         stabilizing module to use between certain layers, by default None
         if "tanh", use tanh
@@ -115,7 +115,7 @@ class XNOBlocks(nn.Module):
         xno_block_precision="full",
         channel_mlp_dropout=0,
         channel_mlp_expansion=0.5,
-        non_linearity=None,
+        conv_non_linearity=None,
         stabilizer=None,
         norm=None,
         ada_in_features=None,
@@ -167,6 +167,7 @@ class XNOBlocks(nn.Module):
         self.separable = separable
         self.preactivation = preactivation
         self.ada_in_features = ada_in_features
+        self.conv_non_linearity = conv_non_linearity
                
         extra_args = None  
         dim  = len(n_modes) 
@@ -264,8 +265,8 @@ class XNOBlocks(nn.Module):
             # Possibly update 'norm' if needed
             norm = sub_factory.update_norm()
             # Retrieve transformation specifc non-linearity 
-            if non_linearity is None:
-                non_linearity = sub_factory.non_linearity()
+            if self.conv_non_linearity is None:
+                self.conv_non_linearity = sub_factory.non_linearity()
         else:
             # user manually gave a conv, so no special logic
             conv_module = conv_module
@@ -422,7 +423,7 @@ class XNOBlocks(nn.Module):
         x = x_xno + x_skip_xno
 
         if (index < (self.n_layers - 1)):
-            x = self.non_linearity(x)
+            x = self.conv_non_linearity(x)
 
         x = self.channel_mlp[index](x) + x_skip_channel_mlp
 
@@ -430,14 +431,14 @@ class XNOBlocks(nn.Module):
             x = self.norm[self.n_norms * index + 1](x)
 
         if index < (self.n_layers - 1):
-            x = self.non_linearity(x)
+            x = self.conv_non_linearity(x)
 
         return x
 
     def forward_with_preactivation(self, x, index=0, output_shape=None):
         # Apply non-linear activation (and norm)
         # before this block's convolution/forward pass:
-        x = self.non_linearity(x)
+        x = self.conv_non_linearity(x)
 
         if self.norm is not None:
             x = self.norm[self.n_norms * index](x)
@@ -459,7 +460,7 @@ class XNOBlocks(nn.Module):
         x = x_xno + x_skip_xno
 
         if index < (self.n_layers - 1):
-            x = self.non_linearity(x)
+            x = self.conv_non_linearity(x)
 
         if self.norm is not None:
             x = self.norm[self.n_norms * index + 1](x)

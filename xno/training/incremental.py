@@ -5,11 +5,12 @@ import torch
 from torch import nn
 
 from .trainer import Trainer
-from ..models import FNO, TFNO, HNO, XNO, LNO, WNO
+# from ..models import FNO, TFNO, HNO, XNO, LNO, WNO
+from ..models import FNO, TFNO, XNO, XYNO
 from ..utils import compute_explained_variance
 
-class IncrementalFNOTrainer(Trainer):
-    """IncrementalFNOTrainer subclasses the Trainer 
+class IncrementalXNOTrainer(Trainer):
+    """IncrementalXNOTrainer subclasses the Trainer 
     to implement specific logic for the Incremental-FNO
     as described in [1]_.
 
@@ -40,10 +41,19 @@ class IncrementalFNOTrainer(Trainer):
                 incremental_max_iter: int = 1, 
                 incremental_grad_max_iter: int = 10,
                 incremental_loss_eps: float = 0.001,
+                disable_incremental: bool=False
                 ):
         self.model = model
-        assert (isinstance(model, FNO) or isinstance(self.model, TFNO) or isinstance(self.model, HNO) or isinstance(self.model, XNO) or isinstance(self.model, LNO) or isinstance(self.model, WNO)), f"Error: \
-            IncrementalFNOTrainer is designed to work with FNO, TFNO, HNO, LNO, WNO and XNO, instead got\
+        assert (
+            isinstance(model, FNO) or 
+            isinstance(self.model, TFNO) or 
+            isinstance(self.model, XNO) or 
+            isinstance(self.model, XYNO)
+            # isinstance(self.model, HNO) or 
+            # isinstance(self.model, LNO) or 
+            # isinstance(self.model, WNO)
+        ), f"Error: \
+            IncrementalXNOTrainer is designed to work with FNO, TFNO, HNO, LNO, WNO and XNO, instead got\
             a model of type {model.__class__.__name__}"
             
         self.block = self.model.get_blocks()
@@ -74,9 +84,14 @@ class IncrementalFNOTrainer(Trainer):
         self.incremental_grad_max_iter = incremental_grad_max_iter
         self.incremental_loss_eps = incremental_loss_eps
         self.loss_list = []
+        
+        self.disable_incremental = disable_incremental
 
     # Main step function: which algorithm to run
     def incremental_update(self, loss=None):
+        if self.disable_incremental:
+            return # Skip if incremental logic is disabled
+        
         if self.incremental_loss_gap and loss is not None:
             self.loss_gap(loss)
         if self.incremental_grad:

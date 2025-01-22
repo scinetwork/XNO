@@ -2,6 +2,7 @@ from timeit import default_timer
 from pathlib import Path
 from typing import Union
 import sys
+import warnings
 
 import torch
 from torch.cuda import amp
@@ -16,8 +17,8 @@ try:
 except ModuleNotFoundError:
     wandb_available = False
 
-import neuralop.mpu.comm as comm
-from neuralop.losses import LpLoss
+import xno.mpu.comm as comm
+from xno.losses import LpLoss
 from .training_state import load_training_state, save_training_state
 
 
@@ -97,6 +98,7 @@ class Trainer:
         eval_losses=None,
         save_every: int=None,
         save_best: int=None,
+        save_testing: bool=False,
         save_dir: Union[str, Path]="./ckpt",
         resume_from_dir: Union[str, Path]=None,
     ):
@@ -112,7 +114,7 @@ class Trainer:
             testing dataloaders
         optimizer: torch.optim.Optimizer
             optimizer to use during training
-        optimizer: torch.optim.lr_scheduler
+        scheduler: torch.optim.lr_scheduler
             learning rate scheduler to use during training
         training_loss: training.losses function
             cost function to minimize
@@ -124,6 +126,8 @@ class Trainer:
             if provided, key of metric f"{loader_name}_{loss_name}"
             to monitor and save model with best eval result
             Overrides save_every and saves on eval_interval
+        save_testing: bool, optional, default is False
+            if provided, and save_every has a value, save testing inputs, outputs and expected on .pt format at every interval
         save_dir: str | Path, default "./ckpt"
             directory at which to save training states if
             save_every and/or save_best is provided
@@ -149,6 +153,13 @@ class Trainer:
 
         if training_loss is None:
             training_loss = LpLoss(d=2)
+        
+        # Warn the user if training loss is reducing across the batch
+        if hasattr(training_loss, 'reduction'):
+            if training_loss.reduction == "mean":
+                warnings.warn(f"{training_loss.reduction=}. This means that the loss is "
+                              "initialized to average across the batch dim. The Trainer "
+                              "expects losses to sum across the batch dim.")
 
         if eval_losses is None:  # By default just evaluate on the training loss
             eval_losses = dict(l2=training_loss)
@@ -159,6 +170,8 @@ class Trainer:
         # attributes for checkpointing
         self.save_every = save_every
         self.save_best = save_best
+        self.save_testing = save_testing
+        self.save_dir = save_dir
         if resume_from_dir is not None:
             self.resume_state_from_dir(resume_from_dir)
 
@@ -200,11 +213,18 @@ class Trainer:
                 epoch_train_time=epoch_train_time
             )
             
+            return_output = False
+            # Decide about saving evaluation data on each ever_ epoch
+            if self.save_every is not None and self.save_testing:
+                if epoch % self.save_every == 0 or epoch == self.n_epochs - 1:
+                    return_output = True
+            
             if epoch % self.eval_interval == 0:
                 # evaluate and gather metrics across each loader in test_loaders
                 eval_metrics = self.evaluate_all(epoch=epoch,
                                                 eval_losses=eval_losses,
-                                                test_loaders=test_loaders)
+                                                test_loaders=test_loaders, 
+                                                return_output=return_output)
 
                 epoch_metrics.update(**eval_metrics)
                 # save checkpoint if conditions are met
@@ -251,6 +271,7 @@ class Trainer:
         self.n_samples = 0
 
         for idx, sample in enumerate(train_loader):
+            
             loss = self.train_one_batch(idx, sample, training_loss)
             loss.backward()
             self.optimizer.step()
@@ -290,20 +311,36 @@ class Trainer:
 
         return train_err, avg_loss, avg_lasso_loss, epoch_train_time
 
-    def evaluate_all(self, epoch, eval_losses, test_loaders):
+    def evaluate_all(
+        self, 
+        epoch, 
+        eval_losses, 
+        test_loaders,
+        return_output=False
+    ):
         # evaluate and gather metrics across each loader in test_loaders
         all_metrics = {}
-        for loader_name, loader in test_loaders.items():
-                        
-            loader_metrics = self.evaluate(eval_losses, loader,
-                                    log_prefix=loader_name)   
+        for loader_name, loader in test_loaders.items():            
+            loader_metrics = self.evaluate(
+                eval_losses, 
+                loader,
+                log_prefix=loader_name,
+                return_output=return_output
+            )   
             all_metrics.update(**loader_metrics)
         if self.verbose:
             self.log_eval(epoch=epoch,
                       eval_metrics=all_metrics)
         return all_metrics
     
-    def evaluate(self, loss_dict, data_loader, log_prefix="", epoch=None):
+    def evaluate(
+        self, 
+        loss_dict, 
+        data_loader, 
+        log_prefix="", 
+        return_output=False,
+        epoch=None
+    ):
         """Evaluates the model on a dictionary of losses
 
         Parameters
@@ -334,18 +371,62 @@ class Trainer:
 
         errors = {f"{log_prefix}_{loss_name}": 0 for loss_name in loss_dict.keys()}
 
+        # Warn the user if any of the eval losses is reducing across the batch
+        for _, eval_loss in loss_dict.items():
+            if hasattr(eval_loss, 'reduction'):
+                if eval_loss.reduction == "mean":
+                    warnings.warn(f"{eval_loss.reduction=}. This means that the loss is "
+                                "initialized to average across the batch dim. The Trainer "
+                                "expects losses to sum across the batch dim.")
+                    
+        saving = return_output and self.save_testing
+        # Determine dataset size from DataLoader
+        dataset_size = len(data_loader.dataset)
+        batch_size = data_loader.batch_size
+        num_batches = len(data_loader)
+
+        # Preallocate tensors on self.device
+        first_batch = next(iter(data_loader))
+        x_shape = first_batch["x"].shape[1:]  # Exclude batch dimension
+        y_shape = first_batch["y"].shape[1:]
+        # pred_shape = self.model(**first_batch).shape[1:]
+        pred_shape = y_shape
+        # Tensor initialization for the outputs testing results
+        if saving:
+            x_tensor = torch.empty((dataset_size, *x_shape), device=self.device)
+            y_tensor = torch.empty((dataset_size, *y_shape), device=self.device)
+            pred_tensor = torch.empty((dataset_size, *pred_shape), device=self.device)
+
         self.n_samples = 0
         with torch.no_grad():
             for idx, sample in enumerate(data_loader):
-                return_output = False
+                
+                start_idx = idx * batch_size
+                end_idx = start_idx + sample["x"].size(0)
+                # return_output = True
                 if idx == len(data_loader) - 1:
                     return_output = True
-                                        
                 eval_step_losses, outs = self.eval_one_batch(sample, loss_dict, return_output=return_output)
-
                 for loss_name, val_loss in eval_step_losses.items():
                     errors[f"{log_prefix}_{loss_name}"] += val_loss
+                  
+                # Saving input, outputs and expected testing data
+                if saving:
+                    x_tensor[start_idx:end_idx] = sample["x"]
+                    y_tensor[start_idx:end_idx] = sample["y"]
+                    pred_tensor[start_idx:end_idx] = outs
             
+        if saving:
+            save_path = f"{self.save_dir}/test_results_res_{log_prefix}.pt"
+            torch.save(
+                {
+                    "x": x_tensor,
+                    "y": y_tensor,
+                    "pred": pred_tensor
+                },
+                save_path
+            )
+        
         for key in errors.keys():
             errors[key] /= self.n_samples
 
@@ -403,7 +484,6 @@ class Trainer:
             }
 
         self.n_samples += sample["y"].shape[0]
-        
 
         if self.mixed_precision:
             with torch.autocast(device_type=self.autocast_device_type):
@@ -462,8 +542,9 @@ class Trainer:
                 for k, v in sample.items()
                 if torch.is_tensor(v)
             }
-        
+
         self.n_samples += sample["y"].size(0)
+
         out = self.model(**sample)
 
         if self.data_processor is not None:
@@ -474,6 +555,8 @@ class Trainer:
         for loss_name, loss in eval_losses.items():
             val_loss = loss(out, **sample)
             eval_step_losses[loss_name] = val_loss
+        
+        
         
         if return_output:
             return eval_step_losses, out
@@ -573,7 +656,6 @@ class Trainer:
         """
         if isinstance(save_dir, str):
             save_dir = Path(save_dir)
-        print(f"{save_dir=} {type(save_dir)}")
 
         # check for save model exists
         if (save_dir / "best_model_state_dict.pt").exists():
