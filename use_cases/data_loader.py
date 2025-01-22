@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader, TensorDataset, Dataset, default_collate
 from xno.data.datasets import load_darcy_flow_small
 from xno.data.datasets import load_navier_stokes_pt
 from xno.data.transforms.normalizers import UnitGaussianNormalizer
+import torch 
 
 # Define the custom Dataset
 class DictDataset(Dataset):
@@ -63,6 +64,39 @@ def _1d_burger(data_path, batch_size=16, resolution=50, ntrain=1000, ntest=100):
     
     return train_loader, test_loader
 
+
+def _2d_ionize(data_path, batch_size=16, resolution=[111, 46], ntrain=450, ntest=50):
+    dataloader = MatReader(data_path)
+    ioniz_all = dataloader.read_field('ioniz_all')
+    NX_all = dataloader.read_field('NX_all')
+    Nclus_all = dataloader.read_field('Nclus_all')
+    Nneg_all = dataloader.read_field('Nneg_all')
+    Npos_all = dataloader.read_field('Npos_all')
+    Elec_den_GPI_all = dataloader.read_field('Elec_den_GPI_all')
+    
+    x = ioniz_all.unsqueeze(1)
+    x = x.permute(3, 1, 0, 2)
+    y = torch.stack([NX_all, Nclus_all, Nneg_all, Npos_all, Elec_den_GPI_all], dim=0)
+    y = y.permute(3, 0, 1, 2)
+    
+    x_train = x[:ntrain]
+    y_train = y[:ntrain]
+    x_test = x[ntrain:ntrain+ntest]
+    y_test = y[ntrain:ntrain+ntest]    
+    
+    _shape_printer('Reshape data structure', x_train, y_train, x_test, y_test)
+    
+    train_loader = DictDataset(x_train, y_train)
+    test_loader = DictDataset(x_test, y_test)
+    train_loader = DataLoader(train_loader, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_loader, batch_size=batch_size, shuffle=True)
+    test_loader = {
+        resolution[0]: test_loader
+    }
+    
+    return train_loader, test_loader
+    
+    
 def _2d_darcy(data_path, batch_size=16, resolution=32, ntrain=200, ntest=100):
     train_loader, test_loader, output_encoder = load_darcy_flow_small(
     n_train=ntrain,
@@ -137,3 +171,4 @@ def _3d_navier_stoke(data_path, batch_size=16, resolution=64, ntrain=1000, ntest
     }
     
     return train_loader, test_loader
+
