@@ -17,7 +17,7 @@ from xno.training import AdamW
 from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
-from .data_loader import _1d_burger
+from data_loader import _1d_burger, _2d_ionize
 
 import argparse
 parser = argparse.ArgumentParser(description="Accept arguments in Python.")
@@ -30,8 +30,8 @@ parser.add_argument('--method', type=str, default='single',help="Method of neura
 parser.add_argument('--transformation', type=str, default='fno',help="Transformation, for XNO method only. E.g. fno, wno, etc.")
 parser.add_argument('--mix_mode', type=str, default="parallel", help="How to mix different kernels, Parallel or Peure.")
 parser.add_argument('--scenario', type=str, default=None, help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--parallel_kernels', nargs='+', default='fno',help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--pure_kernels_order', nargs='+', default='fno', help="The order of individual convolution in each layer.")
+parser.add_argument('--parallel_kernels', nargs='+', default=['fno'],help="Variation of kernels, participate in parallel convolution in each layer.")
+parser.add_argument('--pure_kernels_order', nargs='+', default=['fno'], help="The order of individual convolution in each layer.")
 parser.add_argument('--save_out', type=lambda x: x.lower() == 'true', default=True, help="Name of the dataset")
 
 args = parser.parse_args()
@@ -87,22 +87,22 @@ save_out = args.save_out # save terminal output as a text file
 # =================================================
 # ======== Experiment and Dataset Settings ========
 # =================================================
-batch_size = 16
-dataset_resolution = 1024
+batch_size = 4
+dataset_resolution = [111, 46]
 # =======================================
 # DIMENTIONALITY SENSITIVE CONFIGS 
-max_modes = (16, )
-n_modes = (16, )
+max_modes = (8, 8)
+n_modes = (8, 8)
 kwargs = {
     "wavelet_level": 6, 
-    "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
+    "wavelet_size": dataset_resolution, "wavelet_filter": ['db6']
 } 
-dataset_indices = [2]
+dataset_indices = [2, 3]
 # =======================================
 in_channels = 1
-out_channels = 1
+out_channels = 5
 n_layers = 4
-hidden_channels = 64
+hidden_channels = 16
 # AdamW (optimizer) 
 learning_rate = 1e-3
 weight_decay = 1e-4
@@ -112,7 +112,7 @@ gamma = 0.5
 # IncrementalDataProcessor (data_transform) 
 dataset_resolution = dataset_resolution
 # IncrementalXNOTrainer (trainer) 
-n_epochs = 250 # 500
+n_epochs = 500 # 500
 save_every = 50
 save_testing = True
 save_dir = f"save/{dataset}/{method}/{scenario}"
@@ -135,11 +135,7 @@ if save_out:
     sys.stdout = output_file  # Redirect stdout to the file
 
 
-train_loader, test_loader = _1d_burger(
-    data_path=data_path, 
-    batch_size=batch_size, 
-    resolution=dataset_resolution
-    )
+train_loader, test_loader = _2d_ionize(data_path=data_path)
 
 
 print("\n=== One batch of the Train Loader ===\n")
@@ -147,8 +143,8 @@ batch = next(iter(train_loader))
 print(f"Loader Type: {type(train_loader)}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
 
 print("\n=== One batch of the Test Loader ===\n")
-batch = next(iter(test_loader[dataset_resolution]))
-print(f"Loader Type: {type(test_loader[dataset_resolution])}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
+batch = next(iter(test_loader[dataset_resolution[0]]))
+print(f"Loader Type: {type(test_loader[dataset_resolution[0]])}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -205,7 +201,7 @@ data_transform = IncrementalDataProcessor(
     out_normalizer=None,
     device=device,
     subsampling_rates=[2, 1],
-    dataset_resolution=dataset_resolution,
+    dataset_resolution=dataset_resolution[0],
     dataset_indices=dataset_indices,
     verbose=True,
 )

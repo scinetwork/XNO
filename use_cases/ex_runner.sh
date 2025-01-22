@@ -1,20 +1,20 @@
 #!/bin/bash
 
 # ======================== Experiment Settings ========================
-methods=("single" "parallel" "pure")
+methods=("single") # "single" "parallel" "pure"
 
-scenario_single=("fno" "hno" "lno" "wno") # "fno" "hno" "lno" "wno"
-transformations=("fno" "hno" "lno" "wno") # "fno" "hno" "lno" "wno"
+scenario_single=("lno") # "fno" "hno" "lno" "wno"
+transformations=("lno") # "fno" "hno" "lno" "wno"
 
-scenario_parallel=("fl" "fw" "wl" "fwl") # "fl" "fw" "wl" "fwl"
-parallel_kernels_list=("fno lno" "fno wno" "wno lno" "fno wno lno") # "fno lno" "fno wno" "wno lno" "fno wno lno"
+scenario_parallel=("fl" "wl" "fwl") # "fl" "fw" "wl" "fwl"
+parallel_kernels_list=("fno lno" "wno lno" "fno wno lno") # "fno lno" "fno wno" "wno lno" "fno wno lno"
 
 scenario_pure=("f-l-w" "f-w-l" "l-f-w" "l-w-f" "w-f-l" "w-l-f") # "f-l-w" "f-w-l" "l-f-w" "l-w-f" "w-f-l" "w-l-f"
 pure_kernels_order_list=("fno lno wno" "fno wno lno" "lno fno wno" "lno wno fno" "wno fno lno" "wno lno fno") # "fno lno wno" "fno wno lno" "lno fno wno" "lno wno fno" "wno fno lno" "wno lno fno"
 
 # ========================= Parameter Settings =========================
-data_path="${HOME}/repos/XNO/use_cases_xyno/data/burgers_data_R10.mat"
-dataset="1d_burgers"
+data_path="${HOME}/repos/XNO/use_cases/data/ionize.mat"
+dataset="2d_ionize"
 save_out="true"
 
 
@@ -25,7 +25,7 @@ mkdir -p logs
 counter=1
 
 for method in "${methods[@]}"; do
-    if [["$method" == "single"]]; then
+    if [[ "$method" == "single" ]]; then
         for transformation in "${transformations[@]}"; do
             echo "Running experiment $counter with:"
             echo "Method: $method" 
