@@ -8,6 +8,8 @@ use_cases/data/
 use_cases/lorenz96/
 use_cases/xyno/
 use_cases_xyno/save/
+use_cases_xyno/data/
+
 
 # File type ignore
 *.mat 
