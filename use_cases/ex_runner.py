@@ -17,7 +17,7 @@ from xno.training import AdamW
 from xno.training.incremental import IncrementalXNOTrainer
 from xno.data.transforms.data_processors import IncrementalDataProcessor
 from xno import LpLoss, H1Loss
-from data_loader import *
+from data_loader import _1d_burger, _2d_ionize
 
 import argparse
 parser = argparse.ArgumentParser(description="Accept arguments in Python.")
@@ -26,16 +26,56 @@ parser = argparse.ArgumentParser(description="Accept arguments in Python.")
 
 parser.add_argument('--data_path', type=str, help="Input data path")
 parser.add_argument('--dataset', type=str, help="Name of the dataset")
-parser.add_argument('--mix_mode', type=str, help="How to mix different kernels, Parallel or Peure.")
-parser.add_argument('--scenario', type=str, help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--parallel_kernels', nargs='+', default='fno',help="Variation of kernels, participate in parallel convolution in each layer.")
-parser.add_argument('--pure_kernels_order', nargs='+', default='fno', help="The order of individual convolution in each layer.")
+parser.add_argument('--method', type=str, default='single',help="Method of neural operating: XNO/XYNO")
+parser.add_argument('--transformation', type=str, default='fno',help="Transformation, for XNO method only. E.g. fno, wno, etc.")
+parser.add_argument('--mix_mode', type=str, default="parallel", help="How to mix different kernels, Parallel or Peure.")
+parser.add_argument('--scenario', type=str, default=None, help="Variation of kernels, participate in parallel convolution in each layer.")
+parser.add_argument('--parallel_kernels', nargs='+', default=['fno'],help="Variation of kernels, participate in parallel convolution in each layer.")
+parser.add_argument('--pure_kernels_order', nargs='+', default=['fno'], help="The order of individual convolution in each layer.")
 parser.add_argument('--save_out', type=lambda x: x.lower() == 'true', default=True, help="Name of the dataset")
 
-
 args = parser.parse_args()
+# =================================================
+# =========== Arguments Error Handeling ===========
+# =================================================
+# Validate data_path
+if not os.path.exists(args.data_path):
+    raise ValueError(f"Invalid data path: {args.data_path}. Please provide a valid path.")
+
+# Validate method
+valid_methods = {'single', 'parallel', 'pure'}
+if args.method not in valid_methods:
+    raise ValueError(f"Invalid method: {args.method}. Valid options are: {valid_methods}")
+
+# Validate transformation
+valid_transformations = {'fno', 'wno', 'lno', 'hno'}
+if args.transformation not in valid_transformations:
+    raise ValueError(f"Invalid transformation: {args.transformation}. Valid options are: {valid_transformations}")
+
+# Validate mix_mode
+valid_mix_modes = {'parallel', 'pure'}
+if args.mix_mode not in valid_mix_modes:
+    raise ValueError(f"Invalid mix mode: {args.mix_mode}. Valid options are: {valid_mix_modes}")
+
+# Validate parallel_kernels
+if not all(kernel in valid_transformations for kernel in args.parallel_kernels):
+    raise ValueError(f"Invalid parallel kernels: {args.parallel_kernels}. Each kernel must be one of: {valid_transformations}")
+
+# Validate pure_kernels_order
+if not all(kernel in valid_transformations for kernel in args.pure_kernels_order):
+    raise ValueError(f"Invalid pure kernels order: {args.pure_kernels_order}. Each kernel must be one of: {valid_transformations}")
+
+# Validate save_out
+if not isinstance(args.save_out, bool):
+    raise ValueError(f"Invalid save_out value: {args.save_out}. Must be True or False.")
+
+print("All arguments are valid.")
+
+
 data_path = args.data_path
 dataset = args.dataset.lower()
+method = args.method.lower()
+transformation = args.transformation.lower()
 mix_mode = args.mix_mode.lower()
 scenario = args.scenario.lower()
 parallel_kernels = [kernel.lower() for kernel in args.parallel_kernels]
@@ -43,22 +83,26 @@ pure_kernels_order = [kernel.lower() for kernel in args.pure_kernels_order]
 save_out = args.save_out # save terminal output as a text file
 
 
-batch_size = 16
-dataset_resolution = 1024
+
+# =================================================
+# ======== Experiment and Dataset Settings ========
+# =================================================
+batch_size = 4
+dataset_resolution = [111, 46]
 # =======================================
 # DIMENTIONALITY SENSITIVE CONFIGS 
-max_modes = (16, )
-n_modes = (16, )
+max_modes = (8, 8)
+n_modes = (8, 8)
 kwargs = {
     "wavelet_level": 6, 
-    "wavelet_size": [dataset_resolution], "wavelet_filter": ['db6']
+    "wavelet_size": dataset_resolution, "wavelet_filter": ['db6']
 } 
-dataset_indices = [2]
+dataset_indices = [2, 3]
 # =======================================
 in_channels = 1
-out_channels = 1
+out_channels = 5
 n_layers = 4
-hidden_channels = 64
+hidden_channels = 16
 # AdamW (optimizer) 
 learning_rate = 1e-3
 weight_decay = 1e-4
@@ -68,22 +112,30 @@ gamma = 0.5
 # IncrementalDataProcessor (data_transform) 
 dataset_resolution = dataset_resolution
 # IncrementalXNOTrainer (trainer) 
-n_epochs = 250 # 500
+n_epochs = 500 # 500
 save_every = 50
 save_testing = True
-save_dir = f"save/{dataset}/{mix_mode}/{scenario}"
+save_dir = f"save/{dataset}/{method}/{scenario}"
+
+match transformation.lower():
+    case "fno" | "hno":
+        conv_non_linearity = F.gelu
+        mlp_non_linearity = F.gelu
+    case "wno":
+        conv_non_linearity = F.gelu
+        mlp_non_linearity = F.gelu
+    case "lno":
+        conv_non_linearity = torch.sin
+        mlp_non_linearity = torch.tanh
+
 
 if save_out:
     # Open the file at the start of the script
-    output_file = open(f"save/{dataset}/{dataset}_{mix_mode}_{scenario}.txt", "w")
+    output_file = open(f"save/{dataset}/{dataset}_{method}_{scenario}.txt", "w")
     sys.stdout = output_file  # Redirect stdout to the file
 
 
-train_loader, test_loader = burger_1d(
-    data_path=data_path, 
-    batch_size=batch_size, 
-    resolution=dataset_resolution
-    )
+train_loader, test_loader = _2d_ionize(data_path=data_path)
 
 
 print("\n=== One batch of the Train Loader ===\n")
@@ -91,14 +143,31 @@ batch = next(iter(train_loader))
 print(f"Loader Type: {type(train_loader)}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
 
 print("\n=== One batch of the Test Loader ===\n")
-batch = next(iter(test_loader[dataset_resolution]))
-print(f"Loader Type: {type(test_loader[dataset_resolution])}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
+batch = next(iter(test_loader[dataset_resolution[0]]))
+print(f"Loader Type: {type(test_loader[dataset_resolution[0]])}\nBatch Type: { type(batch)}\nBatch['x'].shape: {batch['x'].shape}\nBatch['y'].shape: {batch['y'].shape}")
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"\n=== Device: {device} ===\n")
 
-model = XYNO(
+disable_incremental = False
+if method == 'single':
+    model = XNO(
+    max_n_modes=max_modes,
+    n_modes=n_modes,
+    hidden_channels=hidden_channels,
+    in_channels=in_channels,
+    out_channels=out_channels,
+    transformation=transformation,
+    transformation_kwargs=kwargs,
+    conv_non_linearity=conv_non_linearity, 
+    mlp_non_linearity=mlp_non_linearity,
+    n_layers=n_layers,
+    # norm="group_norm"
+    )
+    disable_incremental = True
+elif method == 'pure' or method == 'parallel': 
+    model = XYNO(
     max_n_modes=max_modes,
     n_modes=n_modes,
     hidden_channels=hidden_channels,
@@ -112,6 +181,8 @@ model = XYNO(
     # mlp_non_linearity=mlp_non_linearity,
     n_layers=n_layers
 )
+    
+
 model = model.to(device)
 n_params = count_model_params(model)
 
@@ -130,7 +201,7 @@ data_transform = IncrementalDataProcessor(
     out_normalizer=None,
     device=device,
     subsampling_rates=[2, 1],
-    dataset_resolution=dataset_resolution,
+    dataset_resolution=dataset_resolution[0],
     dataset_indices=dataset_indices,
     verbose=True,
 )
@@ -148,8 +219,6 @@ print("\n### INCREMENTAL RESOLUTION + GRADIENT EXPLAINED ###")
 print(f"\n * Train: {train_loss}")
 print(f"\n * Test: {eval_losses}")
 sys.stdout.flush()
-
-
 
 
 # Finally pass all of these to the Trainer

@@ -542,6 +542,7 @@ class XYNOBlocks(nn.Module):
                     norm = norm.to(x_xno_t.device)
                     x_xno_t = norm[0](x_xno_t)
                 # Add the current convoluted result to tohers
+                # import pdb; pdb.set_trace()
                 if x_xno is None:
                     x_xno = x_xno_t
                 else:
@@ -559,6 +560,7 @@ class XYNOBlocks(nn.Module):
                     out_channels=self.out_channels, 
                     ada_in_features=self.ada_in_features
                     )
+                norm = norm.to(x_xno.device)
                 x_xno = norm[0](x_xno)
         else:
             pass
@@ -641,6 +643,7 @@ class XYNOBlocks(nn.Module):
                     out_channels=self.out_channels, 
                     ada_in_features=self.ada_in_features
                     )
+                norm = norm.to(x_xno.device)
                 x_xno = norm[0](x_xno)
         else:
             pass
